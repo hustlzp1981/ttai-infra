@@ -1,0 +1,53 @@
+# 忽略 Python 编译后的字节码文件
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+logs/
+*_cache/
+cache/
+
+# 忽略本地配置文件
+.env
+config/local_settings.py
+
+# 忽略日志文件
+*.log
+
+# 忽略虚拟环境
+venv/
+
+# 忽略 IDE 配置文件
+.idea/
+.vscode/
+
+# 忽略构建输出目录
+dist/
+build/
+*.egg-info/
+
+# 忽略测试报告
+htmlcov/
+.coverage
+.pytest_cache/
+
+# 忽略数据库文件
+db.sqlite3
+mongodb/configdb/
+mongodb/db/
+
+# 忽略上传的文件
+uploads/
+
+chunks/
+
+shm/
+
+# 忽略mp4文件
+*.mp4
+
+.git
+*.swp
+*.swo
+
+kernel.errors.txt

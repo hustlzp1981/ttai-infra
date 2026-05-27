@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>用户登录注册</title>
+    <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuid.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
+    <script src="wechat-auth.js"></script>
+    <style>
+        .container { max-width: 400px; margin: 50px auto; padding: 20px; }
+        .tabs { display: flex; margin-bottom: 20px; }
+        .tab {
+            flex: 1; padding: 10px;
+            text-align: center; cursor: pointer;
+            border-bottom: 2px solid #ddd;
+        }
+        .tab.active { border-color: #007bff; }
+        .form-group { margin-bottom: 15px; }
+        input {
+            width: 100%; padding: 8px;
+            border: 1px solid #ddd; border-radius: 4px;
+        }
+        button {
+            width: 100%; padding: 10px;
+            background: #007bff; color: white; border: none;
+            border-radius: 4px; cursor: pointer;
+        }
+        .captcha-btn {
+            width: 120px; margin-left: 10px;
+            background: #28a745;
+        }
+        .qrcode { text-align: center; margin: 20px 0; }
+        .hidden { display: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+        <div class="tabs">
+            <div class="tab" data-type="email">邮箱登录</div>
+            <div class="tab" data-type="phone">手机登录</div>
+            <div class="tab active" data-type="wechat">微信扫码登录</div>
+        </div>
+
+
+        <!-- 邮箱登录 -->
+        <div id="emailForm" class="form-content">
+            <input type="email" placeholder="请输入邮箱">
+            <input type="password" placeholder="请输入密码">
+            <button>登录</button>
+        </div>
+
+        <!-- 手机登录 -->
+        <div id="phoneForm" class="form-content hidden">
+            <input type="tel" placeholder="请输入手机号">
+            <input type="password" placeholder="请输入密码">
+            <button>登录</button>
+        </div>
+
+        <!-- 微信登录 -->
+        <div id="wechatLogin" class="form-content hidden">
+            <div id="qrcode-container">
+                <img id="qrcode" alt="微信登录二维码" style="width: 200px; height: 200px;" />
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tabs = document.querySelectorAll('.tab');
+        const formContents = document.querySelectorAll('.form-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // 移除所有tab的active状态
+                tabs.forEach(t => t.classList.remove('active'));
+                // 隐藏所有表单内容
+                formContents.forEach(content => content.classList.add('hidden'));
+
+                // 设置当前tab为active
+                this.classList.add('active');
+
+                // 显示对应的内容
+                const type = this.dataset.type;
+                if(type === 'wechat') {
+                    document.getElementById('wechatLogin').classList.remove('hidden');
+                    // 如果需要初始化微信登录
+                    wechatDirectLogin();
+                } else {
+                    document.getElementById(`${type}Form`).classList.remove('hidden');
+                }
+            });
+        });
+
+
+        // 移除所有tab的active状态
+        tabs.forEach(t => t.classList.remove('active'));
+        // 隐藏所有表单内容
+        formContents.forEach(content => content.classList.add('hidden'));
+        document.getElementById('wechatLogin').classList.remove('hidden');
+        document.getElementById('wechatLogin').classList.add('active');
+        wechatDirectLogin();
+
+        // 发送验证码
+        let countdown = 60;
+        function sendCaptcha(type) {
+            const btn = event.target;
+            btn.disabled = true;
+
+            // 这里调用发送验证码API
+            fetch(`/api/send-captcha?type=${type}`)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.success) startCountdown(btn);
+                });
+        }
+
+        function startCountdown(btn) {
+            btn.textContent = `${countdown}秒后重发`;
+            const timer = setInterval(() => {
+                countdown--;
+                if(countdown <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.textContent = '获取验证码';
+                    countdown = 60;
+                    return;
+                }
+                btn.textContent = `${countdown}秒后重发`;
+            }, 1000);
+        }
+
+        // 微信登录处理
+        function wechatDirectLogin() {
+            console.log('wechatDirectLogin');
+            // 从URL参数获取redirect参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectUrl = urlParams.get('redirect') || 'index.html'; // 默认跳转到index.html
+            // 微信一键登录处理
+            const auth = new WeChatAuth({
+                qrCodeRefreshInterval: 30000,
+                qrCodeEndpoint: '/api/generate-qrcode',
+                websocketUrl: 'wss://www.ttcut.com/ws',
+                redirectUrl: redirectUrl,
+                qrCodeElementId: 'qrcode'
+            });
+            auth.init();
+        }
+
+        // 表单提交处理
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', e => {
+                e.preventDefault();
+                const formData = new FormData(form);
+
+                fetch('/api/login', {
+                    method: 'POST',
+                    body: JSON.stringify(Object.fromEntries(formData))
+                }).then(res => {
+                    if(res.ok) window.location.href = '/dashboard';
+                });
+            });
+        });
+    </script>
+    <!-- 微信登录SDK -->
+    <script src="https://res.wx.qq.com/connect/zh_CN/htmledition/js/wxLogin.js"></script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+# 运行数据
+data/
+logs/
+.env
+
+# 独立 repo (部署时 clone)
+wechat-backend/
+
+# 工具二进制
+tools/ffmpeg
+tools/frp
+
+# 系统文件
+node_modules/
+*.log
+
+# 备份文件
+*.bak
+
+# vim swap
+*.swp
+*.swo
+
+# 独立项目
+pingpong-docs/
+tests/

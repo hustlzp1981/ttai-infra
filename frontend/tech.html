@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>乒乓球技术训练助手</title>
+    <style>
+        .navbar {
+        background-color: #104359;
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      }
+
+      .navbar-logo {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: white;
+        text-decoration: none;
+      }
+
+      .navbar-links {
+        display: flex;
+        gap: 20px;
+      }
+
+      .navbar-link {
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        transition: opacity 0.2s;
+      }
+
+      .navbar-link:hover {
+        opacity: 0.8;
+      }
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Page container */
+        .page {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+            padding-bottom: 60px; /* Space for input area */
+        }
+
+        /* Tabs styling */
+        .tabs {
+            display: flex;
+            background-color: #89ad8f;
+            color: white;
+            width: 100%;
+            height: 40px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px 0;
+            cursor: pointer;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid #FFEB3B;
+        }
+
+        /* Content area */
+        .content-area {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* QA Container */
+        .qa-container {
+            padding: 15px;
+            overflow-y: auto;
+            flex: 1;
+            display: none;
+        }
+
+        .qa-container.active {
+            display: block;
+        }
+
+        .qa-section {
+            margin-bottom: 15px;
+        }
+
+        .section-title {
+            font-weight: bold;
+            margin: 8px 0;
+            color: #333;
+        }
+
+        .q-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .q-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .q-item img {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Chat Container */
+        .chat-container {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-container.active {
+            display: flex;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 15px;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 8px;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message-content.user {
+            background-color: #E6F7FF;
+            border-radius: 8px 8px 0 8px;
+        }
+
+        .message-content.assistant {
+            background: white;
+        }
+
+        /* Input area */
+        .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            padding: 10px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .input-area input {
+            flex: 1;
+            height: 40px;
+            border: 1px solid #4CAF50;
+            border-radius: 20px;
+            padding: 0 15px;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .input-area button {
+            width: 70px;
+            height: 40px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .input-area button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .input-area button:active {
+            background: #3d8b40;
+            transform: scale(0.98);
+        }
+
+        /* Loading indicator */
+        .loading {
+            text-align: center;
+            padding: 10px;
+            color: #666;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <!-- Added navigation bar from homepage -->
+    <nav class="navbar">
+        <a href="index.html" class="navbar-logo">Table Tennis AI</a>
+        <div class="navbar-links">
+            <a href="index.html" class="navbar-link">首页</a>
+            <a href="index.html" class="navbar-link">视频分析</a>
+            <a href="#" class="navbar-link">训练日志</a>
+            <a href="#" class="navbar-link">关于我们</a>
+        </div>
+    </nav>
+
+    <div class="page">
+        <!-- Top tabs -->
+        <div class="tabs">
+            <div class="tab active" data-tab="qa">技术库</div>
+            <div class="tab" data-tab="chat">训练日志</div>
+        </div>
+
+        <!-- Content area -->
+        <div class="content-area">
+            <!-- QA Container -->
+            <div class="qa-container active" id="qa-container">
+                <div class="qa-section">
+                    <div class="section-title">技术训练</div>
+                    <div class="q-item" data-q='{"id":1,"text":"如何提高正手拉球稳定性？"}'>
+                        <span>如何提高正手拉球稳定性？</span>
+                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=" alt=">">
+                    </div>
+                    <div class="q-item" data-q='{"id":2,"text":"反手拧拉的动作要领是什么？"}'>
+                        <span>反手拧拉的动作要领是什么？</span>
+                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=" alt=">">
+                    </div>
+                </div>
+                <div class="qa-section">
+                    <div class="section-title">比赛战术</div>
+                    <div class="q-item" data-q='{"id":3,"text":"如何对付长胶选手？"}'>
+                        <span>如何对付长胶选手？</span>
+                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=" alt=">">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container" id="chat-container">
+                <div class="messages-container" id="messages-container">
+                    <!-- Messages will be added here dynamically -->
+                </div>
+
+                <div class="input-area">
+                    <input type="text" id="message-input" placeholder="输入训练小结...">
+                    <button id="send-button" disabled>发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate UUID function
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        class TechChatApp {
+            constructor() {
+                this.currentTab = 'qa';
+                this.inputText = '';
+                this.messages = [];
+                this.questions = [
+                    {
+                        category: '技术训练',
+                        list: [
+                            { id: 1, text: '如何提高正手拉球稳定性？' },
+                            { id: 2, text: '反手拧拉的动作要领是什么？' }
+                        ]
+                    },
+                    {
+                        category: '比赛战术',
+                        list: [
+                            { id: 3, text: '如何对付长胶选手？' }
+                        ]
+                    }
+                ];
+                this.socketStatus = 'disconnected';
+                this.authToken = localStorage.getItem('token') || '';
+                this.isAuthRequired = true;
+                this.loading = false;
+                this.socket = null;
+                this.websocketUrl = 'wss://www.ttcut.com/ws';
+                this.sessionId = this.getOrCreateSessionId();
+                this.isAuthenticated = false;
+                this.isSocketConnected = false;
+                this.messageQueue = [];
+
+                this.initDOMReferences();
+                this.bindEvents();
+                this.loadCachedMessages();
+                this.initWebSocket();
+                //this.initSocket();
+            }
+
+            initDOMReferences() {
+                this.tabs = document.querySelectorAll('.tab');
+                this.qaContainer = document.getElementById('qa-container');
+                this.chatContainer = document.getElementById('chat-container');
+                this.messagesContainer = document.getElementById('messages-container');
+                this.messageInput = document.getElementById('message-input');
+                this.sendButton = document.getElementById('send-button');
+                this.qItems = document.querySelectorAll('.q-item');
+            }
+
+            bindEvents() {
+                // Tab switching
+                this.tabs.forEach(tab => {
+                    tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
+                });
+
+                // Question items
+                this.qItems.forEach(item => {
+                    item.addEventListener('click', () => {
+                        const question = JSON.parse(item.dataset.q);
+                        this.selectQuestion(question);
+                    });
+                });
+
+                // Input handling
+                this.messageInput.addEventListener('input', (e) => {
+                    this.inputText = e.target.value;
+                    this.sendButton.disabled = !this.inputText.trim();
+                });
+
+                this.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && this.inputText.trim()) {
+                        this.sendMessage(this.inputText);
+                    }
+                });
+
+                this.sendButton.addEventListener('click', () => {
+                    if (this.inputText.trim()) {
+                        this.sendMessage(this.inputText);
+                    }
+                });
+            }
+
+            switchTab(tab) {
+                this.currentTab = tab;
+
+                // Update UI
+                this.tabs.forEach(t => t.classList.remove('active'));
+                document.querySelector(`.tab[data-tab="${tab}"]`).classList.add('active');
+
+                if (tab === 'qa') {
+                    this.qaContainer.classList.add('active');
+                    this.chatContainer.classList.remove('active');
+                } else {
+                    this.qaContainer.classList.remove('active');
+                    this.chatContainer.classList.add('active');
+                    this.scrollToBottom();
+                }
+            }
+
+            selectQuestion(question) {
+                this.switchTab('chat');
+                this.sendMessage(question.text, { isPresetQuestion: true });
+            }
+
+            loadCachedMessages() {
+                const cachedMsg = localStorage.getItem('ai_messages');
+                if (cachedMsg) {
+                    this.messages = JSON.parse(cachedMsg);
+                    this.renderMessages();
+                }
+            }
+
+            storeMessages(messages) {
+                try {
+                    localStorage.setItem('ai_messages', JSON.stringify(messages));
+                } catch (err) {
+                    console.error('Storage error:', err);
+                    // If storage is full, keep only the last 10 messages
+                    localStorage.setItem('ai_messages', JSON.stringify(messages.slice(-10)));
+                }
+            }
+
+            // 初始化WebSocket
+            initWebSocket() {
+                this.socket = new WebSocket(`${this.websocketUrl}?sessionId=${this.sessionId}`);
+
+                // WebSocket连接打开事件
+                this.socket.onopen = () => {
+                    console.log('WebSocket连接已建立');
+                    this.isSocketConnected = true;
+                    // 可以在这里更新UI状态，例如显示连接成功图标
+                    
+                    // 连接建立后立即进行认证（如果需要）
+                    // this.authenticateSocket();
+                };
+
+                // 处理收到的消息
+                this.socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('WebSocket消息:', data);
+
+                        switch(data.type) {
+                            case 'system':  // 系统消息
+                                if (data.message.includes('authenticate')) {
+                                    this.authenticateSocket().catch(err => {
+                                        console.error('认证失败:', err);
+                                        // 更新UI显示认证失败
+                                    });
+                                }
+                                break;
+
+                            case 'auth_success':  // 认证成功
+                                console.log('身份验证成功');
+                                this.handleAuthSuccess(data);
+                                //this.socket.close();
+                                //window.location.href = this.redirectUrl;
+                                break;
+
+                            case 'auth_error':  // 认证失败
+                                this.handleAuthError(data);
+                                break;
+
+                            case 'acknowledge':  // 确认消息
+                                // 可以在这里更新UI状态，例如显示加载中
+                                break;
+
+                            case 'partial':  // 部分响应
+                                this.handlePartialResponse(data.content, data.messageId);
+                                break;
+
+                            case 'complete':  // 完整响应
+                                this.handleCompleteResponse(data.content, data.messageId);
+                                break;
+
+                            case 'error':  // 错误消息
+                                this.handleAIError(data.message, data.messageId);
+                                break;
+
+                            default:
+                                console.warn('未知消息类型:', data.type);
+                        }
+                    } catch (err) {
+                        console.error('消息解析错误:', err);
+                    }
+                };
+
+                this.socket.onclose = () => {
+                    console.log('WebSocket连接关闭');
+                    this.isSocketConnected = false;
+                    // 可以在这里更新UI状态，例如显示断开连接图标
+                };
+
+                this.socket.onerror = (error) => {
+                    console.error('WebSocket错误:', error);
+                    // 可以在这里更新UI显示错误状态
+                };
+            }
+
+            getOrCreateSessionId() {
+                let sessionId = localStorage.getItem('sessionId');
+                if (!sessionId) {
+                    sessionId = generateUUID();
+                    localStorage.setItem('sessionId', sessionId);
+                }
+                return sessionId;
+            }
+
+            authenticateSocket() {
+                return new Promise((resolve, reject) => {
+                    const token = this.authToken || localStorage.getItem('token');
+
+                    if (token) {
+                        console.log('Using existing token for authentication');
+                        this.sendAuthRequest(token).then(resolve).catch(reject);
+                        return;
+                    }
+
+                    // 检查是否有登录回调的token
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const loginToken = urlParams.get('token');
+
+                    if (loginToken) {
+                        console.log('Using login callback token', loginToken);
+                        this.authToken = loginToken;
+                        localStorage.setItem('token', loginToken);
+                        this.sendAuthRequest(loginToken).then(resolve).catch(reject);
+                        return;
+                    }
+
+                    // 显示自定义风格的登录提示（替代原生confirm）
+                    this.showCustomLoginPrompt(resolve, reject);
+                });
+            }
+
+            // 保持图片中的UI风格的自定义登录提示
+            showCustomLoginPrompt(resolve, reject) {
+                const prompt = document.createElement('div');
+                prompt.style.position = 'fixed';
+                prompt.style.top = '0';
+                prompt.style.left = '0';
+                prompt.style.right = '0';
+                prompt.style.bottom = '0';
+                prompt.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                prompt.style.display = 'flex';
+                prompt.style.justifyContent = 'center';
+                prompt.style.alignItems = 'center';
+                prompt.style.zIndex = '1000';
+
+                prompt.innerHTML = `
+                    <div style="background: white; padding: 20px; border-radius: 8px; width: 300px; text-align: center;">
+                        <h3 style="color: #333; margin-bottom: 20px;">✨ 请先登录</h3>
+                        <p style="color: #666; margin-bottom: 20px;">需要登录后才能使用此功能</p>
+                        <div style="display: flex; justify-content: space-around;">
+                            <button id="cancelBtn" style="padding: 8px 16px; background: #f0f0f0; border: none; border-radius: 4px;">取消</button>
+                            <button id="loginBtn" style="padding: 8px 16px; background: #1890ff; color: white; border: none; border-radius: 4px;">微信登录</button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(prompt);
+
+                document.getElementById('loginBtn').onclick = () => {
+                    document.body.removeChild(prompt);
+                    const currentUrl = window.location.href.split('?')[0];
+                    window.location.href = `login.html?redirect=${encodeURIComponent(currentUrl)}`;
+                };
+
+                document.getElementById('cancelBtn').onclick = () => {
+                    document.body.removeChild(prompt);
+                    reject(new Error('用户取消登录'));
+                };
+            }
+
+            sendAuthRequest(token) {
+                return new Promise((resolve, reject) => {
+                    if (!this.socket) {
+                        reject(new Error('WebSocket not connected'));
+                        return;
+                    }
+
+                    const authMessage = {
+                        type: 'auth',
+                        token: token,
+                        requestId: `auth-${Date.now()}`
+                    };
+
+                    this.socket.send(JSON.stringify(authMessage));
+                    resolve();
+                });
+            }
+
+            handleAuthSuccess(data) {
+                console.log('WebSocket authentication successful');
+                this.isAuthenticated = true;
+                this.isAuthRequired = false;
+                this.flushMessageQueue();
+            }
+
+            handleAuthError(data) {
+                console.error('WebSocket authentication failed:', data.message);
+                this.isAuthenticated = false;
+                this.isAuthRequired = true;
+                this.socketStatus = 'auth_error';
+                this.refreshAuthToken();
+            }
+
+            refreshAuthToken() {
+                // In a real app, you would call your API to refresh the token
+                console.log('Refreshing auth token...');
+            }
+
+            sendWSMessage(content, options = {}) {
+                if (!this.isAuthenticated || this.isAuthRequired) {
+                    this.messageQueue.push({ content, options });
+
+                    if (this.socketStatus !== 'connected' || this.socketStatus === 'auth_error') {
+                        this.initWebSocket();
+                    }
+                    return;
+                }
+
+                this.sendQuestionMessage(content, options);
+            }
+
+            sendQuestionMessage(content, options) {
+                const baseId = Date.now();
+                const userMessageId = `user-${baseId}`;
+                const aiMessageId = `ai-${baseId}`;
+                const { skipStore = false } = options;
+
+                // Add user message
+                const userMessage = {
+                    role: 'user',
+                    content: content,
+                    id: userMessageId,
+                    timestamp: new Date().toISOString()
+                };
+
+                this.messages = [...this.messages, userMessage];
+                this.renderMessages();
+
+                if (!skipStore) {
+                    this.storeMessages(this.messages);
+                }
+
+                // Clear input if not preset question
+                if (!options.isPresetQuestion) {
+                    this.messageInput.value = '';
+                    this.inputText = '';
+                    this.sendButton.disabled = true;
+                }
+
+                // Show loading state
+                this.loading = true;
+
+                // Send via WebSocket
+                if (this.socket) {
+                    const questionMessage = {
+                        type: 'question',
+                        content: content,
+                        messageId: aiMessageId,
+                        context: this.getConversationContext(content),
+                        userId: 'anonymous' // In a real app, you would use actual user ID
+                    };
+
+                    this.socket.send(JSON.stringify(questionMessage));
+                } else {
+                    // Fallback to HTTP
+                    this.callChatAPI(content)
+                        .then(response => this.receiveAIResponse(response))
+                        .catch(err => this.handleAPIError(err, aiMessageId));
+                }
+            }
+
+            flushMessageQueue() {
+                if (this.isAuthenticated && this.messageQueue.length > 0) {
+                    while (this.messageQueue.length > 0) {
+                        const { content, options } = this.messageQueue.shift();
+                        this.sendQuestionMessage(content, options);
+                    }
+                }
+            }
+
+            handlePartialResponse(content, messageId) {
+                const normalizedId = messageId.startsWith('ai-') ? messageId : `ai-${messageId}`;
+
+                // Find or create AI message
+                let aiMessage = this.messages.find(m => m.id === normalizedId);
+                if (!aiMessage) {
+                    aiMessage = {
+                        role: 'assistant',
+                        content: '',
+                        id: normalizedId,
+                        timestamp: new Date().toISOString(),
+                        isStreaming: true
+                    };
+                    this.messages = [...this.messages, aiMessage];
+                }
+
+                // Update content
+                aiMessage.content += content;
+                aiMessage.isStreaming = true;
+
+                this.renderMessages();
+                this.scrollToBottom();
+            }
+
+            handleCompleteResponse(content, messageId) {
+                const actualMessageId = messageId.startsWith('ai-') ? messageId : `ai-${messageId}`;
+
+                let aiMessage = this.messages.find(m => m.id === actualMessageId);
+                if (aiMessage) {
+                    aiMessage.content = content;
+                    aiMessage.isStreaming = false;
+                } else {
+                    aiMessage = {
+                        role: 'assistant',
+                        content: content,
+                        id: actualMessageId,
+                        timestamp: new Date().toISOString()
+                    };
+                    this.messages = [...this.messages, aiMessage];
+                }
+
+                this.loading = false;
+                this.renderMessages();
+                this.scrollToBottom();
+                this.storeMessages(this.messages);
+            }
+
+            handleAIError(errorMessage, messageId) {
+                console.error('AI error:', errorMessage);
+
+                const actualMessageId = messageId.startsWith('ai-') ? messageId : `ai-${messageId}`;
+
+                let aiMessage = this.messages.find(m => m.id === actualMessageId);
+                if (aiMessage) {
+                    aiMessage.content = `[错误] ${errorMessage}`;
+                    aiMessage.isError = true;
+                    aiMessage.isStreaming = false;
+                } else {
+                    aiMessage = {
+                        role: 'assistant',
+                        content: `[错误] ${errorMessage}`,
+                        id: actualMessageId,
+                        timestamp: new Date().toISOString(),
+                        isError: true
+                    };
+                    this.messages = [...this.messages, aiMessage];
+                }
+
+                this.loading = false;
+                this.renderMessages();
+                this.scrollToBottom();
+
+                alert(errorMessage);
+            }
+
+            renderMessages() {
+                this.messagesContainer.innerHTML = '';
+
+                this.messages.forEach(msg => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `message ${msg.role}`;
+                    messageDiv.id = msg.id;
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = `message-content ${msg.role}`;
+                    contentDiv.textContent = msg.content;
+
+                    // Add context menu for long press
+                    contentDiv.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        this.handleLongPress(msg.content);
+                    });
+
+                    messageDiv.appendChild(contentDiv);
+                    this.messagesContainer.appendChild(messageDiv);
+                });
+            }
+
+            handleLongPress(content) {
+                if (confirm('是否要复制此消息内容？')) {
+                    this.copyToClipboard(content);
+                }
+            }
+
+            copyToClipboard(text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('复制成功');
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            }
+
+            scrollToBottom() {
+                this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+            }
+
+            validateInput(content) {
+                if (content.length > 500) {
+                    alert('输入不能超过500字');
+                    return false;
+                }
+                if (/[<>&]/.test(content)) {
+                    alert('包含特殊字符');
+                    return false;
+                }
+                return true;
+            }
+
+            sendMessage(content, options = {}) {
+                const { isPresetQuestion = false, skipStore = false } = options;
+                const trimmedContent = content.trim();
+
+                if (!trimmedContent) return;
+                if (!this.validateInput(trimmedContent)) return;
+
+                // Use WebSocket if available
+                if (this.isSocketConnected || this.socketStatus === 'connecting') {
+                    this.sendWSMessage(trimmedContent, options);
+                    return;
+                }
+
+                // Add user message
+                const newMsg = {
+                    role: 'user',
+                    content: trimmedContent,
+                    id: `msg-${Date.now()}`,
+                    timestamp: new Date().toISOString()
+                };
+
+                this.messages = [...this.messages, newMsg];
+                this.renderMessages();
+
+                // Send request
+                this.loading = true;
+                this.callChatAPI(trimmedContent)
+                    .then(response => this.receiveAIResponse(response))
+                    .catch(err => this.handleAPIError(err, newMsg.id))
+                    .finally(() => {
+                        this.loading = false;
+                    });
+            }
+
+            callChatAPI(userInput) {
+                return new Promise((resolve, reject) => {
+                    if (!userInput || typeof userInput !== 'string') {
+                        reject(new Error('Invalid input'));
+                        return;
+                    }
+                });
+            }
+
+            getConversationContext(newInput) {
+                const history = this.messages.slice(-5);
+
+                return [
+                    ...history.filter((msg, index) => {
+                        const isLastUserMsg = index === history.length - 1 && msg.role === 'user';
+                        return !isLastUserMsg || msg.content !== newInput;
+                    }),
+                    { role: 'user', content: newInput }
+                ];
+            }
+
+            receiveAIResponse(content) {
+                const newMsg = {
+                    role: 'assistant',
+                    content: content,
+                    id: `msg-${Date.now()}`,
+                    timestamp: new Date().toISOString()
+                };
+
+                if (this.messages.some(msg => msg.id === newMsg.id)) return;
+                
+                this.messages = [...this.messages, newMsg];
+                this.renderMessages();
+                this.scrollToBottom();
+                this.storeMessages(this.messages);
+            }
+
+            handleAPIError(error, msgId) {
+                console.error('API Error:', error);
+
+                const errorMessages = {
+                    'Invalid input': '输入内容无效',
+                    'Invalid response structure': 'AI返回数据异常',
+                    'HTTP 401': '认证失败，请检查API密钥',
+                    'HTTP 429': '请求过于频繁',
+                    'HTTP 5xx': '服务端错误'
+                };
+
+                alert(errorMessages[error.message] || '服务暂时不可用');
+
+                // Remove the message that caused the error
+                this.messages = this.messages.filter(msg => msg.id !== msgId);
+                this.renderMessages();
+            }
+        }
+
+        // Initialize the app when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new TechChatApp();
+        });
+    </script>
+</body>
+</html>

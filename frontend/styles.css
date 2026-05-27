@@ -1,0 +1,135 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f4f4f4;
+}
+
+header {
+  background-color: #333;
+  color: white;
+  padding: 10px 0;
+  text-align: center;
+}
+
+nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+
+nav ul li {
+  margin: 0 15px;
+}
+
+nav ul li a {
+  color: white;
+  text-decoration: none;
+}
+
+main {
+  padding: 20px;
+}
+
+section {
+  margin-bottom: 20px;
+  padding: 20px;
+  background-color: white;
+  border-radius: 5px;
+}
+
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.upload-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+footer {
+  text-align: center;
+  padding: 10px 0;
+  background-color: #333;
+  color: white;
+  position: fixed;
+  width: 100%;
+  bottom: 0;
+}
+
+/* 错误提示样式 */
+.status-error {
+    color: #ff4444;
+    background: #fff0f0;
+    padding: 8px;
+    border-radius: 4px;
+    margin-top: 8px;
+}
+
+/* 重试按钮样式 */
+.retry-btn {
+    background: #409eff;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.retry-btn:hover {
+    opacity: 0.8;
+}
+
+#video-list {
+  list-style: none; /* 去掉默认圆点 */
+  padding-left: 0;
+}
+
+.video-item {
+    display: block;
+    margin-bottom: 10px; /* 给每个视频项之间增加一些间距 */
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.thumbnail-container {
+    display: flex;
+    align-items: center; /* 垂直居中对齐 */
+}
+
+
+.thumbnail {
+  max-height: 100px;
+  margin-right: 10px; /* 给缩略图和标题之间增加一些间距 */
+}
+
+.thumbnail-container > div {
+    display: flex;
+    flex-direction: column; /* 让包含文字的部分垂直排列 */
+    justify-content: center; /* 垂直居中对齐 */
+}
+
+.download-link, .video-duration, .video-size, .video-clips {
+    display: block; /* 每个信息单独一行 */
+}
+
+.download-link {
+    font-size: 16px;
+    text-decoration: none;
+    color: blue;
+}
