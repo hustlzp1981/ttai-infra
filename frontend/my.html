@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>我的 - TTAI</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <a class="brand" href="index.html">
+            <span class="brand-mark">TT</span>
+            <span>TTAI 乒乓训练</span>
+          </a>
+          <nav class="nav-links">
+            <a href="index.html">首页</a>
+            <a href="videos.html">视频库</a>
+            <a href="stats.html">训练统计</a>
+            <a href="tech.html">技术训练</a>
+            <a class="active" href="my.html">我的</a>
+            <a href="login.html">登录</a>
+          </nav>
+        </div>
+      </header>
+
+      <main class="main">
+        <div class="container">
+          <section class="section">
+            <h2 class="card-title">我的训练档案</h2>
+            <div class="grid-2">
+              <div class="card">
+                <h3 class="card-title">账号信息</h3>
+                <p class="muted" id="profile-name">登录后展示昵称、头像与训练标签。</p>
+                <div class="empty-state" id="profile-empty">请先登录以同步你的训练数据。</div>
+              </div>
+              <div class="card">
+                <h3 class="card-title">配额与段位</h3>
+                <p class="muted" id="quota-info">本月剩余次数与段位权益展示区。</p>
+                <div class="empty-state" id="quota-empty">暂无配额数据。</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <h3 class="card-title">数据概览</h3>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <h4>本月训练</h4>
+                <p id="stat-days">--</p>
+              </div>
+              <div class="stat-card">
+                <h4>累计时长</h4>
+                <p id="stat-hours">--</p>
+              </div>
+              <div class="stat-card">
+                <h4>AI 综合分</h4>
+                <p id="stat-score">--</p>
+              </div>
+              <div class="stat-card">
+                <h4>对手数量</h4>
+                <p id="stat-opponents">--</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; <span id="year"></span> TTAI. All rights reserved.</p>
+      </footer>
+    </div>
+    <script src="config.js"></script>
+    <script src="my.js"></script>
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

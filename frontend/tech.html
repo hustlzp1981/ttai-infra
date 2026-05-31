@@ -4,39 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>乒乓球技术训练助手</title>
+        <link rel="stylesheet" href="styles.css">
     <style>
-        .navbar {
-        background-color: #104359;
-        color: white;
-        padding: 15px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      }
-
-      .navbar-logo {
-        font-size: 1.5em;
-        font-weight: bold;
-        color: white;
-        text-decoration: none;
-      }
-
-      .navbar-links {
-        display: flex;
-        gap: 20px;
-      }
-
-      .navbar-link {
-        color: white;
-        text-decoration: none;
-        font-weight: 500;
-        transition: opacity 0.2s;
-      }
-
-      .navbar-link:hover {
-        opacity: 0.8;
-      }
         /* Reset and base styles */
         * {
             margin: 0;
@@ -45,31 +14,32 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f5f5f5;
-            color: #333;
+            font-family: inherit;
+            background: transparent;
+            color: inherit;
             line-height: 1.6;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
 
         /* Page container */
         .page {
             display: flex;
             flex-direction: column;
-            height: 100vh;
-            position: relative;
-            padding-bottom: 60px; /* Space for input area */
+            gap: var(--space-md);
+            min-height: calc(100vh - 160px);
         }
 
         /* Tabs styling */
         .tabs {
             display: flex;
-            background-color: #89ad8f;
-            color: white;
+            background: #ffffff;
+            color: var(--color-primary);
             width: 100%;
-            height: 40px;
+            height: 48px;
+            border-radius: 999px;
+            padding: 4px;
+            gap: 4px;
+            border: 1px solid rgba(16, 67, 89, 0.15);
+            box-shadow: 0 8px 20px rgba(12, 22, 35, 0.08);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -80,10 +50,17 @@
             text-align: center;
             padding: 10px 0;
             cursor: pointer;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--color-muted);
+            transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .tab.active {
-            border-bottom: 3px solid #FFEB3B;
+            background: linear-gradient(135deg, rgba(16, 67, 89, 0.95), rgba(0, 170, 0, 0.8));
+            color: #ffffff;
+            box-shadow: 0 8px 20px rgba(16, 67, 89, 0.25);
         }
 
         /* Content area */
@@ -92,11 +69,12 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            gap: var(--space-md);
         }
 
         /* QA Container */
         .qa-container {
-            padding: 15px;
+            padding: 16px;
             overflow-y: auto;
             flex: 1;
             display: none;
@@ -107,27 +85,40 @@
         }
 
         .qa-section {
-            margin-bottom: 15px;
+            margin-bottom: 16px;
+        }
+
+        .qa-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            color: var(--color-muted);
+            font-size: 13px;
         }
 
         .section-title {
-            font-weight: bold;
-            margin: 8px 0;
-            color: #333;
+            font-weight: 600;
+            margin: 6px 0 10px;
+            color: var(--color-text);
         }
 
         .q-item {
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
+            background: #ffffff;
+            padding: 12px 14px;
+            border-radius: 14px;
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             cursor: pointer;
+            border: 1px solid rgba(16, 67, 89, 0.08);
+            box-shadow: 0 8px 20px rgba(12, 22, 35, 0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .q-item:hover {
-            background-color: #f0f0f0;
+            background-color: #f7f9fb;
+            transform: translateY(-1px);
         }
 
         .q-item img {
@@ -135,82 +126,316 @@
             height: 16px;
         }
 
-        /* Chat Container */
-        .chat-container {
+        /* Chat + Exchange Container */
+        .chat-container,
+        .exchange-container {
             flex: 1;
             display: none;
             flex-direction: column;
             overflow: hidden;
+            background: linear-gradient(180deg, #f7f9fc 0%, #ffffff 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(16, 67, 89, 0.08);
         }
 
-        .chat-container.active {
+        .chat-container.active,
+        .exchange-container.active {
             display: flex;
         }
 
         .messages-container {
             flex: 1;
             overflow-y: auto;
-            padding: 15px;
+            padding: 16px;
+        }
+
+        .chat-empty {
+            display: none;
+            padding: 32px 16px 0;
+        }
+
+        .chat-empty.active {
+            display: block;
+        }
+
+        .empty-actions {
+            margin-top: 12px;
+        }
+
+        .log-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 16px 0;
+        }
+
+        .log-toolbar h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .log-toolbar p {
+            margin: 4px 0 0;
+            color: var(--color-muted);
+            font-size: 13px;
+        }
+
+        .log-toolbar .toolbar-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-list {
+            padding: 12px 16px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .log-card {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 14px 16px;
+            border: 1px solid rgba(16, 67, 89, 0.08);
+            box-shadow: 0 8px 20px rgba(12, 22, 35, 0.06);
+        }
+
+        .log-card h4 {
+            margin: 0 0 6px;
+            font-size: 15px;
+        }
+
+        .log-meta {
+            display: flex;
+            gap: 12px;
+            color: var(--color-muted);
+            font-size: 12px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+
+        .log-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .log-tags span {
+            background: rgba(16, 67, 89, 0.08);
+            color: var(--color-primary);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+
+        .log-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .log-actions button {
+            border: 1px solid rgba(16, 67, 89, 0.18);
+            background: #ffffff;
+            color: var(--color-primary);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .log-editor-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .log-editor-overlay.active {
+            display: flex;
+        }
+
+        .log-editor {
+            width: min(680px, 100%);
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(12, 22, 35, 0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .form-row label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--color-muted);
+        }
+
+        .form-row input,
+        .form-row textarea {
+            border: 1px solid rgba(16, 67, 89, 0.2);
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-row textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .ai-output {
+            background: rgba(16, 67, 89, 0.05);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 8px;
+            font-size: 13px;
+            color: var(--color-muted);
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 12px;
+        }
+
+        .exchange-header {
+            padding: 16px 16px 0;
+        }
+
+        .exchange-header h3 {
+            margin: 0 0 6px;
+            font-size: 18px;
+        }
+
+        .exchange-header p {
+            margin: 0;
+            color: var(--color-muted);
+            font-size: 13px;
+        }
+
+        .exchange-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px 16px 0;
+        }
+
+        .suggestion-chip {
+            border: 1px solid rgba(16, 67, 89, 0.18);
+            background: rgba(16, 67, 89, 0.06);
+            color: var(--color-primary);
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
         }
 
         .message {
             display: flex;
-            margin-bottom: 15px;
+            margin-bottom: 14px;
+            gap: 10px;
+            align-items: flex-end;
         }
 
         .message.user {
             justify-content: flex-end;
         }
 
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            font-size: 12px;
+            font-weight: 700;
+            background: rgba(16, 67, 89, 0.12);
+            color: var(--color-primary);
+        }
+
+        .message.user .message-avatar {
+            background: rgba(0, 170, 0, 0.2);
+            color: #0e5f24;
+            order: 2;
+        }
+
         .message-content {
-            max-width: 70%;
-            padding: 10px;
-            border-radius: 8px;
+            max-width: 72%;
+            padding: 12px 14px;
+            border-radius: 16px;
             word-break: break-word;
             white-space: pre-wrap;
+            font-size: 14px;
+            line-height: 1.6;
+            box-shadow: 0 10px 24px rgba(12, 22, 35, 0.08);
         }
 
         .message-content.user {
-            background-color: #E6F7FF;
-            border-radius: 8px 8px 0 8px;
+            background: linear-gradient(135deg, #e8f8ee, #d8f0e3);
+            border-radius: 16px 16px 4px 16px;
         }
 
         .message-content.assistant {
-            background: white;
+            background: #ffffff;
+            border: 1px solid rgba(16, 67, 89, 0.08);
+        }
+
+        .message.typing .message-content {
+            color: var(--color-muted);
+            font-style: italic;
         }
 
         /* Input area */
         .input-area {
-            position: fixed;
+            position: sticky;
             bottom: 0;
             left: 0;
             right: 0;
             display: flex;
-            padding: 10px;
+            padding: 12px 14px;
             background: white;
-            border-top: 1px solid #e0e0e0;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            border-top: 1px solid rgba(16, 67, 89, 0.08);
+            box-shadow: 0 -8px 20px rgba(12, 22, 35, 0.06);
+            gap: 10px;
         }
 
         .input-area input {
             flex: 1;
-            height: 40px;
-            border: 1px solid #4CAF50;
-            border-radius: 20px;
-            padding: 0 15px;
-            margin-right: 10px;
+            height: 42px;
+            border: 1px solid rgba(16, 67, 89, 0.2);
+            border-radius: 999px;
+            padding: 0 16px;
             font-size: 14px;
+            background: #f8fafc;
         }
 
         .input-area button {
-            width: 70px;
-            height: 40px;
-            background: #4CAF50;
+            width: 76px;
+            height: 42px;
+            background: var(--color-primary);
             color: white;
             border: none;
-            border-radius: 20px;
+            border-radius: 999px;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
         }
 
@@ -220,7 +445,7 @@
         }
 
         .input-area button:active {
-            background: #3d8b40;
+            background: #0e3545;
             transform: scale(0.98);
         }
 
@@ -228,7 +453,7 @@
         .loading {
             text-align: center;
             padding: 10px;
-            color: #666;
+            color: var(--color-muted);
         }
 
         /* Custom scrollbar */
@@ -248,66 +473,143 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+
+        @media (max-width: 820px) {
+            .tabs {
+                position: static;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- Added navigation bar from homepage -->
-    <nav class="navbar">
-        <a href="index.html" class="navbar-logo">Table Tennis AI</a>
-        <div class="navbar-links">
-            <a href="index.html" class="navbar-link">首页</a>
-            <a href="index.html" class="navbar-link">视频分析</a>
-            <a href="#" class="navbar-link">训练日志</a>
-            <a href="#" class="navbar-link">关于我们</a>
-        </div>
-    </nav>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="topbar-inner">
+                <a class="brand" href="index.html">
+                    <span class="brand-mark">TT</span>
+                    <span>TTAI 乒乓训练</span>
+                </a>
+                <nav class="nav-links">
+                    <a href="index.html">首页</a>
+                    <a href="videos.html">视频库</a>
+                    <a href="stats.html">训练统计</a>
+                    <a class="active" href="tech.html">技术训练</a>
+                    <a href="my.html">我的</a>
+                    <a href="login.html">登录</a>
+                </nav>
+            </div>
+        </header>
 
-    <div class="page">
-        <!-- Top tabs -->
-        <div class="tabs">
-            <div class="tab active" data-tab="qa">技术库</div>
-            <div class="tab" data-tab="chat">训练日志</div>
-        </div>
+        <main class="main">
+            <div class="container">
+                <section class="section">
+                    <h2 class="card-title">技术训练助手</h2>
+                    <p class="muted">技术库用于快速查阅，训练日志用于记录与 AI 指导，技术交流用于即时问答。</p>
+                    <div class="page">
+                        <div class="tabs">
+                            <div class="tab active" data-tab="qa">技术库</div>
+                            <div class="tab" data-tab="chat">训练日志</div>
+                            <div class="tab" data-tab="exchange">技术交流</div>
+                        </div>
 
-        <!-- Content area -->
-        <div class="content-area">
-            <!-- QA Container -->
-            <div class="qa-container active" id="qa-container">
-                <div class="qa-section">
-                    <div class="section-title">技术训练</div>
-                    <div class="q-item" data-q='{"id":1,"text":"如何提高正手拉球稳定性？"}'>
-                        <span>如何提高正手拉球稳定性？</span>
-                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=" alt=">">
+                        <div class="content-area">
+                            <div class="qa-container active" id="qa-container">
+                                <div class="qa-header" id="qa-header">基于当前账号显示技术库内容。</div>
+                                <div id="qa-list"></div>
+                            </div>
+
+                            <div class="chat-container" id="chat-container">
+                                <div class="log-toolbar">
+                                    <div>
+                                        <h3>训练日志</h3>
+                                        <p>同步小程序训练日志，支持 AI 整理。</p>
+                                    </div>
+                                    <div class="toolbar-actions">
+                                        <button class="btn btn-secondary" id="log-refresh">刷新</button>
+                                        <button class="btn btn-primary" id="log-add">新增日志</button>
+                                    </div>
+                                </div>
+                                <div class="chat-empty" id="chat-empty">
+                                    <div class="empty-state">
+                                        <strong>暂无训练记录</strong>
+                                        <p>点击新增日志，记录训练内容并获取 AI 反馈。</p>
+                                        <div class="empty-actions">
+                                            <button class="btn btn-primary" id="log-add-empty">新增训练日志</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="log-list" id="log-list"></div>
+                            </div>
+                            <div class="exchange-container" id="exchange-container">
+                                <div class="exchange-header">
+                                    <h3>AI 技术交流</h3>
+                                    <p>围绕技术动作、训练安排、比赛策略进行实时问答。</p>
+                                </div>
+                                <div class="exchange-suggestions" id="exchange-suggestions">
+                                    <button class="suggestion-chip" data-question="如何改善接发球的上手成功率？">接发球上手</button>
+                                    <button class="suggestion-chip" data-question="多球训练如何安排节奏与强度？">多球训练节奏</button>
+                                    <button class="suggestion-chip" data-question="比赛进入相持时如何调动对手？">相持调动</button>
+                                    <button class="suggestion-chip" data-question="如何在比赛中稳定发球质量？">发球稳定性</button>
+                                </div>
+                                <div class="chat-empty" id="exchange-empty">
+                                    <div class="empty-state">
+                                        <strong>还没有交流记录</strong>
+                                        <p>把训练或比赛中的问题直接问 AI，立刻得到建议。</p>
+                                    </div>
+                                </div>
+                                <div class="messages-container" id="exchange-messages"></div>
+                            </div>
+                        </div>
+                        <div class="input-area">
+                            <input type="text" id="message-input" placeholder="输入训练小结...">
+                            <button id="send-button" disabled>发送</button>
+                        </div>
                     </div>
-                    <div class="q-item" data-q='{"id":2,"text":"反手拧拉的动作要领是什么？"}'>
-                        <span>反手拧拉的动作要领是什么？</span>
-                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=" alt=">">
-                    </div>
+                </section>
+            </div>
+        </main>
+        <div class="log-editor-overlay" id="log-editor-overlay">
+            <div class="log-editor">
+                <h3>训练日志编辑</h3>
+                <div class="form-row">
+                    <label>日期
+                        <input type="date" id="log-date">
+                    </label>
+                    <label>时长(分钟)
+                        <input type="number" id="log-duration" min="1" placeholder="60">
+                    </label>
                 </div>
-                <div class="qa-section">
-                    <div class="section-title">比赛战术</div>
-                    <div class="q-item" data-q='{"id":3,"text":"如何对付长胶选手？"}'>
-                        <span>如何对付长胶选手？</span>
-                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=" alt=">">
-                    </div>
+                <div class="form-row">
+                    <label style="grid-column: 1 / -1;">训练标签（用逗号分隔）
+                        <input type="text" id="log-tags" placeholder="正手, 反手, 步伐">
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label style="grid-column: 1 / -1;">训练内容
+                        <textarea id="log-raw" placeholder="输入训练内容或比赛复盘"></textarea>
+                    </label>
+                </div>
+                <div class="form-row">
+                    <label style="grid-column: 1 / -1;">AI 整理结果
+                        <textarea id="log-summary" placeholder="AI 整理摘要"></textarea>
+                    </label>
+                </div>
+                <div class="ai-output" id="log-ai-status">点击“AI 整理”自动生成总结、亮点与改进点。</div>
+                <div class="editor-actions">
+                    <button class="btn btn-secondary" id="log-cancel">取消</button>
+                    <button class="btn btn-ghost" id="log-ai">AI 整理</button>
+                    <button class="btn btn-primary" id="log-save">保存</button>
                 </div>
             </div>
-
-            <!-- Chat Container -->
-            <div class="chat-container" id="chat-container">
-                <div class="messages-container" id="messages-container">
-                    <!-- Messages will be added here dynamically -->
-                </div>
-
-                <div class="input-area">
-                    <input type="text" id="message-input" placeholder="输入训练小结...">
-                    <button id="send-button" disabled>发送</button>
-                </div>
-            </div>
         </div>
+        <footer>
+            <p>&copy; <span id="year"></span> TTAI. All rights reserved.</p>
+        </footer>
     </div>
 
+    <script src="config.js"></script>
     <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
         // Generate UUID function
         function generateUUID() {
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -319,21 +621,76 @@
 
         class TechChatApp {
             constructor() {
+            this.baseUrl = window.ttaiGetBaseUrl ? window.ttaiGetBaseUrl() : '';
+            this.apiBase = window.ttaiGetApiBase ? window.ttaiGetApiBase() : '/api';
+            this.wsUrl = window.ttaiGetWsUrl ? window.ttaiGetWsUrl() : 'wss://www.ttcut.com/ws';
                 this.currentTab = 'qa';
                 this.inputText = '';
-                this.messages = [];
+                this.logMessages = [];
+                this.exchangeMessages = [];
+                this.trainingLogs = [];
+                this.userId = 'anonymous';
+                this.activeLog = null;
+                this.userProfile = null;
+                this.isProLevel = false;
                 this.questions = [
                     {
                         category: '技术训练',
                         list: [
                             { id: 1, text: '如何提高正手拉球稳定性？' },
-                            { id: 2, text: '反手拧拉的动作要领是什么？' }
+                            { id: 2, text: '反手拧拉的动作要领是什么？' },
+                            { id: 3, text: '如何改善发球旋转？' },
+                            { id: 4, text: '步伐训练的黄金法则有哪些？' }
                         ]
                     },
                     {
                         category: '比赛战术',
                         list: [
-                            { id: 3, text: '如何对付长胶选手？' }
+                            { id: 5, text: '如何对付长胶选手？' },
+                            { id: 6, text: '接发球判断旋转的技巧' },
+                            { id: 7, text: '关键分心理调节方法' }
+                        ]
+                    },
+                    {
+                        category: '器材装备',
+                        list: [
+                            { id: 8, text: '初学者胶皮应该怎么选？' },
+                            { id: 9, text: '碳素底板和纯木底板有什么区别？' },
+                            { id: 10, text: '如何判断胶皮该换了？' }
+                        ]
+                    }
+                ];
+                this.proQuestions = [
+                    {
+                        category: '高阶技术',
+                        list: [
+                            { id: 101, text: '多板连续拉的质量如何保持？' },
+                            { id: 102, text: '接发球台内拧拉的落点变化策略' },
+                            { id: 103, text: '比赛中关键分(9:9)的技术选择原则' }
+                        ]
+                    },
+                    {
+                        category: '比赛战术',
+                        list: [
+                            { id: 104, text: '高强对抗中如何设计发球套路？' },
+                            { id: 105, text: '反手变线的时机和隐蔽性如何提升？' },
+                            { id: 106, text: '大赛前心理准备与状态调整' }
+                        ]
+                    },
+                    {
+                        category: '体能竞技',
+                        list: [
+                            { id: 107, text: '高原期如何突破技术瓶颈？' },
+                            { id: 108, text: '专业运动员的伤病管理与恢复训练' },
+                            { id: 109, text: '比赛节奏控制与体能分配策略' }
+                        ]
+                    },
+                    {
+                        category: '器材战术',
+                        list: [
+                            { id: 110, text: '不同胶皮组合的搭配策略' },
+                            { id: 111, text: '如何通过视频分析找出自己的技术弱点？' },
+                            { id: 112, text: '双打配合的战术要点有哪些？' }
                         ]
                     }
                 ];
@@ -342,27 +699,113 @@
                 this.isAuthRequired = true;
                 this.loading = false;
                 this.socket = null;
-                this.websocketUrl = 'wss://www.ttcut.com/ws';
                 this.sessionId = this.getOrCreateSessionId();
                 this.isAuthenticated = false;
                 this.isSocketConnected = false;
                 this.messageQueue = [];
+                this.messageTarget = new Map();
 
                 this.initDOMReferences();
                 this.bindEvents();
+                this.switchTab(this.currentTab);
                 this.loadCachedMessages();
-                this.initWebSocket();
+                this.bootstrap();
                 //this.initSocket();
+            }
+
+            async bootstrap() {
+                await this.loadUserId();
+                await this.loadUserProfile();
+                this.renderQuestionLibrary();
+                await this.loadTrainingLogs();
+                await this.loadExchangeSession();
+                this.initWebSocket();
+            }
+
+            async loadUserProfile() {
+                const token = this.getAuthToken();
+                if (!token) {
+                    this.userProfile = null;
+                    this.isProLevel = false;
+                    return;
+                }
+                try {
+                    const response = await fetch(this.apiBase + '/user', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (!response.ok) return;
+                    const data = await this.safeJsonParse(response);
+                    const profile = data && data.data && data.data.user ? data.data.user : null;
+                    this.userProfile = profile;
+                    const level = profile && profile.skillLevel ? String(profile.skillLevel) : '';
+                    this.isProLevel = ['professional', 'provincial', 'national', 'a1900', 'a2000'].includes(level);
+                } catch (err) {
+                    console.error('loadUserProfile failed', err);
+                }
+            }
+
+            renderQuestionLibrary() {
+                if (!this.qaList) return;
+                this.qaList.innerHTML = '';
+                const list = this.isProLevel ? this.proQuestions : this.questions;
+                const profile = this.userProfile || {};
+                if (this.qaHeader) {
+                    const levelText = profile.skillLevel || '默认';
+                    const playStyle = profile.playStyle || '未知打法';
+                    this.qaHeader.textContent = `技术库 · 当前等级 ${levelText} · ${playStyle}`;
+                }
+                list.forEach((group) => {
+                    const section = document.createElement('div');
+                    section.className = 'qa-section';
+                    const title = document.createElement('div');
+                    title.className = 'section-title';
+                    title.textContent = group.category;
+                    section.appendChild(title);
+                    (group.list || []).forEach((q) => {
+                        const item = document.createElement('div');
+                        item.className = 'q-item';
+                        item.dataset.q = JSON.stringify(q);
+                        item.innerHTML = `
+                            <span>${q.text}</span>
+                            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWNoZXZyb24tcmlnaHQiPjxwYXRoIGQ9Im05IDE4IDYtNi02LTYiLz48L3N2Zz4=" alt=">">
+                        `;
+                        section.appendChild(item);
+                    });
+                    this.qaList.appendChild(section);
+                });
             }
 
             initDOMReferences() {
                 this.tabs = document.querySelectorAll('.tab');
                 this.qaContainer = document.getElementById('qa-container');
                 this.chatContainer = document.getElementById('chat-container');
+                this.exchangeContainer = document.getElementById('exchange-container');
                 this.messagesContainer = document.getElementById('messages-container');
+                this.exchangeMessagesContainer = document.getElementById('exchange-messages');
                 this.messageInput = document.getElementById('message-input');
                 this.sendButton = document.getElementById('send-button');
-                this.qItems = document.querySelectorAll('.q-item');
+                this.inputArea = document.querySelector('.input-area');
+                this.chatEmpty = document.getElementById('chat-empty');
+                this.exchangeEmpty = document.getElementById('exchange-empty');
+                this.jumpQaButton = document.getElementById('jump-qa');
+                this.exchangeSuggestions = document.querySelectorAll('#exchange-suggestions .suggestion-chip');
+                this.qaList = document.getElementById('qa-list');
+                this.qaHeader = document.getElementById('qa-header');
+                this.logList = document.getElementById('log-list');
+                this.logAddButton = document.getElementById('log-add');
+                this.logAddEmptyButton = document.getElementById('log-add-empty');
+                this.logRefreshButton = document.getElementById('log-refresh');
+                this.logEditorOverlay = document.getElementById('log-editor-overlay');
+                this.logDateInput = document.getElementById('log-date');
+                this.logDurationInput = document.getElementById('log-duration');
+                this.logTagsInput = document.getElementById('log-tags');
+                this.logRawInput = document.getElementById('log-raw');
+                this.logSummaryInput = document.getElementById('log-summary');
+                this.logAiStatus = document.getElementById('log-ai-status');
+                this.logAiButton = document.getElementById('log-ai');
+                this.logSaveButton = document.getElementById('log-save');
+                this.logCancelButton = document.getElementById('log-cancel');
+                this.tagPicker = document.getElementById('tag-picker');
             }
 
             bindEvents() {
@@ -371,13 +814,14 @@
                     tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
                 });
 
-                // Question items
-                this.qItems.forEach(item => {
-                    item.addEventListener('click', () => {
-                        const question = JSON.parse(item.dataset.q);
+                if (this.qaList) {
+                    this.qaList.addEventListener('click', (event) => {
+                        const target = event.target.closest('.q-item');
+                        if (!target || !target.dataset.q) return;
+                        const question = JSON.parse(target.dataset.q);
                         this.selectQuestion(question);
                     });
-                });
+                }
 
                 // Input handling
                 this.messageInput.addEventListener('input', (e) => {
@@ -396,6 +840,60 @@
                         this.sendMessage(this.inputText);
                     }
                 });
+
+                if (this.jumpQaButton) {
+                    this.jumpQaButton.addEventListener('click', () => this.switchTab('qa'));
+                }
+
+                if (this.exchangeSuggestions) {
+                    this.exchangeSuggestions.forEach(chip => {
+                        chip.addEventListener('click', () => {
+                            const question = chip.dataset.question;
+                            if (question) {
+                                this.switchTab('exchange');
+                                this.sendMessage(question, { isPresetQuestion: true, target: 'exchange' });
+                            }
+                        });
+                    });
+                }
+
+                if (this.logAddButton) {
+                    this.logAddButton.addEventListener('click', () => this.openLogEditor());
+                }
+
+                if (this.logAddEmptyButton) {
+                    this.logAddEmptyButton.addEventListener('click', () => this.openLogEditor());
+                }
+
+                if (this.logRefreshButton) {
+                    this.logRefreshButton.addEventListener('click', () => this.loadTrainingLogs());
+                }
+
+                if (this.logCancelButton) {
+                    this.logCancelButton.addEventListener('click', () => this.closeLogEditor());
+                }
+
+                if (this.logAiButton) {
+                    this.logAiButton.addEventListener('click', () => this.requestAiSummary());
+                }
+
+                if (this.logSaveButton) {
+                    this.logSaveButton.addEventListener('click', () => this.saveLog());
+                }
+
+                if (this.tagPicker) {
+                    this.tagPicker.querySelectorAll('.tag-chip').forEach((chip) => {
+                        chip.addEventListener('click', () => {
+                            const tag = chip.dataset.tag;
+                            if (!tag) return;
+                            const tags = this.parseTags(this.logTagsInput ? this.logTagsInput.value : '');
+                            const exists = tags.includes(tag);
+                            const next = exists ? tags.filter(t => t !== tag) : [...tags, tag];
+                            if (this.logTagsInput) this.logTagsInput.value = next.join(', ');
+                            chip.classList.toggle('active', !exists);
+                        });
+                    });
+                }
             }
 
             switchTab(tab) {
@@ -408,39 +906,65 @@
                 if (tab === 'qa') {
                     this.qaContainer.classList.add('active');
                     this.chatContainer.classList.remove('active');
-                } else {
+                    if (this.exchangeContainer) this.exchangeContainer.classList.remove('active');
+                    this.messageInput.placeholder = '选择技术库问题或切换到训练日志/技术交流';
+                    this.messageInput.disabled = true;
+                    this.sendButton.disabled = true;
+                    if (this.inputArea) this.inputArea.style.display = 'none';
+                } else if (tab === 'chat') {
                     this.qaContainer.classList.remove('active');
                     this.chatContainer.classList.add('active');
+                    if (this.exchangeContainer) this.exchangeContainer.classList.remove('active');
                     this.scrollToBottom();
+                    this.messageInput.placeholder = '记录训练小结或复盘内容...';
+                    this.messageInput.disabled = true;
+                    this.sendButton.disabled = true;
+                    if (this.inputArea) this.inputArea.style.display = 'none';
+                } else {
+                    this.qaContainer.classList.remove('active');
+                    this.chatContainer.classList.remove('active');
+                    if (this.exchangeContainer) this.exchangeContainer.classList.add('active');
+                    this.messageInput.placeholder = '直接提问技术细节或战术问题...';
+                    this.messageInput.disabled = false;
+                    this.sendButton.disabled = !this.messageInput.value.trim();
+                    if (this.inputArea) this.inputArea.style.display = 'flex';
                 }
             }
 
             selectQuestion(question) {
-                this.switchTab('chat');
-                this.sendMessage(question.text, { isPresetQuestion: true });
+                this.switchTab('exchange');
+                this.sendMessage(question.text, { isPresetQuestion: true, target: 'exchange' });
             }
 
             loadCachedMessages() {
                 const cachedMsg = localStorage.getItem('ai_messages');
                 if (cachedMsg) {
-                    this.messages = JSON.parse(cachedMsg);
+                    const parsed = JSON.parse(cachedMsg);
+                    this.logMessages = parsed.logMessages || parsed || [];
+                    this.exchangeMessages = parsed.exchangeMessages || [];
                     this.renderMessages();
                 }
             }
 
             storeMessages(messages) {
                 try {
-                    localStorage.setItem('ai_messages', JSON.stringify(messages));
+                    localStorage.setItem('ai_messages', JSON.stringify({
+                        logMessages: this.logMessages,
+                        exchangeMessages: this.exchangeMessages
+                    }));
                 } catch (err) {
                     console.error('Storage error:', err);
                     // If storage is full, keep only the last 10 messages
-                    localStorage.setItem('ai_messages', JSON.stringify(messages.slice(-10)));
+                    localStorage.setItem('ai_messages', JSON.stringify({
+                        logMessages: this.logMessages.slice(-10),
+                        exchangeMessages: this.exchangeMessages.slice(-10)
+                    }));
                 }
             }
 
             // 初始化WebSocket
             initWebSocket() {
-                this.socket = new WebSocket(`${this.websocketUrl}?sessionId=${this.sessionId}`);
+                this.socket = new WebSocket(`${this.wsUrl}?sessionId=${this.sessionId}`);
 
                 // WebSocket连接打开事件
                 this.socket.onopen = () => {
@@ -522,6 +1046,344 @@
                     localStorage.setItem('sessionId', sessionId);
                 }
                 return sessionId;
+            }
+
+            async loadUserId() {
+                const cached = localStorage.getItem('openid');
+                if (cached) {
+                    this.userId = cached;
+                    return cached;
+                }
+                const token = this.getAuthToken();
+                if (!token) {
+                    this.userId = 'anonymous';
+                    return 'anonymous';
+                }
+                try {
+                    const response = await fetch(this.apiBase + '/user', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (!response.ok) throw new Error('user fetch failed');
+                    const data = await this.safeJsonParse(response);
+                    const openid = data && data.data && data.data.user && data.data.user.openid;
+                    if (openid) {
+                        this.userId = openid;
+                        localStorage.setItem('openid', openid);
+                        return openid;
+                    }
+                } catch (err) {
+                    console.error('loadUserId failed', err);
+                }
+                this.userId = 'anonymous';
+                return 'anonymous';
+            }
+
+            async loadTrainingLogs() {
+                const token = this.getAuthToken();
+                await this.loadUserId();
+                const userId = this.userId || 'anonymous';
+                try {
+                    const response = await fetch(`${this.apiBase}/chat/training-log?userId=${encodeURIComponent(userId)}`, {
+                        headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+                    });
+                    if (!response.ok) throw new Error('training log fetch failed');
+                    const data = await this.safeJsonParse(response);
+                    const entries = (data && data.data && data.data.entries) || (data && data.data) || [];
+                    this.trainingLogs = (entries || []).map((entry) => ({
+                        id: entry._id || entry.id || `log-${Date.now()}`,
+                        date: entry.date || (entry.createdAt || '').slice(0, 10),
+                        duration: entry.duration || 60,
+                        rawInput: entry.rawInput || '',
+                        summary: entry.summary || '',
+                        highlights: entry.highlights || '',
+                        weaknesses: entry.weaknesses || '',
+                        practicePlan: entry.practicePlan || '',
+                        tags: entry.tags || [],
+                        createdAt: entry.createdAt || new Date().toISOString(),
+                        updatedAt: entry.updatedAt || new Date().toISOString()
+                    })).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    this.renderTrainingLogs();
+                } catch (err) {
+                    console.error('loadTrainingLogs failed', err);
+                }
+            }
+
+            async createTrainingLog(content) {
+                this.openLogEditor({ rawInput: content });
+            }
+
+            async loadExchangeSession() {
+                await this.loadUserId();
+                const userId = this.userId || 'anonymous';
+                try {
+                    const response = await fetch(`${this.apiBase}/chat/sessions/${encodeURIComponent(this.sessionId)}?userId=${encodeURIComponent(userId)}`);
+                    if (!response.ok) return;
+                    const data = await this.safeJsonParse(response);
+                    const messages = data && data.data && data.data.messages ? data.data.messages : [];
+                    if (messages.length) {
+                        this.exchangeMessages = messages.map((m) => ({
+                            role: m.role,
+                            content: m.content,
+                            id: `${m.role}-${Date.now()}-${Math.random()}`,
+                            timestamp: m.timestamp || new Date().toISOString()
+                        }));
+                        this.renderMessages();
+                    }
+                } catch (err) {
+                    console.error('loadExchangeSession failed', err);
+                }
+            }
+
+            async saveExchangeSession() {
+                await this.loadUserId();
+                const userId = this.userId || 'anonymous';
+                const messages = this.exchangeMessages || [];
+                if (!messages.length) return;
+                const firstUser = messages.find(m => m.role === 'user');
+                const lastMsg = messages[messages.length - 1];
+                const title = firstUser ? firstUser.content.slice(0, 20) : '新对话';
+                try {
+                    await fetch(`${this.apiBase}/chat/sessions`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId,
+                            sessionId: this.sessionId,
+                            title,
+                            lastMessage: lastMsg ? lastMsg.content.slice(0, 30) : '',
+                            messageCount: messages.length,
+                            messages: messages.map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp }))
+                        })
+                    });
+                } catch (err) {
+                    console.error('saveExchangeSession failed', err);
+                }
+            }
+
+            getAuthToken() {
+                return localStorage.getItem('token') || '';
+            }
+
+            requireLogin() {
+                alert('请先登录后再使用此功能');
+                window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname);
+            }
+
+            async safeJsonParse(response) {
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (err) {
+                    throw new Error(text.slice(0, 100));
+                }
+            }
+
+            renderTrainingLogs() {
+                if (!this.logList) return;
+                this.logList.innerHTML = '';
+                if (this.chatEmpty) {
+                    if (!this.trainingLogs.length) {
+                        this.chatEmpty.classList.add('active');
+                    } else {
+                        this.chatEmpty.classList.remove('active');
+                    }
+                }
+                this.trainingLogs.forEach((entry) => {
+                    const card = document.createElement('div');
+                    card.className = 'log-card';
+                    const title = entry.summary || entry.rawInput || '训练日志';
+                    const tags = Array.isArray(entry.tags) ? entry.tags : [];
+                    card.innerHTML = `
+                        <h4>${title}</h4>
+                        <div class="log-meta">
+                            <span>${entry.date || ''}</span>
+                            <span>${entry.duration || 60} 分钟</span>
+                        </div>
+                        <div>${entry.rawInput || ''}</div>
+                        <div class="log-tags">
+                            ${tags.map(tag => `<span>${tag}</span>`).join('')}
+                        </div>
+                        <div class="log-actions">
+                            <button data-action="edit" data-id="${entry.id}">编辑</button>
+                            <button data-action="delete" data-id="${entry.id}">删除</button>
+                        </div>
+                    `;
+                    card.querySelectorAll('button').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const action = btn.dataset.action;
+                            if (action === 'edit') this.openLogEditor(entry);
+                            if (action === 'delete') this.deleteLog(entry);
+                        });
+                    });
+                    this.logList.appendChild(card);
+                });
+            }
+
+            openLogEditor(entry = {}) {
+                const now = new Date();
+                this.activeLog = entry && entry.id ? entry : null;
+                if (this.logDateInput) {
+                    this.logDateInput.value = entry.date || now.toISOString().slice(0, 10);
+                }
+                if (this.logDurationInput) {
+                    this.logDurationInput.value = entry.duration || 60;
+                }
+                if (this.logTagsInput) {
+                    this.logTagsInput.value = Array.isArray(entry.tags) ? entry.tags.join(', ') : '';
+                }
+                if (this.tagPicker) {
+                    const selected = this.parseTags(this.logTagsInput ? this.logTagsInput.value : '');
+                    this.tagPicker.querySelectorAll('.tag-chip').forEach((chip) => {
+                        chip.classList.toggle('active', selected.includes(chip.dataset.tag));
+                    });
+                }
+                if (this.logRawInput) {
+                    this.logRawInput.value = entry.rawInput || '';
+                }
+                if (this.logSummaryInput) {
+                    this.logSummaryInput.value = entry.summary || '';
+                }
+                if (this.logAiStatus) {
+                    this.logAiStatus.textContent = '点击“AI 整理”自动生成总结、亮点与改进点。';
+                }
+                if (this.logEditorOverlay) {
+                    this.logEditorOverlay.classList.add('active');
+                }
+            }
+
+            closeLogEditor() {
+                this.activeLog = null;
+                if (this.logEditorOverlay) {
+                    this.logEditorOverlay.classList.remove('active');
+                }
+            }
+
+            parseTags(text) {
+                return String(text || '')
+                    .split(/[,，\s]+/)
+                    .map(t => t.trim())
+                    .filter(Boolean)
+                    .slice(0, 6);
+            }
+
+            async requestAiSummary() {
+                const raw = this.logRawInput ? this.logRawInput.value.trim() : '';
+                if (!raw) {
+                    alert('请先输入训练内容');
+                    return;
+                }
+                if (this.logAiStatus) this.logAiStatus.textContent = 'AI 正在整理...';
+                try {
+                    const response = await fetch(this.apiBase + '/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Request-ID': Date.now().toString() },
+                        body: JSON.stringify({
+                            messages: [
+                                { role: 'system', content: '你是专业的乒乓球训练日志整理助手。请把用户口语化训练总结整理为 JSON。只返回 JSON，不要解释。JSON 结构：{"summary":"40字内今日训练重点","highlights":"1-2句亮点总结","weaknesses":"1-2句待改进点","practicePlan":"下一次训练建议","tags":["正手|反手|拧拉|发球|步伐|战术|体能|比赛|拉球|搓球"]}。tags 最多 4 个。' },
+                                { role: 'user', content: raw }
+                            ],
+                            context: { currentInput: raw },
+                            followUpCount: 0
+                        })
+                    });
+                    if (!response.ok) throw new Error('AI 请求失败');
+                    const data = await this.safeJsonParse(response);
+                    const content = data && data.data ? data.data.content : (data.choices ? data.choices[0].message.content : '');
+                    this.applyAiResult(content);
+                } catch (err) {
+                    console.error('AI summary failed', err);
+                    if (this.logAiStatus) this.logAiStatus.textContent = 'AI 整理失败，请稍后重试。';
+                }
+            }
+
+            applyAiResult(text) {
+                try {
+                    let json = String(text || '').trim();
+                    const match = json.match(/```(?:json)?\s*([\s\S]*?)```/);
+                    if (match) json = match[1].trim();
+                    const parsed = JSON.parse(json);
+                    if (this.logSummaryInput) {
+                        const summary = parsed.summary || '';
+                        const highlights = parsed.highlights ? `\n亮点：${parsed.highlights}` : '';
+                        const weaknesses = parsed.weaknesses ? `\n改进：${parsed.weaknesses}` : '';
+                        const practice = parsed.practicePlan ? `\n建议：${parsed.practicePlan}` : '';
+                        this.logSummaryInput.value = `${summary}${highlights}${weaknesses}${practice}`.trim();
+                    }
+                    if (this.logTagsInput && Array.isArray(parsed.tags)) {
+                        this.logTagsInput.value = parsed.tags.join(', ');
+                    }
+                    if (this.tagPicker) {
+                        const selected = this.parseTags(this.logTagsInput ? this.logTagsInput.value : '');
+                        this.tagPicker.querySelectorAll('.tag-chip').forEach((chip) => {
+                            chip.classList.toggle('active', selected.includes(chip.dataset.tag));
+                        });
+                    }
+                    if (this.logAiStatus) this.logAiStatus.textContent = '已生成 AI 整理结果。';
+                } catch (err) {
+                    if (this.logSummaryInput) this.logSummaryInput.value = text || '';
+                    if (this.logAiStatus) this.logAiStatus.textContent = 'AI 返回非结构化内容，已直接填入。';
+                }
+            }
+
+            async saveLog() {
+                const token = this.getAuthToken();
+                if (!token) {
+                    this.requireLogin();
+                    return;
+                }
+                await this.loadUserId();
+                const entry = {
+                    id: this.activeLog ? this.activeLog.id : null,
+                    date: this.logDateInput ? this.logDateInput.value : '',
+                    duration: parseInt(this.logDurationInput ? this.logDurationInput.value : '60', 10) || 60,
+                    rawInput: this.logRawInput ? this.logRawInput.value.trim() : '',
+                    summary: this.logSummaryInput ? this.logSummaryInput.value.trim() : '',
+                    tags: this.parseTags(this.logTagsInput ? this.logTagsInput.value : ''),
+                    createdAt: this.activeLog && this.activeLog.createdAt ? this.activeLog.createdAt : new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    userId: this.userId || 'anonymous'
+                };
+                if (!entry.rawInput) {
+                    alert('请输入训练内容');
+                    return;
+                }
+                const url = entry.id
+                    ? `${this.apiBase}/chat/training-log/${encodeURIComponent(entry.id)}`
+                    : `${this.apiBase}/chat/training-log`;
+                const method = entry.id ? 'PUT' : 'POST';
+                try {
+                    const response = await fetch(url, {
+                        method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: JSON.stringify(entry)
+                    });
+                    if (!response.ok) throw new Error('save log failed');
+                    await this.loadTrainingLogs();
+                    this.closeLogEditor();
+                } catch (err) {
+                    console.error('save log failed', err);
+                }
+            }
+
+            async deleteLog(entry) {
+                const token = this.getAuthToken();
+                if (!token) {
+                    this.requireLogin();
+                    return;
+                }
+                if (!confirm('确定删除该训练日志？')) return;
+                try {
+                    await fetch(`${this.apiBase}/chat/training-log/${encodeURIComponent(entry.id)}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    await this.loadTrainingLogs();
+                } catch (err) {
+                    console.error('delete log failed', err);
+                }
             }
 
             authenticateSocket() {
@@ -646,6 +1508,7 @@
                 const userMessageId = `user-${baseId}`;
                 const aiMessageId = `ai-${baseId}`;
                 const { skipStore = false } = options;
+                const activeTarget = options.target || (this.currentTab === 'exchange' ? 'exchange' : 'chat');
 
                 // Add user message
                 const userMessage = {
@@ -655,11 +1518,15 @@
                     timestamp: new Date().toISOString()
                 };
 
-                this.messages = [...this.messages, userMessage];
+                if (activeTarget === 'exchange') {
+                    this.exchangeMessages = [...this.exchangeMessages, userMessage];
+                } else {
+                    this.logMessages = [...this.logMessages, userMessage];
+                }
                 this.renderMessages();
 
                 if (!skipStore) {
-                    this.storeMessages(this.messages);
+                    this.storeMessages();
                 }
 
                 // Clear input if not preset question
@@ -671,6 +1538,7 @@
 
                 // Show loading state
                 this.loading = true;
+                this.messageTarget.set(aiMessageId, activeTarget);
 
                 // Send via WebSocket
                 if (this.socket) {
@@ -678,8 +1546,8 @@
                         type: 'question',
                         content: content,
                         messageId: aiMessageId,
-                        context: this.getConversationContext(content),
-                        userId: 'anonymous' // In a real app, you would use actual user ID
+                        context: this.buildContext(content),
+                        userId: this.userId || 'anonymous'
                     };
 
                     this.socket.send(JSON.stringify(questionMessage));
@@ -702,9 +1570,10 @@
 
             handlePartialResponse(content, messageId) {
                 const normalizedId = messageId.startsWith('ai-') ? messageId : `ai-${messageId}`;
+                const target = this.messageTarget.get(normalizedId) || (this.currentTab === 'exchange' ? 'exchange' : 'chat');
 
                 // Find or create AI message
-                let aiMessage = this.messages.find(m => m.id === normalizedId);
+                let aiMessage = this.logMessages.find(m => m.id === normalizedId) || this.exchangeMessages.find(m => m.id === normalizedId);
                 if (!aiMessage) {
                     aiMessage = {
                         role: 'assistant',
@@ -713,7 +1582,11 @@
                         timestamp: new Date().toISOString(),
                         isStreaming: true
                     };
-                    this.messages = [...this.messages, aiMessage];
+                    if (target === 'exchange') {
+                        this.exchangeMessages = [...this.exchangeMessages, aiMessage];
+                    } else {
+                        this.logMessages = [...this.logMessages, aiMessage];
+                    }
                 }
 
                 // Update content
@@ -726,8 +1599,9 @@
 
             handleCompleteResponse(content, messageId) {
                 const actualMessageId = messageId.startsWith('ai-') ? messageId : `ai-${messageId}`;
+                const target = this.messageTarget.get(actualMessageId) || (this.currentTab === 'exchange' ? 'exchange' : 'chat');
 
-                let aiMessage = this.messages.find(m => m.id === actualMessageId);
+                let aiMessage = this.logMessages.find(m => m.id === actualMessageId) || this.exchangeMessages.find(m => m.id === actualMessageId);
                 if (aiMessage) {
                     aiMessage.content = content;
                     aiMessage.isStreaming = false;
@@ -738,21 +1612,29 @@
                         id: actualMessageId,
                         timestamp: new Date().toISOString()
                     };
-                    this.messages = [...this.messages, aiMessage];
+                    if (target === 'exchange') {
+                        this.exchangeMessages = [...this.exchangeMessages, aiMessage];
+                    } else {
+                        this.logMessages = [...this.logMessages, aiMessage];
+                    }
                 }
 
                 this.loading = false;
                 this.renderMessages();
                 this.scrollToBottom();
-                this.storeMessages(this.messages);
+                this.storeMessages();
+                if (target === 'exchange') {
+                    this.saveExchangeSession();
+                }
             }
 
             handleAIError(errorMessage, messageId) {
                 console.error('AI error:', errorMessage);
 
                 const actualMessageId = messageId.startsWith('ai-') ? messageId : `ai-${messageId}`;
+                const target = this.messageTarget.get(actualMessageId) || (this.currentTab === 'exchange' ? 'exchange' : 'chat');
 
-                let aiMessage = this.messages.find(m => m.id === actualMessageId);
+                let aiMessage = this.logMessages.find(m => m.id === actualMessageId) || this.exchangeMessages.find(m => m.id === actualMessageId);
                 if (aiMessage) {
                     aiMessage.content = `[错误] ${errorMessage}`;
                     aiMessage.isError = true;
@@ -765,7 +1647,11 @@
                         timestamp: new Date().toISOString(),
                         isError: true
                     };
-                    this.messages = [...this.messages, aiMessage];
+                    if (target === 'exchange') {
+                        this.exchangeMessages = [...this.exchangeMessages, aiMessage];
+                    } else {
+                        this.logMessages = [...this.logMessages, aiMessage];
+                    }
                 }
 
                 this.loading = false;
@@ -776,12 +1662,35 @@
             }
 
             renderMessages() {
-                this.messagesContainer.innerHTML = '';
+                if (this.messagesContainer) this.messagesContainer.innerHTML = '';
+                if (this.exchangeMessagesContainer) this.exchangeMessagesContainer.innerHTML = '';
 
-                this.messages.forEach(msg => {
+                if (this.chatEmpty) {
+                    if (this.trainingLogs.length === 0) {
+                        this.chatEmpty.classList.add('active');
+                    } else {
+                        this.chatEmpty.classList.remove('active');
+                    }
+                }
+
+                if (this.exchangeEmpty) {
+                    if (this.exchangeMessages.length === 0) {
+                        this.exchangeEmpty.classList.add('active');
+                    } else {
+                        this.exchangeEmpty.classList.remove('active');
+                    }
+                }
+
+                const renderList = (list, container) => {
+                    if (!container) return;
+                    list.forEach(msg => {
                     const messageDiv = document.createElement('div');
                     messageDiv.className = `message ${msg.role}`;
                     messageDiv.id = msg.id;
+
+                    const avatar = document.createElement('div');
+                    avatar.className = 'message-avatar';
+                    avatar.textContent = msg.role === 'user' ? '我' : 'AI';
 
                     const contentDiv = document.createElement('div');
                     contentDiv.className = `message-content ${msg.role}`;
@@ -793,9 +1702,30 @@
                         this.handleLongPress(msg.content);
                     });
 
+                    messageDiv.appendChild(avatar);
                     messageDiv.appendChild(contentDiv);
-                    this.messagesContainer.appendChild(messageDiv);
-                });
+                    container.appendChild(messageDiv);
+                    });
+                };
+
+                renderList(this.exchangeMessages, this.exchangeMessagesContainer);
+
+                if (this.loading) {
+                    const typingDiv = document.createElement('div');
+                    typingDiv.className = 'message assistant typing';
+                    const typingAvatar = document.createElement('div');
+                    typingAvatar.className = 'message-avatar';
+                    typingAvatar.textContent = 'AI';
+                    const typingContent = document.createElement('div');
+                    typingContent.className = 'message-content assistant';
+                    typingContent.textContent = 'AI 正在整理建议...';
+                    typingDiv.appendChild(typingAvatar);
+                    typingDiv.appendChild(typingContent);
+                    const targetContainer = this.currentTab === 'exchange'
+                        ? this.exchangeMessagesContainer
+                        : this.messagesContainer;
+                    if (targetContainer) targetContainer.appendChild(typingDiv);
+                }
             }
 
             handleLongPress(content) {
@@ -813,7 +1743,12 @@
             }
 
             scrollToBottom() {
-                this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+                const targetContainer = this.currentTab === 'exchange'
+                    ? this.exchangeMessagesContainer
+                    : this.messagesContainer;
+                if (targetContainer) {
+                    targetContainer.scrollTop = targetContainer.scrollHeight;
+                }
             }
 
             validateInput(content) {
@@ -828,16 +1763,25 @@
                 return true;
             }
 
-            sendMessage(content, options = {}) {
-                const { isPresetQuestion = false, skipStore = false } = options;
+            async sendMessage(content, options = {}) {
+                const { isPresetQuestion = false, skipStore = false, target } = options;
                 const trimmedContent = content.trim();
+                const activeTarget = target || (this.currentTab === 'exchange' ? 'exchange' : 'chat');
 
                 if (!trimmedContent) return;
                 if (!this.validateInput(trimmedContent)) return;
 
+                if (activeTarget === 'chat') {
+                    await this.createTrainingLog(trimmedContent);
+                    this.messageInput.value = '';
+                    this.inputText = '';
+                    this.sendButton.disabled = true;
+                    return;
+                }
+
                 // Use WebSocket if available
                 if (this.isSocketConnected || this.socketStatus === 'connecting') {
-                    this.sendWSMessage(trimmedContent, options);
+                    this.sendWSMessage(trimmedContent, { ...options, target: activeTarget });
                     return;
                 }
 
@@ -849,11 +1793,16 @@
                     timestamp: new Date().toISOString()
                 };
 
-                this.messages = [...this.messages, newMsg];
+                if (activeTarget === 'exchange') {
+                    this.exchangeMessages = [...this.exchangeMessages, newMsg];
+                } else {
+                    this.logMessages = [...this.logMessages, newMsg];
+                }
                 this.renderMessages();
 
                 // Send request
                 this.loading = true;
+                this.renderMessages();
                 this.callChatAPI(trimmedContent)
                     .then(response => this.receiveAIResponse(response))
                     .catch(err => this.handleAPIError(err, newMsg.id))
@@ -868,11 +1817,40 @@
                         reject(new Error('Invalid input'));
                         return;
                     }
+                    const context = this.buildContext(userInput);
+                    const messages = this.getConversationContext(userInput, 'exchange');
+                    fetch(this.apiBase + '/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Request-ID': Date.now().toString() },
+                        body: JSON.stringify({ messages, context, followUpCount: 3 })
+                    }).then(async (res) => {
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const data = await this.safeJsonParse(res);
+                        if (data && data.data) {
+                            resolve({ content: data.data.content, followUps: data.data.followUps });
+                        } else if (data && data.choices) {
+                            resolve({ content: data.choices[0].message.content });
+                        } else {
+                            reject(new Error('Invalid response structure'));
+                        }
+                    }).catch(err => reject(err));
                 });
             }
 
-            getConversationContext(newInput) {
-                const history = this.messages.slice(-5);
+            buildContext(currentInput) {
+                const context = { currentInput };
+                const recentTopics = this.exchangeMessages
+                    .filter(m => m.role === 'user')
+                    .slice(-3)
+                    .map(m => m.content.slice(0, 50));
+                if (recentTopics.length) context.recentTopics = recentTopics;
+                const recentLogs = this.trainingLogs.slice(0, 5).map(m => (m.summary || m.rawInput || '').slice(0, 40));
+                if (recentLogs.length) context.recentTraining = recentLogs;
+                return context;
+            }
+
+            getConversationContext(newInput, target = 'chat') {
+                const history = (target === 'exchange' ? this.exchangeMessages : this.logMessages).slice(-5);
 
                 return [
                     ...history.filter((msg, index) => {
@@ -891,12 +1869,19 @@
                     timestamp: new Date().toISOString()
                 };
 
-                if (this.messages.some(msg => msg.id === newMsg.id)) return;
-                
-                this.messages = [...this.messages, newMsg];
+                if (this.logMessages.some(msg => msg.id === newMsg.id)) return;
+
+                if (this.currentTab === 'exchange') {
+                    this.exchangeMessages = [...this.exchangeMessages, newMsg];
+                } else {
+                    this.logMessages = [...this.logMessages, newMsg];
+                }
                 this.renderMessages();
                 this.scrollToBottom();
-                this.storeMessages(this.messages);
+                this.storeMessages();
+                if (this.currentTab === 'exchange') {
+                    this.saveExchangeSession();
+                }
             }
 
             handleAPIError(error, msgId) {
@@ -913,7 +1898,8 @@
                 alert(errorMessages[error.message] || '服务暂时不可用');
 
                 // Remove the message that caused the error
-                this.messages = this.messages.filter(msg => msg.id !== msgId);
+                this.logMessages = this.logMessages.filter(msg => msg.id !== msgId);
+                this.exchangeMessages = this.exchangeMessages.filter(msg => msg.id !== msgId);
                 this.renderMessages();
             }
         }

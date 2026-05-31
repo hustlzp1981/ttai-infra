@@ -91,7 +91,11 @@ class WeChatAuth {
                 throw new Error(`No element with id "${this.qrCodeElementId}" found.`);
             }
 
-            imgElement.src = imageUrl;
+                imgElement.src = imageUrl;
+                imgElement.onerror = () => {
+                    imgElement.src = 'images/main.png';
+                    imgElement.alt = '本地开发跳过二维码登录';
+                };
 
             imgElement.onload = () => {
                 console.log('QR Code image loaded successfully.');

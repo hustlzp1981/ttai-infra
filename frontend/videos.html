@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>视频库 - TTAI</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <a class="brand" href="index.html">
+            <span class="brand-mark">TT</span>
+            <span>TTAI 乒乓训练</span>
+          </a>
+          <nav class="nav-links">
+            <a href="index.html">首页</a>
+            <a class="active" href="videos.html">视频库</a>
+            <a href="stats.html">训练统计</a>
+            <a href="tech.html">技术训练</a>
+            <a href="my.html">我的</a>
+            <a href="login.html">登录</a>
+          </nav>
+        </div>
+      </header>
+
+      <main class="main">
+        <div class="container">
+          <section class="section">
+            <h2 class="card-title">视频库</h2>
+            <p class="muted">按模式筛选你的比赛剪辑与训练分析。</p>
+            <div class="upload-actions">
+              <button class="btn btn-secondary btn-primary" type="button" data-mode="">全部</button>
+              <button class="btn btn-secondary" type="button" data-mode="match_clip">比赛剪辑</button>
+              <button class="btn btn-secondary" type="button" data-mode="training_analysis">训练分析</button>
+            </div>
+          </section>
+
+          <section class="section">
+            <h3 class="card-title">视频列表</h3>
+            <ul id="video-list"></ul>
+            <div class="empty-state" id="video-empty">暂无更多视频记录。</div>
+            <div class="upload-actions" style="justify-content:center; margin-top: 16px;">
+              <button class="btn btn-secondary" type="button" id="load-more">加载更多</button>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; <span id="year"></span> TTAI. All rights reserved.</p>
+      </footer>
+    </div>
+    <script src="config.js"></script>
+    <script src="videos.js"></script>
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

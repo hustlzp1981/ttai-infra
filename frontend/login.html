@@ -3,11 +3,13 @@
   <head>
     <meta charset="UTF-8">
     <title>用户登录注册</title>
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/uuid@8.3.2/dist/umd/uuid.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/spark-md5/3.0.2/spark-md5.min.js"></script>
+    <script src="config.js"></script>
     <script src="wechat-auth.js"></script>
     <style>
-        .container { max-width: 400px; margin: 50px auto; padding: 20px; }
+        .container { max-width: 420px; margin: 50px auto; padding: 20px; }
         .tabs { display: flex; margin-bottom: 20px; }
         .tab {
             flex: 1; padding: 10px;
@@ -34,34 +36,59 @@
     </style>
   </head>
   <body>
-    <div class="container">
-        <div class="tabs">
-            <div class="tab" data-type="email">邮箱登录</div>
-            <div class="tab" data-type="phone">手机登录</div>
-            <div class="tab active" data-type="wechat">微信扫码登录</div>
-        </div>
-
-
-        <!-- 邮箱登录 -->
-        <div id="emailForm" class="form-content">
-            <input type="email" placeholder="请输入邮箱">
-            <input type="password" placeholder="请输入密码">
-            <button>登录</button>
-        </div>
-
-        <!-- 手机登录 -->
-        <div id="phoneForm" class="form-content hidden">
-            <input type="tel" placeholder="请输入手机号">
-            <input type="password" placeholder="请输入密码">
-            <button>登录</button>
-        </div>
-
-        <!-- 微信登录 -->
-        <div id="wechatLogin" class="form-content hidden">
-            <div id="qrcode-container">
-                <img id="qrcode" alt="微信登录二维码" style="width: 200px; height: 200px;" />
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="topbar-inner">
+                <a class="brand" href="index.html">
+                    <span class="brand-mark">TT</span>
+                    <span>TTAI 乒乓训练</span>
+                </a>
+                <nav class="nav-links">
+                    <a href="index.html">首页</a>
+                    <a href="videos.html">视频库</a>
+                    <a href="stats.html">训练统计</a>
+                    <a href="tech.html">技术训练</a>
+                    <a href="my.html">我的</a>
+                    <a class="active" href="login.html">登录</a>
+                </nav>
             </div>
-        </div>
+        </header>
+
+        <main class="main">
+            <div class="container">
+                <section class="section">
+                    <h2 class="card-title">登录你的训练空间</h2>
+                    <p class="muted">扫码登录后即可同步训练记录与分析结果。</p>
+                    <div class="empty-state" id="login-note" style="display: none;"></div>
+                    <div class="tabs">
+                        <div class="tab" data-type="email">邮箱登录</div>
+                        <div class="tab" data-type="phone">手机登录</div>
+                        <div class="tab active" data-type="wechat">微信扫码登录</div>
+                    </div>
+
+                    <div id="emailForm" class="form-content">
+                        <input type="email" placeholder="请输入邮箱">
+                        <input type="password" placeholder="请输入密码">
+                        <button>登录</button>
+                    </div>
+
+                    <div id="phoneForm" class="form-content hidden">
+                        <input type="tel" placeholder="请输入手机号">
+                        <input type="password" placeholder="请输入密码">
+                        <button>登录</button>
+                    </div>
+
+                    <div id="wechatLogin" class="form-content hidden">
+                        <div id="qrcode-container">
+                            <img id="qrcode" alt="微信登录二维码" style="width: 200px; height: 200px;" />
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+        <footer>
+            <p>&copy; <span id="year"></span> TTAI. All rights reserved.</p>
+        </footer>
     </div>
 
     <script>
@@ -99,6 +126,14 @@
         document.getElementById('wechatLogin').classList.add('active');
         wechatDirectLogin();
 
+        document.getElementById('year').textContent = new Date().getFullYear();
+        const noteEl = document.getElementById('login-note');
+        const host = window.location.hostname;
+        if (noteEl && (host === 'localhost' || host === '127.0.0.1')) {
+            noteEl.textContent = '本地开发跳过二维码登录，后续上线再接入扫码。';
+            noteEl.style.display = 'block';
+        }
+
         // 发送验证码
         let countdown = 60;
         function sendCaptcha(type) {
@@ -135,10 +170,12 @@
             const urlParams = new URLSearchParams(window.location.search);
             const redirectUrl = urlParams.get('redirect') || 'index.html'; // 默认跳转到index.html
             // 微信一键登录处理
+            const apiBase = window.ttaiGetApiBase ? window.ttaiGetApiBase() : '/api';
+            const wsUrl = window.ttaiGetWsUrl ? window.ttaiGetWsUrl() : 'wss://www.ttcut.com/ws';
             const auth = new WeChatAuth({
                 qrCodeRefreshInterval: 30000,
-                qrCodeEndpoint: '/api/generate-qrcode',
-                websocketUrl: 'wss://www.ttcut.com/ws',
+                qrCodeEndpoint: apiBase + '/generate-qrcode',
+                websocketUrl: wsUrl,
                 redirectUrl: redirectUrl,
                 qrCodeElementId: 'qrcode'
             });

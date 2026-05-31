@@ -1,12 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const BASE_URL = window.TTAI_BASE_URL || '';
+    const API_BASE = BASE_URL + '/api';
     const form = document.getElementById('uploadForm');
     const uploadQueue = document.getElementById('uploadQueue');
     const matchClipButton = document.getElementById('matchClipButton');
     const trainingAnalysisButton = document.getElementById('trainingAnalysisButton');
     const uploadTasks = new Map();
-    const CHUNK_SIZE = 20 * 1024 * 1024; //20MB分片
+    const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB 分片
 
     const modeButtons = [matchClipButton, trainingAnalysisButton].filter(Boolean);
+    const modeLabels = {
+        match_clip: '比赛回合剪辑',
+        training_analysis: '训练视频分析'
+    };
 
     const setModeButtonsDisabled = (disabled, activeButton, activeText) => {
         modeButtons.forEach(button => {
@@ -76,6 +82,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const getAuthToken = () => localStorage.getItem('token') || '';
+
+    const requireLogin = () => {
+        alert('请先登录后再上传视频');
+        window.location.href = 'login.html?redirect=' + encodeURIComponent(window.location.pathname);
+    };
+
+    const getOpenId = async () => {
+        const cached = localStorage.getItem('openid');
+        if (cached) return cached;
+        const token = getAuthToken();
+        if (!token) return '';
+        const response = await fetch(API_BASE + '/user', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!response.ok) return '';
+        const data = await safeJsonParse(response);
+        const openid = data && data.data && data.data.user && data.data.user.openid;
+        if (openid) localStorage.setItem('openid', openid);
+        return openid || '';
+    };
+
+    const resolveUrl = (path) => {
+        if (!path) return '';
+        if (path.startsWith('http')) return path;
+        if (path.startsWith('/')) return BASE_URL + path;
+        return BASE_URL + '/' + path;
+    };
+
     const sliceFile = (file) => {
         const chunks = [];
         let offset = 0;
@@ -99,6 +134,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return chunks;
     }
+
+    const formatBytes = (bytes) => {
+        if (!Number.isFinite(bytes)) return '0 B';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex += 1;
+        }
+        return `${size.toFixed(size >= 100 ? 0 : 2)} ${units[unitIndex]}`;
+    };
+
+    const updateUploadProgress = (taskObj, progressBar, progressText, percentText) => {
+        const total = taskObj.totalChunks || 0;
+        const uploaded = taskObj.uploadedChunks || 0;
+        if (!total) return;
+        const percent = Math.min(100, Math.round((uploaded / total) * 100));
+        progressBar.style.width = `${percent}%`;
+        if (percentText) percentText.textContent = `${percent}%`;
+        if (progressText) progressText.textContent = `已上传 ${uploaded}/${total} 分片`;
+    };
 
     function truncateFilename(filename, maxLength = 8) {
         // 分离文件名和扩展名
@@ -142,13 +199,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isCanceled) return;
 
             try {
-                const response = await fetch(`/status/${taskId}`);
+                const response = await fetch(API_BASE + `/upload-local/status/${taskId}`, {
+                    headers: { 'Authorization': 'Bearer ' + getAuthToken() }
+                });
                 // 处理HTTP错误（4xx/5xx）
                 if (!response.ok) {
                     throw new Error(`请求失败: ${response.status} ${response.statusText}`);
                 }
 
-                const result = await response.json();
+                const payload = await safeJsonParse(response);
+                const result = payload && payload.data ? payload.data : payload;
                 retryCount = 0; // 成功时重置重试计数器
 
                 // 更新进度显示
@@ -161,8 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'completed':
                         statusDiv.innerHTML = '✅ 分析完成';
 
-                        const downloadFilename = result.result; // 例如: output/uuid/timestamp/video.mp4
-                        const thumbnailFilename = result.thumbnailUrl; // 例如: output/uuid/timestamp/thumbnail.jpg
+                        const downloadFilename = result.result || '';
+                        const thumbnailFilename = result.thumbnailUrl || '';
+                        const taskKey = result.taskId || taskId;
 
                         // 只编码文件名部分，不破坏路径结构
                         function encodeFilePath(path) {
@@ -171,8 +232,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         // 确保所有需要的数据都存在，如果不存在则提供默认值
-                        const downloadUrl = downloadFilename ? `/download/${encodeFilePath(downloadFilename)}` : '#';
-                        const thumbnailUrl = thumbnailFilename ? `/download/${encodeFilePath(thumbnailFilename)}` : 'favicon28.png';
+                        const fallbackVideo = taskKey ? `${API_BASE}/download-media/${taskKey}/merged.mp4` : '';
+                        const downloadUrl = result.videoUrl
+                            ? resolveUrl(result.videoUrl)
+                            : (downloadFilename ? resolveUrl(`/download/${encodeFilePath(downloadFilename)}`) : fallbackVideo);
+                        const thumbnailUrl = thumbnailFilename
+                            ? resolveUrl(`/download/${encodeFilePath(thumbnailFilename)}`)
+                            : (result.thumbnailUrl ? resolveUrl(result.thumbnailUrl) : 'favicon28.png');
                         const filename = result.filename || 'unknown.mp4';
                         const displayFilename = truncateFilename(filename, 8); // 最多显示8个字符（不含扩展名）
 
@@ -251,6 +317,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        const token = getAuthToken();
+        if (!token) {
+            requireLogin();
+            setModeButtonsDisabled(false);
+            return;
+        }
+
         const files = fileInput.files;
         if (files.length === 0) {
             alert('请至少选择一个视频文件');
@@ -273,27 +346,40 @@ document.addEventListener('DOMContentLoaded', () => {
         // 为每个文件创建上传任务
         Array.from(files).forEach(async (file) => {
             // 检查文件大小是否超过 1GB
-            const fileSizeLimit = 2 * 1024 * 1024 * 1024; // 1GB
+            const fileSizeLimit = 2 * 1024 * 1024 * 1024;
             if (file.size > fileSizeLimit) {
                 alert(`文件 "${file.name}, ${(file.size/(1024*1024)).toFixed(2)}MB" 大于 2GB, 无法上传!`);
                 return; // 跳过该文件
             }
             // 创建任务卡片
-            const taskItem = document.createElement('div');
+                        const taskItem = document.createElement('div');
             taskItem.className = 'task-item';
             taskItem.innerHTML = `
-                <p>${file.name} (${(file.size/1024/1024).toFixed(2)}MB)</p>
+                                <div class="task-header">
+                                    <div>
+                                        <p class="task-name">${file.name}</p>
+                                        <p class="task-meta">${formatBytes(file.size)} · ${modeLabels[mode] || '视频分析'}</p>
+                                    </div>
+                                    <span class="task-percent">0%</span>
+                                </div>
                 <div class="progress-bar">
                     <div class="progress" style="width: 0%"></div>
                 </div>
-                <div class="status">准备上传...</div>
-                <button class="cancel-btn">取消</button> <!-- 添加取消按钮 -->
+                                <div class="status-row">
+                                    <div class="status">准备上传...</div>
+                                    <div class="progress-text">等待处理</div>
+                                </div>
+                                <div class="task-actions">
+                                    <button class="cancel-btn">取消</button>
+                                </div>
             `;
             uploadQueue.appendChild(taskItem);
 
             // 获取当前任务的DOM元素
             const progressBar = taskItem.querySelector('.progress');
             const statusDiv = taskItem.querySelector('.status');
+            const progressText = taskItem.querySelector('.progress-text');
+            const percentText = taskItem.querySelector('.task-percent');
             const cancelBtn = taskItem.querySelector('.cancel-btn'); // 获取取消按钮
 
             try {
@@ -303,6 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     progress: 0,
                     element: taskItem,
                     totalChunks: 0,
+                    uploadedChunks: 0,
                     failedChunks: [],
                     controller: new AbortController() // 添加中断控制
                 };
@@ -317,20 +404,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     taskObj.controller.abort('用户取消了上传'); // 中断上传
                     statusDiv.innerHTML = '❌ 上传取消';
                     progressBar.style.width = '0%'; // 重置进度条
+                    if (progressText) progressText.textContent = '已取消';
+                    if (percentText) percentText.textContent = '0%';
                     cancelBtn.disabled = true; // 禁用取消按钮
                 });
 
                 // 开始分片上传流程
                 statusDiv.innerHTML = '正在计算文件特征...';
-                const fileMd5 = await calculateFileMD5(file); // 需要提前引入SparkMD5
+                if (progressText) progressText.textContent = '计算 MD5';
+                const fileMd5 = await calculateFileMD5(file);
+                const openid = await getOpenId();
+                if (!openid) {
+                    requireLogin();
+                    throw new Error('缺少用户身份');
+                }
 
                 statusDiv.innerHTML = '开始分片上传...';
+                if (progressText) progressText.textContent = '准备分片上传';
                 const chunkCount = Math.ceil(file.size / CHUNK_SIZE);
 
                 // 初始化上传任务
                 const encodedFileName = encodeURIComponent(file.name);
-                const initResponse = await fetch(`/upload/init?file_name=${encodedFileName}&file_md5=${fileMd5}`, {
-                    signal: taskObj.controller.signal // 绑定中断信号
+                const initResponse = await fetch(`${API_BASE}/upload-local/init?file_name=${encodedFileName}&file_md5=${fileMd5}&openid=${encodeURIComponent(openid)}`, {
+                    signal: taskObj.controller.signal,
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
                 if (!initResponse.ok) {
                     throw new Error(`初始化失败: ${initResponse.status} ${initResponse.statusText}`);
@@ -352,9 +449,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 生成分片上传任务
                     chunks.forEach(chunk => {
                         if (uploaded.map(Number).includes(chunk.index)) {
-                            const increment = 10000 / chunkCount;
-                            taskObj.progress = Math.min(taskObj.progress + increment, 10000);
-                            progressBar.style.width = `${(taskObj.progress / 100).toFixed(2)}%`;
+                            taskObj.uploadedChunks += 1;
+                            updateUploadProgress(taskObj, progressBar, progressText, percentText);
                             return;
                         }
 
@@ -379,10 +475,11 @@ document.addEventListener('DOMContentLoaded', () => {
                                         const chunk_md5 = await calculateFileMD5(taskInfo.blob)
                                         chunkFormData.append('chunk_md5', chunk_md5)
 
-                                        const response = await fetch('/upload/chunk', {
+                                        const response = await fetch(API_BASE + '/upload-local/chunk', {
                                             method: 'POST',
                                             body: chunkFormData,
-                                            signal: taskObj.controller.signal
+                                            signal: taskObj.controller.signal,
+                                            headers: { 'Authorization': 'Bearer ' + token }
                                         })
 
                                         // 严格校验响应
@@ -390,9 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                             throw new Error('分片上传未确认');
                                         }
                                         // 更新进度（原子操作）
-                                        const increment = 10000 / chunkCount;
-                                        taskObj.progress = Math.min(taskObj.progress + increment, 10000);
-                                        progressBar.style.width = `${(taskObj.progress / 100).toFixed(2)}%`;
+                                        taskObj.uploadedChunks += 1;
+                                        updateUploadProgress(taskObj, progressBar, progressText, percentText);
                                         break;
                                     } catch (error) {
                                         if (error.toString() === '用户取消了上传' || error.message === 'Fetch is aborted') {
@@ -502,7 +598,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 //progressBar.style.width = '100%'; // 直接设置为上传完成状态
                 cancelBtn.remove(); // 移除取消按钮
                 // 上传完成，进入处理阶段
-                const completeResponse = await fetch(`/upload/complete?file_name=${encodedFileName}&file_size=${file.size}&file_md5=${fileMd5}&mode=${mode}`).then(async response => {
+                const completeResponse = await fetch(API_BASE + '/upload-local/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        file_name: file.name,
+                        file_md5: fileMd5,
+                        file_size: file.size,
+                        mode: mode,
+                        openid: openid
+                    })
+                }).then(async response => {
                     if (!response.ok) {
                         throw new Error(`合并请求失败: ${response.status} ${response.statusText}`);
                     }
@@ -511,20 +620,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // 启动轮询
                 // 先存储任务信息，再启动轮询
-                uploadTasks.set(completeResponse.task_id, {
+                const completeData = completeResponse && completeResponse.data ? completeResponse.data : completeResponse;
+                const newTaskId = completeData.taskId || completeData.task_id;
+                uploadTasks.set(newTaskId, {
                     element: taskItem,
                     cancel: null // 先占位
                 });
 
-                const cancelPolling = startStatusPolling(completeResponse.task_id);
-                uploadTasks.set(completeResponse.task_id, {
+                const cancelPolling = startStatusPolling(newTaskId);
+                uploadTasks.set(newTaskId, {
                         element: taskItem,
                         cancel: cancelPolling
                 });
-                statusDiv.innerHTML = `准备视频分析(任务ID: ${completeResponse.task_id})`;
+                statusDiv.innerHTML = `准备视频分析(任务ID: ${newTaskId})`;
+                if (progressText) progressText.textContent = '等待分析结果';
             } catch (error) {
                 if (error.message === '用户取消了上传') {
                     statusDiv.innerHTML = '❌ 上传取消';
+                    if (progressText) progressText.textContent = '已取消';
                 } else {
                     // 捕获其他错误
                     console.error(error);
@@ -532,6 +645,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     progressBar.style.width = '0%'; // 重置进度条
                     statusDiv.innerHTML = `处理失败: ${errorMessage}`;
                     statusDiv.style.color = 'red';
+                    if (progressText) progressText.textContent = '上传失败';
+                    if (percentText) percentText.textContent = '0%';
                 }
             }
         });
