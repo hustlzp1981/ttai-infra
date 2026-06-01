@@ -26,8 +26,9 @@ class WeChatAuth {
                     console.log('身份验证成功, 收到token:', data.token);
                     this.authToken = data.token;
                     localStorage.setItem('token', data.token);
-                    if (data.user && data.user.openid) {
-                        localStorage.setItem('openid', data.user.openid);
+                    if (data.user) {
+                        localStorage.setItem('openid', data.user.openid || '');
+                        localStorage.setItem('userInfo', JSON.stringify(data.user));
                     }
                     
                     // 更新UI显示登录成功

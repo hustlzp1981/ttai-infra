@@ -36,7 +36,9 @@
       profileEmpty.classList.add("loading");
       profileEmpty.style.display = "block";
     }
-    const response = await fetch(apiBase + "/user", {
+    const openid = localStorage.getItem("openid") || "";
+    const url = openid ? apiBase + "/user?openid=" + encodeURIComponent(openid) : apiBase + "/user";
+    const response = await fetch(url, {
       headers: { Authorization: "Bearer " + token }
     });
     if (!response.ok) {
@@ -47,6 +49,7 @@
     const data = payload && payload.data ? payload.data : payload;
     if (data && data.user) {
       const user = data.user;
+      localStorage.setItem("userInfo", JSON.stringify(user));
       if (profileName) profileName.textContent = `你好，${user.nickname || "球友"}`;
       if (profileNickname) profileNickname.textContent = user.nickname || "球友";
       if (profileAvatar) {

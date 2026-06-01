@@ -30,7 +30,17 @@
     return;
   }
 
-  fetch(apiBase + "/user", {
+  var cachedUserInfo = localStorage.getItem("userInfo");
+  if (cachedUserInfo) {
+    var parsed = JSON.parse(cachedUserInfo);
+    if (parsed && (parsed.nickname || parsed.avatarUrl)) {
+      showLoggedIn(parsed);
+    }
+  }
+
+  var openid = localStorage.getItem("openid") || "";
+  var userUrl = openid ? apiBase + "/user?openid=" + encodeURIComponent(openid) : apiBase + "/user";
+  fetch(userUrl, {
     headers: { Authorization: "Bearer " + token }
   })
     .then(function (response) {
@@ -40,10 +50,13 @@
     .then(function (payload) {
       var data = payload && payload.data ? payload.data : payload;
       var user = data && data.user ? data.user : null;
+      if (user) {
+        localStorage.setItem("userInfo", JSON.stringify(user));
+      }
       showLoggedIn(user);
     })
     .catch(function () {
-      showLoggedOut();
+      if (!cachedUserInfo) showLoggedOut();
     });
 
   if (navLogout) {
