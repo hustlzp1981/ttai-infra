@@ -184,6 +184,42 @@ a {
   font-family: "Space Grotesk", sans-serif;
 }
 
+.profile-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(16, 67, 89, 0.12);
+  background: #f3f4f6;
+}
+
+.profile-nickname {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  background: rgba(16, 67, 89, 0.08);
+  color: var(--color-primary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .pill {
   display: inline-flex;
   align-items: center;

@@ -18,7 +18,7 @@
             <a href="index.html">首页</a>
             <a href="videos.html">视频库</a>
             <a href="stats.html">训练统计</a>
-            <a href="tech.html">技术训练</a>
+            <a href="tech.html">日常训练</a>
             <a class="active" href="my.html">我的</a>
             <a href="login.html">登录</a>
           </nav>
@@ -33,6 +33,13 @@
               <div class="card">
                 <h3 class="card-title">账号信息</h3>
                 <p class="muted" id="profile-name">登录后展示昵称、头像与训练标签。</p>
+                <div class="profile-summary" id="profile-summary" style="display: none;">
+                  <img id="profile-avatar" class="profile-avatar" alt="头像" />
+                  <div>
+                    <p class="profile-nickname" id="profile-nickname"></p>
+                    <div class="tag-list" id="profile-tags"></div>
+                  </div>
+                </div>
                 <div class="empty-state" id="profile-empty">请先登录以同步你的训练数据。</div>
               </div>
               <div class="card">

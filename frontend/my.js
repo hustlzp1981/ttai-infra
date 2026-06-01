@@ -1,9 +1,18 @@
 (function () {
   const apiBase = window.ttaiGetApiBase ? window.ttaiGetApiBase() : "/api";
+  const urlParams = new URLSearchParams(window.location.search);
+  const loginToken = urlParams.get("token");
+  const loginOpenId = urlParams.get("openid");
+  if (loginToken) localStorage.setItem("token", loginToken);
+  if (loginOpenId) localStorage.setItem("openid", loginOpenId);
   const token = localStorage.getItem("token") || "";
 
   const profileName = document.getElementById("profile-name");
   const profileEmpty = document.getElementById("profile-empty");
+  const profileSummary = document.getElementById("profile-summary");
+  const profileAvatar = document.getElementById("profile-avatar");
+  const profileNickname = document.getElementById("profile-nickname");
+  const profileTags = document.getElementById("profile-tags");
   const quotaInfo = document.getElementById("quota-info");
   const quotaEmpty = document.getElementById("quota-empty");
 
@@ -36,8 +45,31 @@
     }
     const payload = await response.json();
     const data = payload && payload.data ? payload.data : payload;
-    if (data && data.user && profileName) {
-      profileName.textContent = `你好，${data.user.nickname || "球友"}`;
+    if (data && data.user) {
+      const user = data.user;
+      if (profileName) profileName.textContent = `你好，${user.nickname || "球友"}`;
+      if (profileNickname) profileNickname.textContent = user.nickname || "球友";
+      if (profileAvatar) {
+        profileAvatar.src = user.avatarUrl || user.avatar || "images/main.png";
+        profileAvatar.style.display = "block";
+      }
+      if (profileTags) {
+        const tags = user.tags || user.trainingTags || user.labels || [];
+        profileTags.innerHTML = "";
+        (Array.isArray(tags) ? tags : []).slice(0, 6).forEach((tag) => {
+          const tagEl = document.createElement("span");
+          tagEl.className = "tag-chip";
+          tagEl.textContent = tag;
+          profileTags.appendChild(tagEl);
+        });
+        if (!profileTags.childElementCount) {
+          const tagEl = document.createElement("span");
+          tagEl.className = "tag-chip";
+          tagEl.textContent = "暂无标签";
+          profileTags.appendChild(tagEl);
+        }
+      }
+      if (profileSummary) profileSummary.style.display = "flex";
       if (profileEmpty) profileEmpty.style.display = "none";
       if (profileEmpty) profileEmpty.classList.remove("loading");
     }

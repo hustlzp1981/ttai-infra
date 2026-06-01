@@ -1,6 +1,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     const BASE_URL = window.TTAI_BASE_URL || '';
     const API_BASE = BASE_URL + '/api';
+    const urlParams = new URLSearchParams(window.location.search);
+    const loginToken = urlParams.get('token');
+    const loginOpenId = urlParams.get('openid');
+    if (loginToken) localStorage.setItem('token', loginToken);
+    if (loginOpenId) localStorage.setItem('openid', loginOpenId);
     const form = document.getElementById('uploadForm');
     const uploadQueue = document.getElementById('uploadQueue');
     const matchClipButton = document.getElementById('matchClipButton');

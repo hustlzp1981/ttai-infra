@@ -26,6 +26,9 @@ class WeChatAuth {
                     console.log('身份验证成功, 收到token:', data.token);
                     this.authToken = data.token;
                     localStorage.setItem('token', data.token);
+                    if (data.user && data.user.openid) {
+                        localStorage.setItem('openid', data.user.openid);
+                    }
                     
                     // 更新UI显示登录成功
                     this.showAuthSuccessUI(data.user);
@@ -33,7 +36,12 @@ class WeChatAuth {
                     // 3秒后跳转
                     setTimeout(() => {
                         this.ws.close();
-                        window.location.href = this.redirectUrl;
+                        const redirectUrl = new URL(this.redirectUrl, window.location.origin);
+                        if (data.token) redirectUrl.searchParams.set('token', data.token);
+                        if (data.user && data.user.openid) {
+                            redirectUrl.searchParams.set('openid', data.user.openid);
+                        }
+                        window.location.href = redirectUrl.toString();
                     }, 3000);
                 }
             } catch (e) {
