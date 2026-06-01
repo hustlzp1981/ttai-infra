@@ -128,7 +128,8 @@
 
         /* Chat + Exchange Container */
         .chat-container,
-        .exchange-container {
+        .exchange-container,
+        .enroll-container {
             flex: 1;
             display: none;
             flex-direction: column;
@@ -139,7 +140,8 @@
         }
 
         .chat-container.active,
-        .exchange-container.active {
+        .exchange-container.active,
+        .enroll-container.active {
             display: flex;
         }
 
@@ -492,10 +494,16 @@
                 <nav class="nav-links">
                     <a href="index.html">首页</a>
                     <a href="videos.html">视频库</a>
-                    <a href="stats.html">训练统计</a>
                     <a class="active" href="tech.html">日常训练</a>
+                    <a href="training-enroll.html">培训招生</a>
+                    <a href="stats.html">训练统计</a>
                     <a href="my.html">我的</a>
-                    <a href="login.html">登录</a>
+                    <a href="login.html" id="nav-login">登录</a>
+                    <div class="nav-user" id="nav-user" style="display: none;">
+                        <img class="nav-avatar" id="nav-avatar" alt="头像">
+                        <span class="nav-name" id="nav-name">已登录</span>
+                        <button class="nav-logout" id="nav-logout" type="button">退出</button>
+                    </div>
                 </nav>
             </div>
         </header>
@@ -510,6 +518,7 @@
                             <div class="tab active" data-tab="qa">技术库</div>
                             <div class="tab" data-tab="chat">训练日志</div>
                             <div class="tab" data-tab="exchange">技术交流</div>
+                            <div class="tab" data-tab="enroll">培训招生</div>
                         </div>
 
                         <div class="content-area">
@@ -558,6 +567,31 @@
                                     </div>
                                 </div>
                                 <div class="messages-container" id="exchange-messages"></div>
+                            </div>
+                            <div class="enroll-container" id="enroll-container">
+                                <div class="log-toolbar">
+                                    <div>
+                                        <h3>培训招生</h3>
+                                        <p>面向俱乐部与学校的乒乓球训练课程与赛事服务。</p>
+                                    </div>
+                                    <div class="toolbar-actions">
+                                        <button class="btn btn-secondary" type="button">下载课程方案</button>
+                                        <button class="btn btn-primary" type="button">预约咨询</button>
+                                    </div>
+                                </div>
+                                <div class="card" style="margin-top: 16px;">
+                                    <h4 class="card-title">课程亮点</h4>
+                                    <ul>
+                                        <li>分级训练体系：基础班 / 进阶班 / 比赛提升班</li>
+                                        <li>AI 视频评估与个性化训练计划</li>
+                                        <li>每周对抗赛 + 技术测评报告</li>
+                                    </ul>
+                                </div>
+                                <div class="card" style="margin-top: 16px;">
+                                    <h4 class="card-title">招生说明</h4>
+                                    <p class="muted">支持校队集训、青少年兴趣班、俱乐部进阶班。提交需求后 24 小时内对接教练与场地。</p>
+                                    <div class="pill">招生热线 · 课程安排 · 场馆合作</div>
+                                </div>
                             </div>
                         </div>
                         <div class="input-area">
@@ -608,6 +642,7 @@
     </div>
 
     <script src="config.js"></script>
+    <script src="nav-auth.js"></script>
     <script>
         document.getElementById('year').textContent = new Date().getFullYear();
         // Generate UUID function
@@ -920,7 +955,7 @@
                     this.messageInput.disabled = true;
                     this.sendButton.disabled = true;
                     if (this.inputArea) this.inputArea.style.display = 'none';
-                } else {
+                } else if (tab === 'exchange') {
                     this.qaContainer.classList.remove('active');
                     this.chatContainer.classList.remove('active');
                     if (this.exchangeContainer) this.exchangeContainer.classList.add('active');

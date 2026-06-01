@@ -17,10 +17,16 @@
           <nav class="nav-links">
             <a href="index.html">首页</a>
             <a href="videos.html">视频库</a>
-            <a class="active" href="stats.html">训练统计</a>
             <a href="tech.html">日常训练</a>
+            <a href="training-enroll.html">培训招生</a>
+            <a class="active" href="stats.html">训练统计</a>
             <a href="my.html">我的</a>
-            <a href="login.html">登录</a>
+            <a href="login.html" id="nav-login">登录</a>
+            <div class="nav-user" id="nav-user" style="display: none;">
+              <img class="nav-avatar" id="nav-avatar" alt="头像">
+              <span class="nav-name" id="nav-name">已登录</span>
+              <button class="nav-logout" id="nav-logout" type="button">退出</button>
+            </div>
           </nav>
         </div>
       </header>
@@ -82,6 +88,7 @@
       </footer>
     </div>
     <script src="config.js"></script>
+    <script src="nav-auth.js"></script>
     <script src="stats.js"></script>
     <script>
       document.getElementById('year').textContent = new Date().getFullYear();

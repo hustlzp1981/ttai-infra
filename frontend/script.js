@@ -28,6 +28,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const setActiveModeButton = (activeButton) => {
+        modeButtons.forEach(button => {
+            button.classList.toggle('btn-primary', button === activeButton);
+        });
+    };
+
     if (form) {
         form.addEventListener('submit', (e) => e.preventDefault());
     }
@@ -114,6 +120,72 @@ document.addEventListener('DOMContentLoaded', () => {
         if (path.startsWith('http')) return path;
         if (path.startsWith('/')) return BASE_URL + path;
         return BASE_URL + '/' + path;
+    };
+
+    const encodeFilePath = (path) => {
+        if (!path) return '';
+        return path.split('/').map(part => encodeURIComponent(part)).join('/');
+    };
+
+    const resolveThumbnailUrl = (value) => {
+        if (!value) return 'favicon28.png';
+        if (value.startsWith('http') || value.startsWith('/')) return resolveUrl(value);
+        if (value.includes('/')) return resolveUrl(value);
+        return resolveUrl(`/download/${encodeFilePath(value)}`);
+    };
+
+    const renderVideoItem = (item) => {
+        const videoList = document.getElementById('video-list');
+        if (!videoList || !item) return;
+        const emptyState = document.querySelector('#my-videos .empty-state');
+        if (emptyState) emptyState.style.display = 'none';
+        const displayName = item.filename || item.title || 'video';
+        const existingItem = Array.from(videoList.querySelectorAll('.video-item'))
+            .find(entry => entry.querySelector('.download-link')?.textContent?.includes(displayName));
+        if (existingItem) return;
+
+        const li = document.createElement('li');
+        li.className = 'video-item';
+        const thumb = resolveThumbnailUrl(item.thumbnailUrl || item.thumbnail || '');
+        const duration = item.duration ? `${Math.round(item.duration)} 秒` : '';
+        const size = item.size ? `${(item.size / 1024 / 1024).toFixed(2)}MB` : '';
+        const clips = item.clips ? `${item.clips} 片段` : '';
+        const modeLabel = item.mode === 'match_clip' ? '比赛剪辑' : '训练分析';
+        const title = item.title || (item.mode === 'match_clip' ? '比赛剪辑' : '训练分析');
+        const videoId = item.id || item._id || '';
+
+        li.innerHTML = `
+            <div class="thumbnail-container">
+                <img src="${thumb}" alt="Thumbnail" class="thumbnail">
+                <div>
+                    <a href="video-detail.html?id=${encodeURIComponent(videoId)}" class="download-link" title="${title}">${title}</a>
+                    <span class="video-duration">${duration}</span>
+                    <span class="video-size">${size}</span>
+                    <span class="video-clips">${modeLabel}${clips ? ' · ' + clips : ''}</span>
+                </div>
+            </div>
+        `;
+        videoList.appendChild(li);
+    };
+
+    const fetchLatestVideo = async (mode) => {
+        const token = getAuthToken();
+        if (!token) return null;
+        try {
+            const params = new URLSearchParams({ page: '1', pageSize: '1' });
+            if (mode) params.set('mode', mode);
+            const response = await fetch(`${API_BASE}/videos/list?${params.toString()}`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (!response.ok) return null;
+            const payload = await safeJsonParse(response);
+            const data = payload && payload.data ? payload.data : payload;
+            const items = data && data.items ? data.items : [];
+            return items[0] || null;
+        } catch (err) {
+            console.warn('fetchLatestVideo failed', err);
+            return null;
+        }
     };
 
     const sliceFile = (file) => {
@@ -227,54 +299,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         statusDiv.innerHTML = '✅ 分析完成';
 
                         const downloadFilename = result.result || '';
-                        const thumbnailFilename = result.thumbnailUrl || '';
                         const taskKey = result.taskId || taskId;
+                        const taskContext = uploadTasks.get(taskId) || {};
+                        const taskMode = result.mode || taskContext.mode || 'match_clip';
 
-                        // 只编码文件名部分，不破坏路径结构
-                        function encodeFilePath(path) {
-                            const parts = path.split('/');
-                            return parts.map(p => encodeURIComponent(p)).join('/');
-                        }
-
-                        // 确保所有需要的数据都存在，如果不存在则提供默认值
                         const fallbackVideo = taskKey ? `${API_BASE}/download-media/${taskKey}/merged.mp4` : '';
                         const downloadUrl = result.videoUrl
                             ? resolveUrl(result.videoUrl)
                             : (downloadFilename ? resolveUrl(`/download/${encodeFilePath(downloadFilename)}`) : fallbackVideo);
-                        const thumbnailUrl = thumbnailFilename
-                            ? resolveUrl(`/download/${encodeFilePath(thumbnailFilename)}`)
-                            : (result.thumbnailUrl ? resolveUrl(result.thumbnailUrl) : 'favicon28.png');
-                        const filename = result.filename || 'unknown.mp4';
-                        const displayFilename = truncateFilename(filename, 8); // 最多显示8个字符（不含扩展名）
-
-                        // 获取 video-list 元素
-                        const videoList = document.getElementById('video-list');
-
-                        // 创建一个 <li> 元素
-                        const videoItem = document.createElement('li');
-                        videoItem.className = 'video-item'; // 可选类名用于样式控制
-
-                        // 检查是否存在相同 filename 的项
-                        const existingItem = Array.from(videoList.querySelectorAll('.video-item'))
-                            .find(item => item.querySelector('.download-link').textContent.trim() === `下载 ${displayFilename}`);
-
-                        if (!existingItem) {
-                            // 如果不存在，则创建并追加新的结果项
-                            const videoItem = document.createElement('li');
-                            videoItem.className = 'video-item';  // 添加一个类名以便于查找和样式设置
-                            videoItem.innerHTML = `
-                                <div class="thumbnail-container">
-                                    <img src="${thumbnailUrl}" alt="Thumbnail" class="thumbnail">
-                                    <div>
-                                        <a href="${downloadUrl}" class="download-link" title="下载 ${filename}">下载 ${displayFilename}</a>
-                                        <span class="video-duration">${result.duration} 秒</span>
-                                        <span class="video-size">${(result.size/1024/1024).toFixed(2)}MB</span>
-                                        <span class="video-clips">${result.clips} 片段</span>
-                                    </div>
-                                </div>
-                            `;
-                            // 追加到 <ul id="video-list">
-                            videoList.appendChild(videoItem);
+                        const latestVideo = await fetchLatestVideo(taskMode);
+                        if (latestVideo) {
+                            renderVideoItem(latestVideo);
+                        } else {
+                            renderVideoItem({
+                                id: taskKey,
+                                title: taskMode === 'match_clip' ? '比赛剪辑' : '训练分析',
+                                mode: taskMode,
+                                thumbnailUrl: result.thumbnailUrl || result.thumbnail || '',
+                                duration: result.duration,
+                                size: result.size,
+                                clips: result.clips,
+                                videoUrl: downloadUrl
+                            });
                         }
                         // 如果已存在相同文件名的项，则忽略
                         cleanup();
@@ -629,13 +675,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const newTaskId = completeData.taskId || completeData.task_id;
                 uploadTasks.set(newTaskId, {
                     element: taskItem,
-                    cancel: null // 先占位
+                    cancel: null, // 先占位
+                    mode: mode
                 });
 
                 const cancelPolling = startStatusPolling(newTaskId);
                 uploadTasks.set(newTaskId, {
                         element: taskItem,
-                        cancel: cancelPolling
+                    cancel: cancelPolling,
+                    mode: mode
                 });
                 statusDiv.innerHTML = `准备视频分析(任务ID: ${newTaskId})`;
                 if (progressText) progressText.textContent = '等待分析结果';
@@ -666,6 +714,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (matchClipButton) {
         matchClipButton.addEventListener('click', (e) => {
             e.preventDefault();
+            setActiveModeButton(matchClipButton);
             startUpload('match_clip', matchClipButton);
         });
     }
@@ -673,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (trainingAnalysisButton) {
         trainingAnalysisButton.addEventListener('click', (e) => {
             e.preventDefault();
+            setActiveModeButton(trainingAnalysisButton);
             startUpload('training_analysis', trainingAnalysisButton);
         });
     }

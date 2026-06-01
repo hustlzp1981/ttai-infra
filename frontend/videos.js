@@ -1,5 +1,6 @@
 (function () {
   const apiBase = window.ttaiGetApiBase ? window.ttaiGetApiBase() : "/api";
+  const baseUrl = window.ttaiGetBaseUrl ? window.ttaiGetBaseUrl() : "";
   const token = localStorage.getItem("token") || "";
   const listEl = document.getElementById("video-list");
   const emptyEl = document.getElementById("video-empty");
@@ -26,6 +27,20 @@
     return date.toISOString().slice(0, 10);
   };
 
+  const resolveUrl = (path) => {
+    if (!path) return "";
+    if (path.startsWith("http")) return path;
+    if (path.startsWith("/")) return baseUrl + path;
+    return baseUrl + "/" + path;
+  };
+
+  const resolveThumbnailUrl = (value) => {
+    if (!value) return "images/main.png";
+    if (value.startsWith("http") || value.startsWith("/")) return resolveUrl(value);
+    if (value.includes("/")) return resolveUrl(value);
+    return resolveUrl(`/download/${encodeURIComponent(value)}`);
+  };
+
   const renderList = (items, append) => {
     if (!listEl) return;
     if (!append) listEl.innerHTML = "";
@@ -41,7 +56,7 @@
       const li = document.createElement("li");
       li.className = "video-item";
 
-      const thumb = item.thumbnailUrl || "images/main.png";
+      const thumb = resolveThumbnailUrl(item.thumbnailUrl || item.thumbnail || "");
       const title = item.title || (item.mode === "match_clip" ? "比赛剪辑" : "训练分析");
       const duration = item.duration ? `${Math.round(item.duration)} 秒` : "";
       const size = item.size ? `${(item.size / 1024 / 1024).toFixed(1)}MB` : "";

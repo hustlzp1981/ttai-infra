@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>视频库 - TTAI</title>
+    <title>培训招生 - TTAI</title>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -16,9 +16,9 @@
           </a>
           <nav class="nav-links">
             <a href="index.html">首页</a>
-            <a class="active" href="videos.html">视频库</a>
+            <a href="videos.html">视频库</a>
             <a href="tech.html">日常训练</a>
-            <a href="training-enroll.html">培训招生</a>
+            <a class="active" href="training-enroll.html">培训招生</a>
             <a href="stats.html">训练统计</a>
             <a href="my.html">我的</a>
             <a href="login.html" id="nav-login">登录</a>
@@ -34,21 +34,30 @@
       <main class="main">
         <div class="container">
           <section class="section">
-            <h2 class="card-title">视频库</h2>
-            <p class="muted">按模式筛选你的比赛剪辑与训练分析。</p>
-            <div class="upload-actions">
-              <button class="btn btn-secondary btn-primary" type="button" data-mode="">全部</button>
-              <button class="btn btn-secondary" type="button" data-mode="match_clip">比赛剪辑</button>
-              <button class="btn btn-secondary" type="button" data-mode="training_analysis">训练分析</button>
+            <div class="clubs-hero">
+              <h2 class="card-title">🏓 培训招生</h2>
+              <p class="muted">发现附近优质俱乐部，开启 AI 训练之旅。</p>
             </div>
+            <div class="filter-row">
+              <span class="filter-label">城市</span>
+              <select class="filter-select" id="city-select">
+                <option value="上海">上海</option>
+              </select>
+              <span class="filter-label">区域</span>
+              <select class="filter-select" id="district-select"></select>
+            </div>
+            <div class="loading-state" id="clubs-loading">加载中...</div>
+            <div class="club-list" id="clubs-list"></div>
+            <div class="empty-state" id="clubs-empty">暂无俱乐部信息</div>
           </section>
 
           <section class="section">
-            <h3 class="card-title">视频列表</h3>
-            <ul id="video-list"></ul>
-            <div class="empty-state" id="video-empty">暂无更多视频记录。</div>
-            <div class="upload-actions" style="justify-content:center; margin-top: 16px;">
-              <button class="btn btn-secondary" type="button" id="load-more">加载更多</button>
+            <div class="ai-guide">
+              <div>
+                <h3 class="card-title">还没有合适的选择？</h3>
+                <p class="muted">上传训练视频，AI 免费帮你分析。</p>
+              </div>
+              <a class="btn btn-primary" href="index.html#upload-video">开始 AI 训练</a>
             </div>
           </section>
         </div>
@@ -60,7 +69,7 @@
     </div>
     <script src="config.js"></script>
     <script src="nav-auth.js"></script>
-    <script src="videos.js"></script>
+    <script src="training-enroll.js"></script>
     <script>
       document.getElementById('year').textContent = new Date().getFullYear();
     </script>
