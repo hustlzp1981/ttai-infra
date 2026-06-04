@@ -1,8 +1,9 @@
 (function () {
-  var apiBase = window.ttaiGetApiBase ? window.ttaiGetApiBase() : "/api";
   var baseUrl = window.ttaiGetBaseUrl ? window.ttaiGetBaseUrl() : "";
+  var clubData = window.TTAI_CLUB_DATA || {};
   var params = new URLSearchParams(window.location.search);
-  var clubId = params.get("id") || "";
+  var clubId = params.get("id") || params.get("slug") || "";
+  var club = clubData.getClubById ? clubData.getClubById(clubId) : null;
 
   var nameEl = document.getElementById("club-name");
   var subtitleEl = document.getElementById("club-subtitle");
@@ -13,6 +14,14 @@
   var infoEl = document.getElementById("club-info");
   var tagsEl = document.getElementById("club-tags");
   var actionsEl = document.getElementById("club-actions");
+  var extraEl = document.getElementById("club-extra");
+  var coursesEl = document.getElementById("club-courses");
+  var coachesEl = document.getElementById("club-coaches");
+  var casesSectionEl = document.getElementById("club-cases-section");
+  var casesEl = document.getElementById("club-cases");
+  var leadSectionEl = document.getElementById("club-lead-section");
+  var leadForm = document.getElementById("club-lead-form");
+  var leadResult = document.getElementById("lead-result");
 
   var resolveUrl = function (path) {
     if (!path) return "";
@@ -21,110 +30,126 @@
     return baseUrl + "/" + path;
   };
 
-  var renderDetail = function (club) {
-    if (!club) return;
+  var copyWechat = function (button) {
+    var wechat = button.getAttribute("data-wechat") || "";
+    if (!wechat) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(wechat).then(function () {
+        button.textContent = "已复制";
+      });
+    } else {
+      window.prompt("复制微信号", wechat);
+    }
+  };
+
+  var renderCards = function (container, items, renderItem) {
+    if (!container) return;
+    container.innerHTML = "";
+    (items || []).forEach(function (item) {
+      var el = document.createElement("div");
+      el.className = "mini-card";
+      el.innerHTML = renderItem(item);
+      container.appendChild(el);
+    });
+  };
+
+  var renderDetail = function () {
+    if (!club) {
+      if (loadingEl) loadingEl.style.display = "none";
+      if (emptyEl) emptyEl.style.display = "block";
+      if (subtitleEl) subtitleEl.textContent = "缺少俱乐部信息";
+      return;
+    }
+
     if (loadingEl) loadingEl.style.display = "none";
     if (emptyEl) emptyEl.style.display = "none";
     if (detailEl) detailEl.style.display = "grid";
+    if (extraEl) extraEl.style.display = "block";
+    if (casesSectionEl) casesSectionEl.style.display = "block";
+    if (leadSectionEl) leadSectionEl.style.display = "block";
 
     if (nameEl) nameEl.textContent = club.name || "俱乐部详情";
-    if (subtitleEl) {
-      var level = club.level ? club.level : "";
-      subtitleEl.textContent = level ? "等级 · " + level : "俱乐部信息";
-    }
+    if (subtitleEl) subtitleEl.textContent = (club.level || "俱乐部") + " · " + (club.district || "") + " · " + (club.hours || "");
 
     if (photosEl) {
       photosEl.innerHTML = "";
-      var photos = Array.isArray(club.photos) ? club.photos : [];
-      if (!photos.length) photos = ["images/club-default.png"];
-      photos.forEach(function (p) {
+      var photos = Array.isArray(club.photos) && club.photos.length ? club.photos : ["images/main.png"];
+      photos.forEach(function (photo) {
         var img = document.createElement("img");
-        img.src = resolveUrl(p);
-        img.alt = "club";
+        img.src = resolveUrl(photo);
+        img.alt = club.name || "俱乐部";
         img.className = "club-photo";
         photosEl.appendChild(img);
       });
     }
 
     if (infoEl) {
-      infoEl.innerHTML = "";
-      var infoItems = [];
-      if (club.address) infoItems.push('📍 ' + club.address);
-      if (club.hours) infoItems.push('⏰ ' + club.hours);
-      if (club.equipment) infoItems.push('🏓 ' + club.equipment);
-      if (club.phone) infoItems.push('📞 ' + club.phone);
-      if (club.mobile) infoItems.push('📱 ' + club.mobile);
-      if (club.description) infoItems.push(club.description);
-      infoItems.forEach(function (text) {
-        var div = document.createElement("div");
-        div.className = "club-detail-row";
-        div.textContent = text;
-        infoEl.appendChild(div);
-      });
+      var rows = [
+        club.summary,
+        club.address ? "地址：" + club.address : "",
+        club.hours ? "营业时间：" + club.hours : "",
+        club.equipment ? "场地设备：" + club.equipment : "",
+        club.phone ? "电话：" + club.phone : "",
+        club.mobile ? "手机：" + club.mobile : ""
+      ].filter(Boolean);
+      infoEl.innerHTML = rows.map(function (text) {
+        return '<div class="club-detail-row">' + text + '</div>';
+      }).join("");
     }
 
     if (tagsEl) {
-      tagsEl.innerHTML = "";
-      var tags = Array.isArray(club.tags) ? club.tags : [];
-      tags.forEach(function (tag) {
-        var span = document.createElement("span");
-        span.className = "club-tag";
-        span.textContent = tag;
-        tagsEl.appendChild(span);
-      });
+      tagsEl.innerHTML = (club.tags || []).map(function (tag) {
+        return '<span class="club-tag">' + tag + '</span>';
+      }).join("");
     }
 
     if (actionsEl) {
       actionsEl.innerHTML = "";
-      if (club.phone) {
-        actionsEl.innerHTML += '<a class="club-action" href="tel:' + club.phone + '">📞 电话</a>';
-      }
-      if (club.wechat) {
-        actionsEl.innerHTML += '<button class="club-action" data-wechat="' + club.wechat + '">💬 微信</button>';
-      }
+      if (club.phone) actionsEl.innerHTML += '<a class="club-action" href="tel:' + club.phone + '">电话咨询</a>';
+      if (club.wechat) actionsEl.innerHTML += '<button class="club-action" type="button" data-wechat="' + club.wechat + '">复制微信</button>';
       if (club.lat && club.lng) {
-        var mapUrl = 'https://uri.amap.com/marker?position=' + club.lng + ',' + club.lat + '&name=' + encodeURIComponent(club.name || "俱乐部");
-        actionsEl.innerHTML += '<a class="club-action" href="' + mapUrl + '" target="_blank" rel="noopener">🗺️ 导航</a>';
+        var mapUrl = "https://uri.amap.com/marker?position=" + club.lng + "," + club.lat + "&name=" + encodeURIComponent(club.name || "俱乐部");
+        actionsEl.innerHTML += '<a class="club-action" href="' + mapUrl + '" target="_blank" rel="noopener">导航到店</a>';
       }
+      actionsEl.querySelectorAll("[data-wechat]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          copyWechat(button);
+        });
+      });
     }
 
-    actionsEl.querySelectorAll('[data-wechat]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var wechat = btn.getAttribute('data-wechat') || '';
-        if (!wechat) return;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(wechat).then(function () {
-            btn.textContent = '✅ 已复制';
-          });
-        } else {
-          window.prompt('复制微信号', wechat);
-        }
-      });
+    renderCards(coursesEl, club.courses, function (course) {
+      return '<h4>' + course.name + '</h4><p>' + course.schedule + '</p><p class="muted">' + course.target + '</p>';
     });
-  };
 
-  var loadDetail = function () {
-    if (!clubId) {
-      if (loadingEl) loadingEl.style.display = "none";
-      if (emptyEl) emptyEl.style.display = "block";
-      if (subtitleEl) subtitleEl.textContent = "缺少俱乐部 ID";
-      return;
-    }
+    renderCards(coachesEl, club.coaches, function (coach) {
+      return '<h4>' + coach.name + ' · ' + coach.title + '</h4><p class="muted">' + coach.focus + '</p>';
+    });
 
-    if (loadingEl) loadingEl.style.display = "block";
-    if (emptyEl) emptyEl.style.display = "none";
-
-    fetch(apiBase + "/clubs/detail?id=" + encodeURIComponent(clubId))
-      .then(function (res) { return res.json(); })
-      .then(function (payload) {
-        var data = payload && payload.data ? payload.data : payload;
-        renderDetail(data);
-      })
-      .catch(function () {
-        if (loadingEl) loadingEl.style.display = "none";
-        if (emptyEl) emptyEl.style.display = "block";
+    if (casesEl) {
+      casesEl.innerHTML = "";
+      (club.cases || []).forEach(function (item) {
+        var card = document.createElement("div");
+        card.className = "stat-card";
+        card.innerHTML = '<h4>' + item.title + '</h4><p>' + item.after + '</p><span class="muted">' + item.before + '</span>';
+        casesEl.appendChild(card);
       });
+    }
   };
 
-  loadDetail();
+  if (leadForm) {
+    leadForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var formData = new FormData(leadForm);
+      var name = formData.get("name") || "用户";
+      var target = formData.get("target") || "课程咨询";
+      if (leadResult) {
+        leadResult.style.display = "block";
+        leadResult.textContent = "已记录 " + name + " 的" + target + "咨询。当前为前端预览，暂未提交到后端。";
+      }
+      leadForm.reset();
+    });
+  }
+
+  window.setTimeout(renderDetail, 120);
 })();
