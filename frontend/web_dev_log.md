@@ -43,3 +43,18 @@
 - 先把 `club-data.js` 替换成 API adapter，页面结构尽量不动。
 - 接真实接口前，管理后台必须使用后端权限校验结果，不能只依赖前端 localStorage。
 - 接线索提交前，需要明确手机号脱敏、重复线索合并、来源归因和删除策略。
+
+## 2026-06-04 Club Web API Adapter
+
+### 本次前端范围
+- `club-data.js` 已从纯 mock 数据层升级为 API adapter + mock fallback。
+- 俱乐部列表优先调用 `GET /api/clubs/list`，失败时回退本地 mock。
+- 俱乐部详情优先调用 `GET /api/clubs/detail`，失败时回退本地 mock。
+- 咨询表单优先调用 `POST /api/clubs/:id/leads`，失败时回退前端预览提交。
+- 管理后台优先调用 `/api/club-admin/overview`、`/api/club-admin/members`、`/api/club-admin/leads`，失败时回退 mock。
+- 页面会区分数据来源：线上数据、后端接口桩、前端预览数据。
+
+### 当前仍未接真实能力
+- 后端返回 `stub: true` 时，管理后台仍视为接口桩，不展示为真实运营数据。
+- 俱乐部管理员真实权限、会员授权、线索持久化仍待后端实现。
+- 当前 Web 仍保留 `clubAdminPreview` 预览开关，仅用于页面验收；接真实权限后应移除或只保留开发环境使用。

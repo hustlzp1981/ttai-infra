@@ -9,6 +9,7 @@
   var districtSelect = document.getElementById("district-select");
   var tagButtons = Array.prototype.slice.call(document.querySelectorAll("[data-tag]"));
   var selectedTag = "";
+  var currentItems = [];
 
   var resolveUrl = function (path) {
     if (!path) return "";
@@ -20,7 +21,7 @@
   var renderDistricts = function () {
     if (!districtSelect) return;
     var city = citySelect ? citySelect.value : "上海";
-    var districts = clubData.getDistricts(city);
+    var districts = clubData.getDistricts ? clubData.getDistricts(city) : [];
     districtSelect.innerHTML = "";
 
     ["全部区域"].concat(districts).forEach(function (district) {
@@ -93,23 +94,27 @@
     });
   };
 
-  var filterClubs = function () {
+  var getFilters = function () {
     var city = citySelect ? citySelect.value : "上海";
     var district = districtSelect ? districtSelect.value : "";
-    return clubData.clubs.filter(function (club) {
-      if (city && club.city !== city) return false;
-      if (district && club.district !== district) return false;
-      if (selectedTag && (club.tags || []).indexOf(selectedTag) === -1) return false;
-      return true;
-    });
+    return { city: city, district: district, tag: selectedTag };
   };
 
   var loadClubs = function () {
     if (loadingEl) loadingEl.style.display = "block";
-    window.setTimeout(function () {
-      renderClubs(filterClubs());
+    var loader = clubData.listClubs ? clubData.listClubs(getFilters()) : Promise.resolve({ items: [] });
+    loader.then(function (result) {
+      currentItems = result.items || [];
+      renderClubs(currentItems);
+      if (result.source === "mock" && emptyEl && currentItems.length) {
+        emptyEl.style.display = "none";
+      }
+    }).catch(function () {
+      currentItems = [];
+      renderClubs([]);
+    }).finally(function () {
       if (loadingEl) loadingEl.style.display = "none";
-    }, 120);
+    });
   };
 
   tagButtons.forEach(function (button) {

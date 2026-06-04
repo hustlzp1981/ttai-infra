@@ -141,13 +141,57 @@
     ]
   };
 
+  var apiBase = window.ttaiGetApiBase ? window.ttaiGetApiBase() : "/api";
+
+  var unwrap = function (payload) {
+    return payload && payload.data ? payload.data : payload;
+  };
+
+  var authHeaders = function () {
+    var token = localStorage.getItem("token") || "";
+    return token ? { Authorization: "Bearer " + token } : {};
+  };
+
+  var buildQuery = function (params) {
+    var search = new URLSearchParams();
+    Object.keys(params || {}).forEach(function (key) {
+      var value = params[key];
+      if (value !== undefined && value !== null && value !== "") {
+        search.set(key, value);
+      }
+    });
+    return search.toString();
+  };
+
+  var fetchJson = function (url, options) {
+    return fetch(url, options || {}).then(function (response) {
+      if (!response.ok) throw new Error("request failed: " + response.status);
+      return response.json();
+    }).then(unwrap);
+  };
+
+  var getMockClubById = function (idOrSlug) {
+    return clubs.find(function (club) {
+      return club.id === idOrSlug || club.slug === idOrSlug;
+    }) || clubs[0];
+  };
+
+  var filterMockClubs = function (params) {
+    params = params || {};
+    return clubs.filter(function (club) {
+      if (params.city && club.city !== params.city) return false;
+      if (params.district && club.district !== params.district) return false;
+      if (params.tag && (club.tags || []).indexOf(params.tag) === -1) return false;
+      return true;
+    });
+  };
+
   window.TTAI_CLUB_DATA = {
     clubs: clubs,
     admin: admin,
+    source: "mock",
     getClubById: function (idOrSlug) {
-      return clubs.find(function (club) {
-        return club.id === idOrSlug || club.slug === idOrSlug;
-      }) || clubs[0];
+      return getMockClubById(idOrSlug);
     },
     getDistricts: function (city) {
       var map = {};
@@ -155,6 +199,72 @@
         if (!city || club.city === city) map[club.district] = true;
       });
       return Object.keys(map);
+    },
+    listClubs: function (params) {
+      var query = buildQuery(Object.assign({ page: 1, pageSize: 50 }, params || {}));
+      return fetchJson(apiBase + "/clubs/list" + (query ? "?" + query : ""))
+        .then(function (data) {
+          return {
+            source: "api",
+            items: data.items || [],
+            total: data.total || 0
+          };
+        })
+        .catch(function () {
+          var items = filterMockClubs(params);
+          return { source: "mock", items: items, total: items.length };
+        });
+    },
+    detailClub: function (idOrSlug) {
+      var query = buildQuery({ id: idOrSlug });
+      return fetchJson(apiBase + "/clubs/detail?" + query)
+        .then(function (data) {
+          return { source: "api", club: data };
+        })
+        .catch(function () {
+          return { source: "mock", club: getMockClubById(idOrSlug) };
+        });
+    },
+    submitLead: function (clubId, lead) {
+      return fetchJson(apiBase + "/clubs/" + encodeURIComponent(clubId) + "/leads", {
+        method: "POST",
+        headers: Object.assign({ "Content-Type": "application/json" }, authHeaders()),
+        body: JSON.stringify(lead || {})
+      }).then(function (data) {
+        return { source: data.stub ? "stub" : "api", data: data };
+      }).catch(function () {
+        return {
+          source: "mock",
+          data: {
+            stub: true,
+            lead: Object.assign({ id: "mock-lead-" + Date.now(), status: "new" }, lead || {}),
+            message: "线索已在前端预览中记录，暂未提交到后端"
+          }
+        };
+      });
+    },
+    loadAdmin: function () {
+      var headers = authHeaders();
+      return Promise.all([
+        fetchJson(apiBase + "/club-admin/overview", { headers: headers }),
+        fetchJson(apiBase + "/club-admin/members", { headers: headers }),
+        fetchJson(apiBase + "/club-admin/leads", { headers: headers })
+      ]).then(function (parts) {
+        var overview = parts[0] || {};
+        var members = parts[1] || {};
+        var leads = parts[2] || {};
+        return {
+          source: overview.stub ? "stub" : "api",
+          admin: Object.assign({}, admin, {
+            currentAdmin: overview.currentAdmin || admin.currentAdmin,
+            overview: overview.overview || admin.overview,
+            members: members.items || [],
+            leads: leads.items || []
+          })
+        };
+      }).catch(function () {
+        return { source: "mock", admin: admin };
+      });
     }
   };
 })();

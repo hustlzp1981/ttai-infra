@@ -3,7 +3,8 @@
   var clubData = window.TTAI_CLUB_DATA || {};
   var params = new URLSearchParams(window.location.search);
   var clubId = params.get("id") || params.get("slug") || "";
-  var club = clubData.getClubById ? clubData.getClubById(clubId) : null;
+  var club = null;
+  var dataSource = "mock";
 
   var nameEl = document.getElementById("club-name");
   var subtitleEl = document.getElementById("club-subtitle");
@@ -69,7 +70,10 @@
     if (leadSectionEl) leadSectionEl.style.display = "block";
 
     if (nameEl) nameEl.textContent = club.name || "俱乐部详情";
-    if (subtitleEl) subtitleEl.textContent = (club.level || "俱乐部") + " · " + (club.district || "") + " · " + (club.hours || "");
+    if (subtitleEl) {
+      var sourceText = dataSource === "api" ? "线上数据" : "预览数据";
+      subtitleEl.textContent = (club.level || "俱乐部") + " · " + (club.district || "") + " · " + (club.hours || "") + " · " + sourceText;
+    }
 
     if (photosEl) {
       photosEl.innerHTML = "";
@@ -143,13 +147,42 @@
       var formData = new FormData(leadForm);
       var name = formData.get("name") || "用户";
       var target = formData.get("target") || "课程咨询";
+      var phone = formData.get("phone") || "";
       if (leadResult) {
         leadResult.style.display = "block";
-        leadResult.textContent = "已记录 " + name + " 的" + target + "咨询。当前为前端预览，暂未提交到后端。";
+        leadResult.textContent = "正在提交咨询...";
       }
-      leadForm.reset();
+      var submitter = clubData.submitLead ? clubData.submitLead(clubId, {
+        name: name,
+        phone: phone,
+        target: target,
+        source: "web_club_detail"
+      }) : Promise.resolve({ source: "mock" });
+      submitter.then(function (result) {
+        var sourceText = result.source === "api" ? "已提交到后端" : "已记录为接口预览";
+        if (leadResult) {
+          leadResult.textContent = "已记录 " + name + " 的" + target + "咨询。" + sourceText + "。";
+        }
+        leadForm.reset();
+      }).catch(function () {
+        if (leadResult) leadResult.textContent = "提交失败，请稍后重试。";
+      });
     });
   }
 
-  window.setTimeout(renderDetail, 120);
+  var loadDetail = function () {
+    if (loadingEl) loadingEl.style.display = "block";
+    var loader = clubData.detailClub ? clubData.detailClub(clubId) : Promise.resolve({ source: "mock", club: clubData.getClubById ? clubData.getClubById(clubId) : null });
+    loader.then(function (result) {
+      dataSource = result.source || "mock";
+      club = result.club;
+      renderDetail();
+    }).catch(function () {
+      club = clubData.getClubById ? clubData.getClubById(clubId) : null;
+      dataSource = "mock";
+      renderDetail();
+    });
+  };
+
+  loadDetail();
 })();
