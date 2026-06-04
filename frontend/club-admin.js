@@ -6,6 +6,7 @@
   var token = localStorage.getItem("token") || "";
   var previewAllowed = localStorage.getItem("clubAdminPreview") === "true";
   var data = window.TTAI_CLUB_DATA ? window.TTAI_CLUB_DATA.admin : null;
+  var dataSource = "mock";
 
   var lockedEl = document.getElementById("admin-locked");
   var lockedText = document.getElementById("admin-locked-text");
@@ -117,7 +118,8 @@
     if (dashboardEl) dashboardEl.style.display = "block";
     if (clubNameEl) clubNameEl.textContent = data.currentAdmin.clubName;
     if (metaEl) {
-      metaEl.textContent = data.currentAdmin.name + " · 前端预览数据 · 更新时间 " + data.overview.updatedAt;
+      var sourceText = dataSource === "api" ? "线上数据" : dataSource === "stub" ? "后端接口桩" : "前端预览数据";
+      metaEl.textContent = data.currentAdmin.name + " · " + sourceText + " · 更新时间 " + data.overview.updatedAt;
     }
     renderOverview();
     renderFunnel();
@@ -125,6 +127,20 @@
     renderMembers();
     renderLeads();
     renderActivities();
+  };
+
+  var loadDashboard = function () {
+    var loader = window.TTAI_CLUB_DATA && window.TTAI_CLUB_DATA.loadAdmin
+      ? window.TTAI_CLUB_DATA.loadAdmin()
+      : Promise.resolve({ source: "mock", admin: data });
+    loader.then(function (result) {
+      dataSource = result.source || "mock";
+      data = result.admin || data;
+      renderDashboard();
+    }).catch(function () {
+      dataSource = "mock";
+      renderDashboard();
+    });
   };
 
   if (!token && !previewAllowed) {
@@ -137,5 +153,5 @@
     return;
   }
 
-  renderDashboard();
+  loadDashboard();
 })();
