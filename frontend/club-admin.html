@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>俱乐部管理 - TTAI</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <a class="brand" href="index.html">
+            <span class="brand-mark">TT</span>
+            <span>TTAI 乒乓训练</span>
+          </a>
+          <nav class="nav-links">
+            <a href="index.html">首页</a>
+            <a href="videos.html">视频库</a>
+            <a href="tech.html">日常训练</a>
+            <a href="training-enroll.html">俱乐部</a>
+            <a href="stats.html">训练统计</a>
+            <a href="my.html">我的</a>
+            <a href="login.html" id="nav-login">登录</a>
+            <div class="nav-user" id="nav-user" style="display: none;">
+              <img class="nav-avatar" id="nav-avatar" alt="头像">
+              <span class="nav-name" id="nav-name">已登录</span>
+              <button class="nav-logout" id="nav-logout" type="button">退出</button>
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      <main class="main">
+        <div class="container">
+          <section class="section" id="admin-locked">
+            <h2 class="card-title">俱乐部管理后台</h2>
+            <p class="muted" id="admin-locked-text">正在检查管理员权限...</p>
+            <div class="club-actions">
+              <a class="btn btn-primary" href="login.html?redirect=club-admin.html">扫码登录</a>
+              <a class="btn btn-secondary" href="club-admin.html?preview=1">查看前端预览</a>
+            </div>
+          </section>
+
+          <div id="admin-dashboard" style="display: none;">
+            <section class="section">
+              <div class="detail-header">
+                <div>
+                  <h2 class="card-title" id="admin-club-name">俱乐部管理后台</h2>
+                  <p class="muted" id="admin-meta">前端预览数据，待接后端权限和真实数据。</p>
+                </div>
+                <a class="btn btn-secondary" href="training-enroll.html">返回俱乐部入口</a>
+              </div>
+              <div class="stat-grid" id="admin-overview"></div>
+            </section>
+
+            <section class="section">
+              <div class="grid-2">
+                <div>
+                  <h3 class="card-title">招生线索漏斗</h3>
+                  <div class="stack-list" id="lead-funnel"></div>
+                </div>
+                <div>
+                  <h3 class="card-title">常见训练弱项</h3>
+                  <div class="stack-list" id="weakness-list"></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="detail-header">
+                <div>
+                  <h3 class="card-title">会员训练概览</h3>
+                  <p class="muted">只展示已授权会员的训练摘要；视频原文件权限待后端确认。</p>
+                </div>
+              </div>
+              <div class="admin-table-wrap">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th>会员</th>
+                      <th>分组</th>
+                      <th>最近训练</th>
+                      <th>AI 分析</th>
+                      <th>主要弱项</th>
+                      <th>授权</th>
+                      <th>评分</th>
+                    </tr>
+                  </thead>
+                  <tbody id="member-table"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="grid-2">
+                <div>
+                  <h3 class="card-title">最新线索</h3>
+                  <div class="stack-list" id="lead-list"></div>
+                </div>
+                <div>
+                  <h3 class="card-title">训练动态</h3>
+                  <div class="stack-list" id="activity-list"></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; <span id="year"></span> TTAI. All rights reserved.</p>
+      </footer>
+    </div>
+    <script src="config.js"></script>
+    <script src="nav-auth.js"></script>
+    <script src="club-data.js"></script>
+    <script src="club-admin.js"></script>
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

@@ -18,7 +18,7 @@
             <a href="index.html">首页</a>
             <a href="videos.html">视频库</a>
             <a href="tech.html">日常训练</a>
-            <a class="active" href="training-enroll.html">培训招生</a>
+            <a class="active" href="training-enroll.html">俱乐部</a>
             <a href="stats.html">训练统计</a>
             <a href="my.html">我的</a>
             <a href="login.html" id="nav-login">登录</a>
@@ -39,7 +39,7 @@
                 <h2 class="card-title" id="club-name">俱乐部详情</h2>
                 <p class="muted" id="club-subtitle">加载中...</p>
               </div>
-              <a class="btn btn-secondary" href="training-enroll.html">返回列表</a>
+              <a class="btn btn-secondary" href="training-enroll.html">返回俱乐部</a>
             </div>
             <div class="loading-state" id="club-loading">加载中...</div>
             <div class="empty-state" id="club-empty">加载失败，请稍后重试。</div>
@@ -52,6 +52,51 @@
               </div>
             </div>
           </section>
+
+          <section class="section" id="club-extra" style="display: none;">
+            <div class="grid-2">
+              <div>
+                <h3 class="card-title">课程设置</h3>
+                <div class="stack-list" id="club-courses"></div>
+              </div>
+              <div>
+                <h3 class="card-title">教练团队</h3>
+                <div class="stack-list" id="club-coaches"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" id="club-cases-section" style="display: none;">
+            <h3 class="card-title">AI 训练成长案例</h3>
+            <p class="muted">以下为俱乐部展示用示例，不展示真实用户隐私数据。</p>
+            <div class="stat-grid" id="club-cases"></div>
+          </section>
+
+          <section class="section" id="club-lead-section" style="display: none;">
+            <div class="grid-2">
+              <div>
+                <h3 class="card-title">预约体验或咨询课程</h3>
+                <p class="muted">当前为前端预览提交，后续会接入俱乐部线索接口。</p>
+                <form class="lead-form" id="club-lead-form">
+                  <input class="form-input" name="name" placeholder="姓名" required>
+                  <input class="form-input" name="phone" placeholder="手机号" required>
+                  <select class="form-input" name="target">
+                    <option value="孩子启蒙">孩子启蒙</option>
+                    <option value="成人提高">成人提高</option>
+                    <option value="比赛备战">比赛备战</option>
+                    <option value="一对一私教">一对一私教</option>
+                  </select>
+                  <button class="btn btn-primary" type="submit">提交咨询</button>
+                </form>
+                <div class="empty-state" id="lead-result" style="display: none;"></div>
+              </div>
+              <div class="card">
+                <h3 class="card-title">用 AI 让训练更清楚</h3>
+                <p class="muted">学员可以上传训练视频或比赛视频，俱乐部在获得授权后查看训练摘要，帮助教练更快安排专项训练。</p>
+                <a class="btn btn-secondary" href="index.html#upload-video">体验 AI 分析</a>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 
@@ -61,6 +106,7 @@
     </div>
     <script src="config.js"></script>
     <script src="nav-auth.js"></script>
+    <script src="club-data.js"></script>
     <script src="training-enroll-detail.js"></script>
     <script>
       document.getElementById('year').textContent = new Date().getFullYear();

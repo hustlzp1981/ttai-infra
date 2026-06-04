@@ -1,29 +1,14 @@
 (function () {
-  var apiBase = window.ttaiGetApiBase ? window.ttaiGetApiBase() : "/api";
   var baseUrl = window.ttaiGetBaseUrl ? window.ttaiGetBaseUrl() : "";
+  var clubData = window.TTAI_CLUB_DATA || { clubs: [], getDistricts: function () { return []; } };
 
   var clubsList = document.getElementById("clubs-list");
   var emptyEl = document.getElementById("clubs-empty");
   var loadingEl = document.getElementById("clubs-loading");
   var citySelect = document.getElementById("city-select");
   var districtSelect = document.getElementById("district-select");
-
-  var districts = [
-    "全部区域",
-    "浦东新区",
-    "黄浦区",
-    "徐汇区",
-    "长宁区",
-    "静安区",
-    "普陀区",
-    "虹口区",
-    "杨浦区",
-    "闵行区",
-    "宝山区",
-    "嘉定区",
-    "松江区",
-    "青浦区"
-  ];
+  var tagButtons = Array.prototype.slice.call(document.querySelectorAll("[data-tag]"));
+  var selectedTag = "";
 
   var resolveUrl = function (path) {
     if (!path) return "";
@@ -34,13 +19,28 @@
 
   var renderDistricts = function () {
     if (!districtSelect) return;
+    var city = citySelect ? citySelect.value : "上海";
+    var districts = clubData.getDistricts(city);
     districtSelect.innerHTML = "";
-    districts.forEach(function (d) {
+
+    ["全部区域"].concat(districts).forEach(function (district) {
       var option = document.createElement("option");
-      option.value = d === "全部区域" ? "" : d;
-      option.textContent = d;
+      option.value = district === "全部区域" ? "" : district;
+      option.textContent = district;
       districtSelect.appendChild(option);
     });
+  };
+
+  var copyWechat = function (button) {
+    var wechat = button.getAttribute("data-wechat") || "";
+    if (!wechat) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(wechat).then(function () {
+        button.textContent = "已复制";
+      });
+    } else {
+      window.prompt("复制微信号", wechat);
+    }
   };
 
   var renderClubs = function (items) {
@@ -50,98 +50,85 @@
       if (emptyEl) emptyEl.style.display = "block";
       return;
     }
+
     if (emptyEl) emptyEl.style.display = "none";
     items.forEach(function (club) {
       var card = document.createElement("div");
       card.className = "club-card";
 
-      var photo = "images/club-default.png";
-      if (club.photos && club.photos.length) photo = resolveUrl(club.photos[0]);
+      var photo = resolveUrl((club.photos && club.photos[0]) || "images/main.png");
+      var tagsHtml = (club.tags || []).slice(0, 5).map(function (tag) {
+        return '<span class="club-tag">' + tag + '</span>';
+      }).join("");
 
-      var tagsHtml = "";
-      var tags = Array.isArray(club.tags) ? club.tags : [];
-      tags.slice(0, 4).forEach(function (tag) {
-        tagsHtml += '<span class="club-tag">' + tag + '</span>';
-      });
-
-      var contactButtons = "";
-      var clubId = club.id || club._id || "";
-      if (club.phone) {
-        contactButtons += '<a class="club-action" href="tel:' + club.phone + '">📞 电话</a>';
-      }
-      if (club.wechat) {
-        contactButtons += '<button class="club-action" data-wechat="' + club.wechat + '">💬 微信</button>';
-      }
+      var actions = "";
+      if (club.phone) actions += '<a class="club-action" href="tel:' + club.phone + '">电话</a>';
+      if (club.wechat) actions += '<button class="club-action" type="button" data-wechat="' + club.wechat + '">复制微信</button>';
       if (club.lat && club.lng) {
-        var mapUrl = 'https://uri.amap.com/marker?position=' + club.lng + ',' + club.lat + '&name=' + encodeURIComponent(club.name || "俱乐部");
-        contactButtons += '<a class="club-action" href="' + mapUrl + '" target="_blank" rel="noopener">🗺️ 导航</a>';
+        var mapUrl = "https://uri.amap.com/marker?position=" + club.lng + "," + club.lat + "&name=" + encodeURIComponent(club.name || "俱乐部");
+        actions += '<a class="club-action" href="' + mapUrl + '" target="_blank" rel="noopener">导航</a>';
       }
-      if (clubId) {
-        contactButtons += '<a class="club-action" href="training-enroll-detail.html?id=' + encodeURIComponent(clubId) + '">查看详情</a>';
-      }
+      actions += '<a class="club-action primary" href="training-enroll-detail.html?id=' + encodeURIComponent(club.id) + '">查看详情</a>';
 
       card.innerHTML =
-        '<img class="club-photo" src="' + photo + '" alt="club">' +
+        '<img class="club-photo" src="' + photo + '" alt="' + (club.name || "俱乐部") + '">' +
         '<div class="club-info">' +
           '<div class="club-header">' +
             '<div class="club-name">' + (club.name || "俱乐部") + '</div>' +
-            (club.isPartner ? '<span class="partner-badge">🏅 合作</span>' : '') +
+            (club.isPartner ? '<span class="partner-badge">合作俱乐部</span>' : '<span class="partner-badge muted-badge">入驻俱乐部</span>') +
           '</div>' +
-          '<div class="club-address">📍 ' + (club.address || "") + '</div>' +
-          (club.phone ? '<div class="club-phone">📞 ' + club.phone + '</div>' : '') +
+          '<div class="club-address">' + (club.district || "") + " · " + (club.address || "") + '</div>' +
+          '<div class="club-phone">' + (club.summary || "") + '</div>' +
           '<div class="club-tags">' + tagsHtml + '</div>' +
-          '<div class="club-actions">' + contactButtons + '</div>' +
+          '<div class="club-actions">' + actions + '</div>' +
         '</div>';
 
       clubsList.appendChild(card);
     });
 
-    clubsList.querySelectorAll('[data-wechat]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var wechat = btn.getAttribute('data-wechat') || '';
-        if (!wechat) return;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(wechat).then(function () {
-            btn.textContent = '✅ 已复制';
-          });
-        } else {
-          window.prompt('复制微信号', wechat);
-        }
+    clubsList.querySelectorAll("[data-wechat]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        copyWechat(button);
       });
     });
   };
 
-  var loadClubs = function () {
+  var filterClubs = function () {
     var city = citySelect ? citySelect.value : "上海";
     var district = districtSelect ? districtSelect.value : "";
-    if (loadingEl) loadingEl.style.display = "block";
-    if (emptyEl) emptyEl.style.display = "none";
-
-    var url = apiBase + "/clubs/list?city=" + encodeURIComponent(city) + "&page=1&pageSize=50";
-    if (district) url += "&district=" + encodeURIComponent(district);
-
-    fetch(url)
-      .then(function (res) { return res.json(); })
-      .then(function (payload) {
-        var data = payload && payload.data ? payload.data : payload;
-        renderClubs(data.items || []);
-      })
-      .catch(function () {
-        renderClubs([]);
-      })
-      .finally(function () {
-        if (loadingEl) loadingEl.style.display = "none";
-      });
+    return clubData.clubs.filter(function (club) {
+      if (city && club.city !== city) return false;
+      if (district && club.district !== district) return false;
+      if (selectedTag && (club.tags || []).indexOf(selectedTag) === -1) return false;
+      return true;
+    });
   };
 
-  if (districtSelect) {
-    renderDistricts();
-    districtSelect.addEventListener("change", loadClubs);
-  }
+  var loadClubs = function () {
+    if (loadingEl) loadingEl.style.display = "block";
+    window.setTimeout(function () {
+      renderClubs(filterClubs());
+      if (loadingEl) loadingEl.style.display = "none";
+    }, 120);
+  };
 
+  tagButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      selectedTag = button.getAttribute("data-tag") || "";
+      tagButtons.forEach(function (item) { item.classList.remove("active"); });
+      button.classList.add("active");
+      loadClubs();
+    });
+  });
+
+  if (districtSelect) districtSelect.addEventListener("change", loadClubs);
   if (citySelect) {
-    citySelect.addEventListener("change", loadClubs);
+    citySelect.addEventListener("change", function () {
+      renderDistricts();
+      loadClubs();
+    });
   }
 
+  renderDistricts();
   loadClubs();
 })();
