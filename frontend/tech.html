@@ -846,7 +846,13 @@
             bindEvents() {
                 // Tab switching
                 this.tabs.forEach(tab => {
-                    tab.addEventListener('click', () => this.switchTab(tab.dataset.tab));
+                    tab.addEventListener('click', () => {
+                        if (tab.dataset.tab === 'enroll') {
+                            window.location.href = 'training-enroll.html';
+                            return;
+                        }
+                        this.switchTab(tab.dataset.tab);
+                    });
                 });
 
                 if (this.qaList) {
@@ -932,6 +938,11 @@
             }
 
             switchTab(tab) {
+                if (tab === 'enroll') {
+                    window.location.href = 'training-enroll.html';
+                    return;
+                }
+
                 this.currentTab = tab;
 
                 // Update UI
