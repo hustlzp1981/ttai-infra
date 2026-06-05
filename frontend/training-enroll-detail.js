@@ -26,6 +26,11 @@
   var leadResult = document.getElementById("lead-result");
   var authorizationPanel = document.getElementById("authorization-panel");
 
+  var levelLabel = function (key) {
+    var map = { "amateur": "业余", "semi_pro": "半专业", "professional": "专业", "national": "国家级" }
+    return map[key] || key || "俱乐部"
+  }
+
   var escapeHtml = function (value) {
     return String(value || "").replace(/[&<>"']/g, function (ch) {
       return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch];
@@ -166,7 +171,7 @@
 
     if (nameEl) nameEl.textContent = club.name || "俱乐部详情";
     if (subtitleEl) {
-      subtitleEl.textContent = (club.level || "俱乐部") + " · " + (club.district || "") + " · " + (club.hours || "");
+      subtitleEl.textContent = levelLabel(club.level) + " · " + (club.district || "") + " · " + (club.hours || "");
     }
 
     if (photosEl) {
