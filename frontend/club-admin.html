@@ -38,7 +38,7 @@
             <p class="muted" id="admin-locked-text">正在检查管理员权限...</p>
             <div class="club-actions">
               <a class="btn btn-primary" href="login.html?redirect=club-admin.html">扫码登录</a>
-              <a class="btn btn-secondary" href="club-admin.html?preview=1">查看前端预览</a>
+              <a class="btn btn-secondary" href="training-enroll.html">返回俱乐部</a>
             </div>
           </section>
 
@@ -47,9 +47,12 @@
               <div class="detail-header">
                 <div>
                   <h2 class="card-title" id="admin-club-name">俱乐部管理后台</h2>
-                  <p class="muted" id="admin-meta">前端预览数据，待接后端权限和真实数据。</p>
+                  <p class="muted" id="admin-meta">正在加载真实运营数据。</p>
                 </div>
-                <a class="btn btn-secondary" href="training-enroll.html">返回俱乐部入口</a>
+                <div class="club-actions">
+                  <select class="filter-select" id="admin-club-select" style="display: none;"></select>
+                  <a class="btn btn-secondary" href="training-enroll.html">返回俱乐部入口</a>
+                </div>
               </div>
               <div class="stat-grid" id="admin-overview"></div>
             </section>
@@ -85,11 +88,13 @@
                       <th>主要弱项</th>
                       <th>授权</th>
                       <th>评分</th>
+                      <th>操作</th>
                     </tr>
                   </thead>
                   <tbody id="member-table"></tbody>
                 </table>
               </div>
+              <div class="detail-panel" id="member-detail" style="display: none;"></div>
             </section>
 
             <section class="section">

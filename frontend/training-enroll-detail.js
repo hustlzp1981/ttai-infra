@@ -4,7 +4,8 @@
   var params = new URLSearchParams(window.location.search);
   var clubId = params.get("id") || params.get("slug") || "";
   var club = null;
-  var dataSource = "mock";
+  var viewer = null;
+  var authorizations = [];
 
   var nameEl = document.getElementById("club-name");
   var subtitleEl = document.getElementById("club-subtitle");
@@ -23,12 +24,57 @@
   var leadSectionEl = document.getElementById("club-lead-section");
   var leadForm = document.getElementById("club-lead-form");
   var leadResult = document.getElementById("lead-result");
+  var authorizationPanel = document.getElementById("authorization-panel");
+
+  var escapeHtml = function (value) {
+    return String(value || "").replace(/[&<>"']/g, function (ch) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch];
+    });
+  };
 
   var resolveUrl = function (path) {
     if (!path) return "";
     if (path.indexOf("http") === 0) return path;
     if (path.indexOf("/") === 0) return baseUrl + path;
     return baseUrl + "/" + path;
+  };
+
+  var currentClubId = function () {
+    return (club && (club.id || club._id || club.slug)) || clubId;
+  };
+
+  var currentClubKeys = function () {
+    return [club && club.id, club && club._id, club && club.slug, clubId].filter(Boolean).map(String);
+  };
+
+  var matchesCurrentClub = function (value) {
+    return value !== undefined && value !== null && currentClubKeys().indexOf(String(value)) >= 0;
+  };
+
+  var viewerAdminClubs = function () {
+    var clubs = viewer && viewer.clubAdmin && viewer.clubAdmin.clubs;
+    if (!Array.isArray(clubs) && viewer && viewer.user && viewer.user.clubAdmin) clubs = viewer.user.clubAdmin.clubs;
+    if (!Array.isArray(clubs)) clubs = viewer && viewer.clubs;
+    if (!Array.isArray(clubs) && viewer && viewer.user) clubs = viewer.user.clubs;
+    return Array.isArray(clubs) ? clubs : [];
+  };
+
+  var isClubAdminForCurrentClub = function () {
+    var clubs = viewerAdminClubs();
+    return clubs.some(function (item) {
+      return matchesCurrentClub(item.id) || matchesCurrentClub(item._id) || matchesCurrentClub(item.slug);
+    });
+  };
+
+  var isAuthorizedForCurrentClub = function () {
+    return authorizations.some(function (item) {
+      return (matchesCurrentClub(item.clubId) || item.club && (
+        matchesCurrentClub(item.club.id) ||
+        matchesCurrentClub(item.club._id) ||
+        matchesCurrentClub(item.club.slug)
+      )) &&
+        (item.status || "active") === "active";
+    });
   };
 
   var copyWechat = function (button) {
@@ -54,6 +100,55 @@
     });
   };
 
+  var renderAuthorization = function () {
+    if (!authorizationPanel || !club) return;
+    authorizationPanel.style.display = "block";
+
+    if (!clubData.hasToken || !clubData.hasToken()) {
+      authorizationPanel.innerHTML =
+        '<div class="empty-state compact">登录后可授权俱乐部查看你的训练摘要。</div>' +
+        '<a class="btn btn-secondary" href="login.html?redirect=' + encodeURIComponent(window.location.pathname + window.location.search) + '">扫码登录</a>';
+      return;
+    }
+
+    if (!viewer) {
+      authorizationPanel.innerHTML =
+        '<div class="empty-state compact">登录状态已失效，请重新扫码登录后授权。</div>' +
+        '<a class="btn btn-secondary" href="login.html?redirect=' + encodeURIComponent(window.location.pathname + window.location.search) + '">重新登录</a>';
+      return;
+    }
+
+    if (isClubAdminForCurrentClub()) {
+      authorizationPanel.innerHTML =
+        '<div class="empty-state compact">当前账号可管理该俱乐部。</div>' +
+        '<a class="btn btn-primary" href="club-admin.html?clubId=' + encodeURIComponent(currentClubId()) + '">进入管理后台</a>';
+      return;
+    }
+
+    var authorized = isAuthorizedForCurrentClub();
+    authorizationPanel.innerHTML =
+      '<div class="empty-state compact">' +
+        (authorized ? "已授权该俱乐部查看你的训练摘要和 AI 分析摘要。" : "授权后，俱乐部教练可查看你的训练摘要和 AI 分析摘要。") +
+      '</div>' +
+      '<button class="btn ' + (authorized ? "btn-secondary" : "btn-primary") + '" id="club-auth-toggle" type="button">' +
+        (authorized ? "取消授权" : "授权俱乐部查看摘要") +
+      '</button>';
+
+    var toggle = document.getElementById("club-auth-toggle");
+    if (toggle) {
+      toggle.addEventListener("click", function () {
+        toggle.disabled = true;
+        var action = authorized ? clubData.revokeClubAuthorization(currentClubId()) : clubData.authorizeClub(currentClubId());
+        action.then(function () {
+          return loadViewer();
+        }).then(renderAuthorization).catch(function (err) {
+          toggle.disabled = false;
+          authorizationPanel.querySelector(".empty-state").textContent = clubData.errorMessage ? clubData.errorMessage(err) : "授权操作失败";
+        });
+      });
+    }
+  };
+
   var renderDetail = function () {
     if (!club) {
       if (loadingEl) loadingEl.style.display = "none";
@@ -71,8 +166,7 @@
 
     if (nameEl) nameEl.textContent = club.name || "俱乐部详情";
     if (subtitleEl) {
-      var sourceText = dataSource === "api" ? "线上数据" : "预览数据";
-      subtitleEl.textContent = (club.level || "俱乐部") + " · " + (club.district || "") + " · " + (club.hours || "") + " · " + sourceText;
+      subtitleEl.textContent = (club.level || "俱乐部") + " · " + (club.district || "") + " · " + (club.hours || "");
     }
 
     if (photosEl) {
@@ -97,37 +191,35 @@
         club.mobile ? "手机：" + club.mobile : ""
       ].filter(Boolean);
       infoEl.innerHTML = rows.map(function (text) {
-        return '<div class="club-detail-row">' + text + '</div>';
+        return '<div class="club-detail-row">' + escapeHtml(text) + '</div>';
       }).join("");
     }
 
     if (tagsEl) {
       tagsEl.innerHTML = (club.tags || []).map(function (tag) {
-        return '<span class="club-tag">' + tag + '</span>';
+        return '<span class="club-tag">' + escapeHtml(tag) + '</span>';
       }).join("");
     }
 
     if (actionsEl) {
       actionsEl.innerHTML = "";
-      if (club.phone) actionsEl.innerHTML += '<a class="club-action" href="tel:' + club.phone + '">电话咨询</a>';
-      if (club.wechat) actionsEl.innerHTML += '<button class="club-action" type="button" data-wechat="' + club.wechat + '">复制微信</button>';
+      if (club.phone) actionsEl.innerHTML += '<a class="club-action" href="tel:' + escapeHtml(club.phone) + '">电话咨询</a>';
+      if (club.wechat) actionsEl.innerHTML += '<button class="club-action" type="button" data-wechat="' + escapeHtml(club.wechat) + '">复制微信</button>';
       if (club.lat && club.lng) {
         var mapUrl = "https://uri.amap.com/marker?position=" + club.lng + "," + club.lat + "&name=" + encodeURIComponent(club.name || "俱乐部");
         actionsEl.innerHTML += '<a class="club-action" href="' + mapUrl + '" target="_blank" rel="noopener">导航到店</a>';
       }
       actionsEl.querySelectorAll("[data-wechat]").forEach(function (button) {
-        button.addEventListener("click", function () {
-          copyWechat(button);
-        });
+        button.addEventListener("click", function () { copyWechat(button); });
       });
     }
 
     renderCards(coursesEl, club.courses, function (course) {
-      return '<h4>' + course.name + '</h4><p>' + course.schedule + '</p><p class="muted">' + course.target + '</p>';
+      return '<h4>' + escapeHtml(course.name) + '</h4><p>' + escapeHtml(course.schedule) + '</p><p class="muted">' + escapeHtml(course.target) + '</p>';
     });
 
     renderCards(coachesEl, club.coaches, function (coach) {
-      return '<h4>' + coach.name + ' · ' + coach.title + '</h4><p class="muted">' + coach.focus + '</p>';
+      return '<h4>' + escapeHtml(coach.name) + ' · ' + escapeHtml(coach.title) + '</h4><p class="muted">' + escapeHtml(coach.focus) + '</p>';
     });
 
     if (casesEl) {
@@ -135,10 +227,27 @@
       (club.cases || []).forEach(function (item) {
         var card = document.createElement("div");
         card.className = "stat-card";
-        card.innerHTML = '<h4>' + item.title + '</h4><p>' + item.after + '</p><span class="muted">' + item.before + '</span>';
+        card.innerHTML = '<h4>' + escapeHtml(item.title) + '</h4><p>' + escapeHtml(item.after) + '</p><span class="muted">' + escapeHtml(item.before) + '</span>';
         casesEl.appendChild(card);
       });
     }
+
+    renderAuthorization();
+  };
+
+  var loadViewer = function () {
+    if (!clubData.hasToken || !clubData.hasToken()) {
+      viewer = null;
+      authorizations = [];
+      return Promise.resolve();
+    }
+    return Promise.all([
+      clubData.me ? clubData.me().catch(function () { return null; }) : Promise.resolve(null),
+      clubData.myAuthorizations ? clubData.myAuthorizations().catch(function () { return { items: [] }; }) : Promise.resolve({ items: [] })
+    ]).then(function (parts) {
+      viewer = parts[0] && parts[0].user ? parts[0] : parts[0] || null;
+      authorizations = (parts[1] && (parts[1].items || parts[1].authorizations)) || [];
+    });
   };
 
   if (leadForm) {
@@ -152,35 +261,36 @@
         leadResult.style.display = "block";
         leadResult.textContent = "正在提交咨询...";
       }
-      var submitter = clubData.submitLead ? clubData.submitLead(clubId, {
+      clubData.submitLead(currentClubId(), {
         name: name,
         phone: phone,
         target: target,
         source: "web_club_detail"
-      }) : Promise.resolve({ source: "mock" });
-      submitter.then(function (result) {
-        var sourceText = result.source === "api" ? "已提交到后端" : "已记录为接口预览";
-        if (leadResult) {
-          leadResult.textContent = "已记录 " + name + " 的" + target + "咨询。" + sourceText + "。";
-        }
+      }).then(function () {
+        if (leadResult) leadResult.textContent = "已提交咨询，俱乐部会尽快联系你。";
         leadForm.reset();
-      }).catch(function () {
-        if (leadResult) leadResult.textContent = "提交失败，请稍后重试。";
+      }).catch(function (err) {
+        if (leadResult) leadResult.textContent = clubData.errorMessage ? clubData.errorMessage(err) : "提交失败，请稍后重试。";
       });
     });
   }
 
   var loadDetail = function () {
     if (loadingEl) loadingEl.style.display = "block";
-    var loader = clubData.detailClub ? clubData.detailClub(clubId) : Promise.resolve({ source: "mock", club: clubData.getClubById ? clubData.getClubById(clubId) : null });
-    loader.then(function (result) {
-      dataSource = result.source || "mock";
-      club = result.club;
+    if (emptyEl) emptyEl.style.display = "none";
+    Promise.all([
+      clubData.detailClub ? clubData.detailClub(clubId) : Promise.reject(new Error("俱乐部接口未初始化")),
+      loadViewer()
+    ]).then(function (parts) {
+      club = parts[0].club;
       renderDetail();
-    }).catch(function () {
-      club = clubData.getClubById ? clubData.getClubById(clubId) : null;
-      dataSource = "mock";
-      renderDetail();
+    }).catch(function (err) {
+      club = null;
+      if (loadingEl) loadingEl.style.display = "none";
+      if (emptyEl) {
+        emptyEl.style.display = "block";
+        emptyEl.textContent = clubData.errorMessage ? clubData.errorMessage(err) : "加载失败，请稍后重试。";
+      }
     });
   };
 

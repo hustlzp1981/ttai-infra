@@ -1,6 +1,6 @@
 (function () {
   var baseUrl = window.ttaiGetBaseUrl ? window.ttaiGetBaseUrl() : "";
-  var clubData = window.TTAI_CLUB_DATA || { clubs: [], getDistricts: function () { return []; } };
+  var clubData = window.TTAI_CLUB_DATA || {};
 
   var clubsList = document.getElementById("clubs-list");
   var emptyEl = document.getElementById("clubs-empty");
@@ -10,6 +10,7 @@
   var tagButtons = Array.prototype.slice.call(document.querySelectorAll("[data-tag]"));
   var selectedTag = "";
   var currentItems = [];
+  var currentDistricts = [];
 
   var resolveUrl = function (path) {
     if (!path) return "";
@@ -20,16 +21,16 @@
 
   var renderDistricts = function () {
     if (!districtSelect) return;
-    var city = citySelect ? citySelect.value : "上海";
-    var districts = clubData.getDistricts ? clubData.getDistricts(city) : [];
+    var selected = districtSelect.value || "";
     districtSelect.innerHTML = "";
 
-    ["全部区域"].concat(districts).forEach(function (district) {
+    ["全部区域"].concat(currentDistricts).forEach(function (district) {
       var option = document.createElement("option");
       option.value = district === "全部区域" ? "" : district;
       option.textContent = district;
       districtSelect.appendChild(option);
     });
+    districtSelect.value = currentDistricts.indexOf(selected) >= 0 ? selected : "";
   };
 
   var copyWechat = function (button) {
@@ -102,16 +103,17 @@
 
   var loadClubs = function () {
     if (loadingEl) loadingEl.style.display = "block";
-    var loader = clubData.listClubs ? clubData.listClubs(getFilters()) : Promise.resolve({ items: [] });
+    if (emptyEl) emptyEl.style.display = "none";
+    var loader = clubData.listClubs ? clubData.listClubs(getFilters()) : Promise.reject(new Error("俱乐部接口未初始化"));
     loader.then(function (result) {
       currentItems = result.items || [];
+      currentDistricts = result.districts || currentDistricts;
+      renderDistricts();
       renderClubs(currentItems);
-      if (result.source === "mock" && emptyEl && currentItems.length) {
-        emptyEl.style.display = "none";
-      }
-    }).catch(function () {
+    }).catch(function (err) {
       currentItems = [];
       renderClubs([]);
+      if (emptyEl) emptyEl.textContent = clubData.errorMessage ? clubData.errorMessage(err) : "俱乐部接口暂不可用";
     }).finally(function () {
       if (loadingEl) loadingEl.style.display = "none";
     });
@@ -129,6 +131,7 @@
   if (districtSelect) districtSelect.addEventListener("change", loadClubs);
   if (citySelect) {
     citySelect.addEventListener("change", function () {
+      currentDistricts = [];
       renderDistricts();
       loadClubs();
     });

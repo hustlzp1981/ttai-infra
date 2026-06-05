@@ -58,3 +58,84 @@
 - 后端返回 `stub: true` 时，管理后台仍视为接口桩，不展示为真实运营数据。
 - 俱乐部管理员真实权限、会员授权、线索持久化仍待后端实现。
 - 当前 Web 仍保留 `clubAdminPreview` 预览开关，仅用于页面验收；接真实权限后应移除或只保留开发环境使用。
+
+## 2026-06-05 Club Web Real API Contract
+
+### 本次前端范围
+- `club-data.js` 已改为真实 API client，不再对线上接口失败自动回退 mock 数据。
+- 公开俱乐部列表和详情页只展示后端真实返回；接口失败展示错误/空态。
+- 详情页支持普通登录用户授权/取消授权俱乐部查看训练摘要。
+- 咨询线索提交只走真实 `POST /api/clubs/:id/leads`；失败不做前端假成功。
+- 管理后台先调用 `GET /api/club-admin/profile` 校验真实管理员权限。
+- 管理后台支持一个管理员绑定多个俱乐部，通过 `clubId` 切换数据上下文。
+- 管理后台会员详情只在会员授权后请求训练日志和 AI 分析摘要。
+- 管理后台线索支持状态流转，调用真实状态更新接口。
+- `clubAdminPreview` 线上预览入口已移除；仅保留 `club-data.js` 的本地 preview 开关给开发环境使用。
+
+### 普通用户接口契约
+- `GET /api/web/me`
+  - Header: `Authorization: Bearer <token>`
+  - 返回登录用户基础信息与角色。
+  - 建议返回：
+    ```json
+    {
+      "loggedIn": true,
+      "user": { "openid": "xxx", "nickname": "张同学", "avatar": "", "roles": ["user"] },
+      "clubAdmin": { "isAdmin": false, "clubs": [], "defaultClubId": "" }
+    }
+    ```
+- `GET /api/clubs/my-authorizations`
+  - 返回当前用户已授权俱乐部列表。
+- `POST /api/clubs/:id/authorize`
+  - 请求：`{ "scopes": ["training_summary", "analysis_summary"] }`
+  - 语义：允许该俱乐部查看训练摘要和 AI 分析摘要，不包含视频原文件。
+- `DELETE /api/clubs/:id/authorize`
+  - 语义：取消授权。
+
+### 公开俱乐部接口契约
+- `GET /api/clubs/list?city=&district=&tag=&page=&pageSize=`
+  - 返回：`{ "items": [], "total": 0, "districts": [] }`
+- `GET /api/clubs/detail?id=`
+  - 返回俱乐部详情；允许 `{ "club": {...} }` 或直接返回俱乐部对象。
+- `POST /api/clubs/:id/leads`
+  - 匿名和登录用户均可提交；登录用户由后端绑定 openid。
+  - 后端负责手机号去重、脱敏、持久化。
+  - 管理后台只展示 `phoneMasked`。
+
+### 俱乐部管理员接口契约
+- `GET /api/club-admin/profile`
+  - 返回管理员身份和绑定俱乐部：
+    ```json
+    {
+      "admin": { "name": "王教练", "role": "owner" },
+      "clubAdmin": {
+        "isAdmin": true,
+        "clubs": [{ "id": "club_001", "name": "徐汇精英乒乓俱乐部", "role": "owner" }],
+        "defaultClubId": "club_001"
+      }
+    }
+    ```
+- `GET /api/club-admin/overview?clubId=`
+  - 返回会员数、本周活跃、本月 AI 分析、新增线索、线索漏斗、弱项统计、训练动态。
+- `GET /api/club-admin/members?clubId=`
+  - 返回会员摘要列表，必须包含 `authorized`。
+- `GET /api/club-admin/members/:id/activity?clubId=`
+  - 仅会员授权后返回训练日志和 AI 分析摘要；未授权返回 403 或 `authorized:false`。
+- `GET /api/club-admin/leads?clubId=`
+  - 返回脱敏线索列表。
+- `POST /api/club-admin/leads/:id/status`
+  - 请求：`{ "clubId": "club_001", "status": "contacted" }`
+  - 状态：`new/contacted/visited/enrolled/lost`。
+
+### 建议数据库改动
+- `users`: 新增可选 `roles`、`clubAdmin.clubIds`、`clubAdmin.defaultClubId`、`clubAdmin.roleByClub`。
+- 新增 `clubs` 集合：公开俱乐部资料、课程、教练、展示案例。
+- 新增 `club_leads` 集合：`clubId/openid/name/phoneHash/phoneMasked/target/source/status/createdAt/updatedAt`。
+- 新增 `club_member_authorizations` 集合：`clubId/openid/status/scopes/createdAt/revokedAt/updatedAt`，建议 `{ clubId, openid }` 唯一索引。
+- 读取现有 `videos`、`training_logs`、`users` 只做摘要聚合，不写入 clubId，不开放视频原文件 URL。
+
+### 对现有功能的影响控制
+- 不改视频分析、视频库、quota、membership 的现有字段语义。
+- 不改 openid+md5+mode 唯一逻辑。
+- 所有俱乐部能力通过新增集合和新增接口完成。
+- 后端如果仍返回 `stub: true`，前端会视为不可用，不展示为真实运营数据。

@@ -628,6 +628,12 @@ a {
   gap: var(--space-sm);
 }
 
+.authorization-panel {
+  display: grid;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
 .form-input {
   width: 100%;
   border: 1px solid var(--color-border);
@@ -660,6 +666,21 @@ a {
   font-size: 12px;
   font-weight: 600;
   background: rgba(16, 67, 89, 0.04);
+}
+
+.detail-panel {
+  margin-top: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.inline-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
 }
 
 .metric-row {
@@ -842,6 +863,11 @@ footer {
   border-radius: var(--radius-md);
   text-align: center;
   color: var(--color-muted);
+}
+
+.empty-state.compact {
+  padding: var(--space-sm);
+  text-align: left;
 }
 
 .empty-state.loading {
