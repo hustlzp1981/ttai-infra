@@ -149,7 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const thumb = resolveThumbnailUrl(item.thumbnailUrl || item.thumbnail || '');
         const duration = item.duration ? `${Math.round(item.duration)} 秒` : '';
         const size = item.size ? `${(item.size / 1024 / 1024).toFixed(2)}MB` : '';
-        const clips = item.clips ? `${item.clips} 片段` : '';
+        const clipCount = item.clipCount || (Array.isArray(item.clips) ? item.clips.length : (typeof item.clips === 'number' ? item.clips : 0));
+        const clips = clipCount ? `${clipCount} 片段` : '';
         const modeLabel = item.mode === 'match_clip' ? '比赛剪辑' : '训练分析';
         const title = item.title || (item.mode === 'match_clip' ? '比赛剪辑' : '训练分析');
         const videoId = item.id || item._id || '';
@@ -318,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 thumbnailUrl: result.thumbnailUrl || result.thumbnail || '',
                                 duration: result.duration,
                                 size: result.size,
-                                clips: result.clips,
+                                clipCount: Array.isArray(result.clips) ? result.clips.length : (typeof result.clips === 'number' ? result.clips : result.clipCount || 0),
                                 videoUrl: downloadUrl
                             });
                         }

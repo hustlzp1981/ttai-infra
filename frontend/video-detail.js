@@ -71,7 +71,7 @@
       return `
         <div class="stat-card">
           <h4>${item.label}</h4>
-          <p>${item.value || "--"}</p>
+          <p>${item.value != null ? item.value : "--"}</p>
         </div>
       `;
     }).join("");
@@ -108,7 +108,8 @@
 
     const duration = data.duration ? `${Math.round(data.duration)} 秒` : "--";
     const size = data.size ? `${(data.size / 1024 / 1024).toFixed(1)}MB` : "--";
-    const clips = data.clips ? `${data.clips} 段` : "--";
+    const clipCount = data.clipCount || (Array.isArray(data.clips) ? data.clips.length : (typeof data.clips === 'number' ? data.clips : 0));
+    const clips = clipCount ? `${clipCount} 段` : "--";
     if (infoEl) {
       infoEl.textContent = `时长 ${duration} · 大小 ${size} · 片段 ${clips}`;
     }
