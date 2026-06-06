@@ -58,7 +58,9 @@
       var card = document.createElement("div");
       card.className = "club-card";
 
-      var photo = resolveUrl((club.photos && club.photos[0]) || "images/main.png");
+      var photosrc = (club.photos && club.photos[0]) || "";
+      var photo = resolveUrl((photosrc && photosrc.indexOf("default") === -1) ? photosrc.replace(/(\.png|\.jpg)$/, "-list$1") : "images/clubs/club-default.jpg");
+      var imgStyle = (photosrc && photosrc.indexOf("vc-ttc") >= 0) ? ' style="object-fit:contain;background:#e0e0e0"' : '';
       var tagsHtml = (club.tags || []).slice(0, 5).map(function (tag) {
         return '<span class="club-tag">' + tag + '</span>';
       }).join("");
@@ -73,7 +75,7 @@
       actions += '<a class="club-action primary" href="training-enroll-detail.html?id=' + encodeURIComponent(club.id) + '">查看详情</a>';
 
       card.innerHTML =
-        '<img class="club-photo" src="' + photo + '" alt="' + (club.name || "俱乐部") + '">' +
+        '<img class="club-photo" src="' + photo + '" alt="' + (club.name || "俱乐部") + '"' + imgStyle + '>' +
         '<div class="club-info">' +
           '<div class="club-header">' +
             '<div class="club-name">' + (club.name || "俱乐部") + '</div>' +
