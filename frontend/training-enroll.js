@@ -60,7 +60,7 @@
 
       var photosrc = (club.photos && club.photos[0]) || "";
       var photo = resolveUrl((photosrc && photosrc.indexOf("default") === -1) ? photosrc.replace(/(\.png|\.jpg)$/, "-list$1") : "images/clubs/club-default.jpg");
-      var imgStyle = (photosrc && photosrc.indexOf("vc-ttc") >= 0) ? ' style="object-fit:contain;background:#e0e0e0"' : '';
+      var imgStyle = (photosrc && /(vc-ttc|cfty-ttc)/.test(photosrc)) ? ' style="object-fit:contain;background:#e0e0e0"' : '';
       var tagsHtml = (club.tags || []).slice(0, 5).map(function (tag) {
         return '<span class="club-tag">' + tag + '</span>';
       }).join("");

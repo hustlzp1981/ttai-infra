@@ -183,7 +183,7 @@
         img.src = resolveUrl(photo);
         img.alt = club.name || "俱乐部";
         img.className = "club-photo";
-        if (isDefault || photo.indexOf("cyh") >= 0) { img.style.objectFit = "contain"; img.style.background = "#e0e0e0"; }
+        if (isDefault || /(cyh|cfty)/.test(photo)) { img.style.objectFit = "contain"; img.style.background = "#e0e0e0"; }
         photosEl.appendChild(img);
       });
     }
