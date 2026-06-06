@@ -26,6 +26,13 @@
     });
   };
 
+  var formatCST = function (isoStr) {
+    if (!isoStr || isoStr === '-') return '-'
+    var d = new Date(isoStr)
+    var pad = function (n) { return n < 10 ? '0' + n : '' + n }
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds())
+  };
+
   var showLocked = function (message, loginRequired) {
     if (lockedEl) lockedEl.style.display = "block";
     if (dashboardEl) dashboardEl.style.display = "none";
@@ -215,7 +222,7 @@
     var overview = normalizeOverview();
     if (clubNameEl) clubNameEl.textContent = club.name || "俱乐部管理后台";
     if (metaEl) {
-      metaEl.textContent = (admin.name || admin.nickname || "俱乐部管理员") + " · 线上数据 · 更新时间 " + (overview.updatedAt || "-");
+      metaEl.textContent = (admin.name || admin.nickname || "俱乐部管理员") + " · 线上数据 · 更新时间 " + formatCST(overview.updatedAt);
     }
     renderClubSelect();
     renderOverview();
