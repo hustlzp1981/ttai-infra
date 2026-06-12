@@ -21,14 +21,14 @@ services:
   wechat-login:
     image: ttai-wechat-backend
     container_name: ttai-wechat-login-1
-    mem_limit: 384m
+    mem_limit: 768m
     ports:
       - "3000:3000"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
-      - NODE_OPTIONS=--max-old-space-size=256
+      - NODE_OPTIONS=--max-old-space-size=512
       - WECHAT_APPID=${WECHAT_APPID}
       - WECHAT_SECRET=${WECHAT_SECRET}
       - JWT_SECRET=${JWT_SECRET}
