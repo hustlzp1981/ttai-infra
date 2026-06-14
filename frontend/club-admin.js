@@ -266,7 +266,21 @@
             return '<div class="mini-card"><p>' + escapeHtml(item.summary || item.content || "") + '</p><p class="muted">' + escapeHtml(item.date || item.createdAt || "") + '</p></div>';
           }).join("") : '<div class="empty-state compact">暂无训练日志</div>') + '</div>' +
           '<div><h4>AI 分析摘要</h4>' + (summaries.length ? summaries.map(function (item) {
-            return '<div class="mini-card"><p>' + escapeHtml(item.summary || item.weakness || "") + '</p><p class="muted">评分 ' + escapeHtml(item.score || "-") + ' · ' + escapeHtml(item.createdAt || "") + '</p></div>';
+            var thumb = item.thumbnailUrl || '';
+            var videoSrc = item.videoUrl || '';
+            var dims = [
+              { label: '正手', val: Number(item.forehand) || 0 },
+              { label: '反手', val: Number(item.backhand) || 0 },
+              { label: '步伐', val: Number(item.footwork) || 0 },
+              { label: '平衡', val: Number(item.balance) || 0 }
+            ];
+            var dimsHtml = dims.map(function (d) {
+              return '<div class="admin-dim-row"><span class="admin-dim-label">' + escapeHtml(d.label) + '</span><span class="admin-dim-bar-bg"><span class="admin-dim-bar" style="width:' + Math.min(100, d.val) + '%"></span></span><span class="admin-dim-val">' + d.val + '</span></div>';
+            }).join('');
+            var thumbHtml = thumb
+              ? '<div class="admin-thumb-wrap" onclick="window.open(\'' + escapeHtml(videoSrc) + '\', \'_blank\')" title="点击播放视频"><img class="admin-thumb" src="' + escapeHtml(thumb) + '" alt="缩略图" onerror="this.style.opacity=0"></div>'
+              : '';
+            return '<div class="mini-card">' + thumbHtml + '<div class="admin-dims">' + dimsHtml + '</div><p class="muted">评分 <strong>' + escapeHtml(item.score || '-') + '</strong> · ' + escapeHtml(item.date || item.createdAt || '') + '</p></div>';
           }).join("") : '<div class="empty-state compact">暂无 AI 分析摘要</div>') + '</div>' +
         '</div>';
     }).catch(function (err) {
