@@ -97,6 +97,32 @@
               <div class="detail-panel" id="member-detail" style="display: none;"></div>
             </section>
 
+            <section class="section" id="branch-qrcode-section">
+              <div class="detail-header">
+                <div>
+                  <h3 class="card-title">分店二维码</h3>
+                  <p class="muted">生成各分店体验二维码，打印贴在墙上，客户扫码即可预约体验。</p>
+                </div>
+              </div>
+              <div id="branch-qr-list"></div>
+              <div id="branch-qr-preview" class="qr-preview-overlay" style="display: none;">
+                <div class="qr-preview-card">
+                  <div class="qr-preview-header">
+                    <strong id="qr-preview-title">分店二维码</strong>
+                    <button type="button" class="qr-preview-close" id="qr-preview-close">&times;</button>
+                  </div>
+                  <div class="qr-preview-body">
+                    <img id="qr-preview-img" alt="QR Code" style="max-width: 260px; display: block; margin: 0 auto;" />
+                    <p id="qr-preview-addr" class="muted" style="margin-top: 12px; text-align: center;"></p>
+                  </div>
+                  <div class="qr-preview-actions">
+                    <button type="button" class="btn btn-secondary" id="qr-preview-download">下载海报</button>
+                    <button type="button" class="btn btn-secondary" id="qr-preview-close-btn">关闭</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <section class="section">
               <div class="grid-2">
                 <div>

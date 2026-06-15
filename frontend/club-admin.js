@@ -19,6 +19,14 @@
   var memberDetailEl = document.getElementById("member-detail");
   var leadListEl = document.getElementById("lead-list");
   var activityListEl = document.getElementById("activity-list");
+  var branchQrListEl = document.getElementById("branch-qr-list");
+  var branchQrPreviewEl = document.getElementById("branch-qr-preview");
+  var qrPreviewImg = document.getElementById("qr-preview-img");
+  var qrPreviewAddr = document.getElementById("qr-preview-addr");
+  var qrPreviewTitle = document.getElementById("qr-preview-title");
+  var qrPreviewDownload = document.getElementById("qr-preview-download");
+  var _qrBranchData = null;
+  var _clubDetail = null;
 
   var escapeHtml = function (value) {
     return String(value || "").replace(/[&<>"']/g, function (ch) {
@@ -189,7 +197,7 @@
         '<div class="mini-card">' +
           '<div class="metric-row"><strong>' + escapeHtml(lead.name || "线索") + '</strong><span class="status-badge">' + statusLabel(current) + '</span></div>' +
           '<p>' + escapeHtml(lead.phoneMasked || lead.phone || "-") + ' · ' + escapeHtml(lead.target || "课程咨询") + '</p>' +
-          '<p class="muted">' + escapeHtml(lead.source || "-") + ' · ' + escapeHtml(lead.createdAt || "-") + '</p>' +
+                    '<p class="muted">' + escapeHtml(lead.source || "-") + (lead.branchName ? ' &middot; ' + escapeHtml(lead.branchName) : '') + ' &middot; ' + escapeHtml(lead.createdAt || "-") + '</p>' +
           '<div class="inline-form"><select class="filter-select" data-lead-status="' + escapeHtml(lead.id || lead._id) + '">' + options + '</select></div>' +
         '</div>';
     }).join("") : '<div class="empty-state compact">暂无线索</div>';
@@ -231,6 +239,7 @@
     renderMembers();
     renderLeads();
     renderActivities();
+    loadBranchQRData();
   };
 
   var loadDashboard = function () {
@@ -239,7 +248,15 @@
     if (metaEl) metaEl.textContent = "正在加载真实运营数据...";
     return clubData.loadAdmin(selectedClubId).then(function (result) {
       dashboard = result || { overview: {}, members: [], leads: [] };
-      renderDashboard();
+      clubData.detailClub(selectedClubId).then(function (data) {
+        var detail = data.club || data || {};
+        var branches = detail.branches || [];
+        _clubDetail = detail;
+        dashboard.leads = enrichLeadsWithBranches(dashboard.leads || [], branches, detail);
+        renderDashboard();
+      }).catch(function () {
+        renderDashboard();
+      });
     }).catch(function (err) {
       showLocked(clubData.errorMessage ? clubData.errorMessage(err) : "加载管理数据失败。", false);
     });
@@ -302,6 +319,161 @@
     });
   };
 
+
+  var loadBranchQRData = function () {
+    var club = currentClub();
+    var clubId = club.id || '';
+    if (!clubId || !branchQrListEl) return;
+    branchQrListEl.innerHTML = '<div class="empty-state compact">正在加载分店信息...</div>';
+    if (_clubDetail) {
+      var branches = _clubDetail.branches || [];
+      if (!branches.length) branches = makeMainBranch(_clubDetail);
+      renderBranchQRCodes(clubId, branches);
+      return;
+    }
+    clubData.detailClub(clubId).then(function (data) {
+      _clubDetail = data.club || data || {};
+      var branches = _clubDetail.branches || [];
+      if (!branches.length) branches = makeMainBranch(_clubDetail);
+      renderBranchQRCodes(clubId, branches);
+    }).catch(function () {
+      branchQrListEl.innerHTML = '<div class="empty-state compact">加载分店失败</div>';
+    });
+  };
+
+  var makeMainBranch = function (detail) {
+    return [{
+      name: detail.name || '主店',
+      address: detail.address || '',
+      lat: detail.lat,
+      lng: detail.lng
+    }];
+  };
+
+  var renderBranchQRCodes = function (clubId, branches) {
+    if (!branchQrListEl) return;
+    branchQrListEl.innerHTML = branches.map(function (branch, index) {
+      return '' +
+        '<div class="branch-qr-row">' +
+          '<div class="branch-qr-info">' +
+            '<strong>' + escapeHtml(branch.name || ('分店 ' + (index + 1))) + '</strong>' +
+            '<span class="muted">' + escapeHtml(branch.address || '') + '</span>' +
+          '</div>' +
+          '<div class="branch-qr-actions">' +
+            '<button type="button" class="club-action" data-qr-index="' + index + '">生成二维码</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+
+    branchQrListEl.querySelectorAll('[data-qr-index]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = parseInt(btn.getAttribute('data-qr-index'), 10);
+        showBranchQRPreview(clubId, branches[idx], idx);
+      });
+    });
+  };
+
+  var showBranchQRPreview = function (clubId, branch, index) {
+    if (!branchQrPreviewEl) return;
+    var branchName = branch.name || ('分店 ' + (index + 1));
+    var branchAddr = branch.address || '';
+    var scene = encodeURIComponent('c=' + clubId);
+    if (typeof index === 'number' && index >= 0) scene = encodeURIComponent('c=' + clubId + '&b=' + index);
+    var page = 'pages/clubs/trial';
+    var qrUrl = window.location.origin + '/api/share-qrcode?scene=' + scene + '&page=' + encodeURIComponent(page);
+
+    if (qrPreviewTitle) qrPreviewTitle.textContent = branchName + ' - 预约二维码';
+    if (qrPreviewImg) qrPreviewImg.src = qrUrl;
+    if (qrPreviewAddr) qrPreviewAddr.textContent = branchAddr;
+    branchQrPreviewEl.style.display = 'flex';
+
+    _qrBranchData = {
+      clubId: clubId,
+      branchName: branchName,
+      branchAddr: branchAddr,
+      qrUrl: qrUrl
+    };
+  };
+
+  var hideBranchQRPreview = function () {
+    if (branchQrPreviewEl) branchQrPreviewEl.style.display = 'none';
+    _qrBranchData = null;
+  };
+
+  var downloadBranchPoster = function () {
+    var data = _qrBranchData;
+    if (!data) return;
+    var canvas = document.createElement('canvas');
+    var w = 300;
+    var h = 450;
+    canvas.width = w * 2;
+    canvas.height = h * 2;
+    var ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+
+    var club = currentClub();
+    ctx.fillStyle = '#222';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(club.name || 'TT AI 乒乓球俱乐部', w / 2, 40);
+
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText(data.branchName, w / 2, 70);
+
+    ctx.fillStyle = '#666';
+    ctx.font = '11px sans-serif';
+    ctx.fillText(data.branchAddr || '', w / 2, 90);
+
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function () {
+      var qrSize = 200;
+      var qrX = (w - qrSize) / 2;
+      var qrY = 120;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(qrX - 4, qrY - 4, qrSize + 8, qrSize + 8);
+      ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+
+      ctx.fillStyle = '#888';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('微信扫一扫 预约体验', w / 2, 360);
+      ctx.fillText('www.ttcut.com', w / 2, 385);
+
+      canvas.toBlob(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = (data.branchName || '分店') + '_预约二维码.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    };
+    img.onerror = function () {
+      alert('二维码加载失败，请重试');
+    };
+    img.src = data.qrUrl;
+  };
+
+  var enrichLeadsWithBranches = function (leads, branches, clubDetail) {
+    branches = branches || [];
+    return leads.map(function (lead) {
+      var bi = lead.branchIndex;
+      if (bi != null && bi >= 0 && bi < branches.length) {
+        lead.branchName = branches[bi].name || '';
+      } else if (bi === 0 && !branches.length) {
+        lead.branchName = '主店';
+      }
+      return lead;
+    });
+  };
+
+
   var initProfile = function () {
     if (!clubData.hasToken || !clubData.hasToken()) {
       showLocked("请先扫码登录。", true);
@@ -332,6 +504,19 @@
       selectedClubId = clubSelectEl.value;
       if (memberDetailEl) memberDetailEl.style.display = "none";
       loadDashboard();
+    });
+  }
+
+  if (document.getElementById("qr-preview-close")) {
+    document.getElementById("qr-preview-close").addEventListener("click", hideBranchQRPreview);
+  }
+  if (document.getElementById("qr-preview-close-btn")) {
+    document.getElementById("qr-preview-close-btn").addEventListener("click", hideBranchQRPreview);
+  }
+  if (qrPreviewDownload) qrPreviewDownload.addEventListener("click", downloadBranchPoster);
+  if (branchQrPreviewEl) {
+    branchQrPreviewEl.addEventListener("click", function (e) {
+      if (e.target === branchQrPreviewEl) hideBranchQRPreview();
     });
   }
 
