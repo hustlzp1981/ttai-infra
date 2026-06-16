@@ -194,20 +194,8 @@
     }).join("") + '</div>';
   };
 
-  var eduRuleBarHtml = function () {
-    return '<div class="edu-rule-bar">' +
-      '<span>校管家核心规则已对齐</span>' +
-      '<strong>分店权限</strong>' +
-      '<strong>课程授权</strong>' +
-      '<strong>可排时间</strong>' +
-      '<strong>冲突拦截</strong>' +
-      '<strong>点名扣课/撤销</strong>' +
-      '<em>批量排课、补课、按天计费和报表导出未做 1:1 复刻</em>' +
-    '</div>';
-  };
-
   var eduFrameStart = function (title, note) {
-    return eduKpiHtml() + eduRuleBarHtml() +
+    return eduKpiHtml() +
       '<div class="edu-section-head"><div><strong>' + escapeHtml(title) + '</strong><span>' + escapeHtml(note || "") + '</span></div></div>';
   };
 
@@ -637,7 +625,7 @@
 
   var renderEduAvailability = function () {
     eduPanelEl.innerHTML =
-      eduFrameStart("老师可排时间", "排课前必须有已审核可排时间；这个约束已和校管家核心逻辑对齐。") +
+      eduFrameStart("老师可排时间", "排课前必须有已审核可排时间；未通过审核的时间不能用于排课。") +
       '<div class="grid-2">' +
         '<div class="mini-card">' +
           '<div class="edu-toolbar"><strong>新增老师</strong><span class="edu-note">老师需要先建员工档案，才能配置可排时间。</span></div>' +

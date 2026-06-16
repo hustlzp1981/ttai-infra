@@ -776,38 +776,6 @@ a {
   line-height: 1.2;
 }
 
-.edu-rule-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(16, 67, 89, 0.12);
-  border-radius: 8px;
-  background: #f8fafb;
-  color: var(--color-muted);
-  padding: 10px 12px;
-  font-size: 12px;
-}
-
-.edu-rule-bar span {
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
-.edu-rule-bar strong {
-  border: 1px solid rgba(0, 170, 0, 0.18);
-  border-radius: 999px;
-  background: rgba(0, 170, 0, 0.08);
-  color: #007a2f;
-  padding: 3px 8px;
-  font-size: 12px;
-}
-
-.edu-rule-bar em {
-  font-style: normal;
-  color: #8a5a00;
-}
-
 .edu-section-head {
   display: flex;
   align-items: center;
