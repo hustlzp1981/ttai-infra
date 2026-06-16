@@ -57,6 +57,30 @@
               <div class="stat-grid" id="admin-overview"></div>
             </section>
 
+            <section class="section" id="edu-admin-section">
+              <div class="detail-header">
+                <div>
+                  <h3 class="card-title">教务管理</h3>
+                  <p class="muted" id="edu-admin-meta">课程、班级、课包、排课、点名和账本。</p>
+                </div>
+                <div class="club-actions">
+                  <select class="filter-select" id="edu-branch-filter"></select>
+                  <button class="btn btn-secondary" type="button" id="edu-refresh">刷新</button>
+                </div>
+              </div>
+              <div class="edu-tabs" id="edu-tabs">
+                <button class="edu-tab active" type="button" data-edu-tab="courses">课程管理</button>
+                <button class="edu-tab" type="button" data-edu-tab="students">学员课包</button>
+                <button class="edu-tab" type="button" data-edu-tab="classes">班级管理</button>
+                <button class="edu-tab" type="button" data-edu-tab="availability">老师可排时间</button>
+                <button class="edu-tab" type="button" data-edu-tab="sessions">排课管理</button>
+                <button class="edu-tab" type="button" data-edu-tab="attendance">点名账本</button>
+              </div>
+              <div class="edu-panel" id="edu-panel">
+                <div class="empty-state compact">正在加载教务数据...</div>
+              </div>
+            </section>
+
             <section class="section">
               <div class="grid-2">
                 <div>
