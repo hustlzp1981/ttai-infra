@@ -906,6 +906,136 @@ a {
   background: rgba(16, 67, 89, 0.08);
 }
 
+.edu-visual-board {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #ffffff;
+  overflow-x: auto;
+}
+
+.edu-visual-board.week,
+.edu-visual-board.month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(180px, 1fr));
+  gap: 0;
+}
+
+.edu-visual-board.day {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+
+.edu-visual-grid {
+  display: grid;
+  grid-template-columns: 130px repeat(7, minmax(170px, 1fr));
+  min-width: 1320px;
+}
+
+.edu-visual-day,
+.edu-visual-cell,
+.edu-visual-axis,
+.edu-visual-head {
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 8px;
+}
+
+.edu-visual-day:last-child,
+.edu-visual-cell:last-child,
+.edu-visual-head:last-child {
+  border-right: 0;
+}
+
+.edu-visual-head {
+  min-height: 34px;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+  background: #f8fafc;
+}
+
+.edu-visual-axis {
+  color: var(--color-text);
+  font-size: 12px;
+  background: #f8fafc;
+}
+
+.edu-visual-cell {
+  min-height: 88px;
+}
+
+.edu-schedule-card {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 6px;
+  border: 1px solid rgba(16, 67, 89, 0.14);
+  border-radius: 6px;
+  padding: 7px;
+  background: rgba(16, 67, 89, 0.05);
+  font-size: 12px;
+}
+
+.edu-schedule-card-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.edu-schedule-card .club-actions {
+  gap: 4px;
+}
+
+.edu-schedule-card .club-action {
+  min-height: 26px;
+  padding: 0 7px;
+  font-size: 12px;
+}
+
+.edu-free-board {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.edu-free-slot {
+  margin-bottom: 5px;
+  border-radius: 5px;
+  padding: 5px 6px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.edu-free-slot.ok {
+  background: rgba(22, 163, 74, 0.1);
+  color: #15803d;
+}
+
+.edu-free-slot.busy {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+}
+
+.edu-free-slot.muted {
+  background: rgba(107, 114, 128, 0.08);
+  color: var(--color-muted);
+}
+
+.edu-progress {
+  width: 110px;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(16, 67, 89, 0.08);
+}
+
+.edu-progress span {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+}
+
 .edu-modal-root {
   position: fixed;
   inset: 0;

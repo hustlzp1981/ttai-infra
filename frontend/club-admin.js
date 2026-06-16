@@ -47,6 +47,7 @@
     availability: [],
     resources: [],
     sessions: [],
+    scheduleView: "list",
     scheduleFilters: {},
     availabilityFilters: {}
   };
@@ -774,25 +775,29 @@
       '<div class="club-actions">' +
         '<button class="club-action primary" type="button" data-edu-create="sessions">集体班排课</button>' +
         '<button class="club-action" type="button" data-edu-create="sessions">一对一排课</button>' +
-        '<button class="club-action" type="button" data-edu-create="sessions">可视化排课</button>' +
+        '<button class="club-action" type="button" data-edu-schedule-view="week">可视化排课</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="copy">复制/移动排课</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tab="availability">查看老师空闲时间</button>' +
-        '<button class="club-action" type="button" data-edu-room-free="1">查看教室空闲时间</button>' +
+        '<button class="club-action" type="button" data-edu-schedule-tool="teacher-free">查看老师空闲时间</button>' +
+        '<button class="club-action" type="button" data-edu-schedule-tool="room-free">查看教室空闲时间</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="progress">查看排课进度</button>' +
-        '<button class="club-action" type="button" data-edu-delete="sessions">批量操作</button>' +
+        '<button class="club-action" type="button" data-edu-schedule-tool="batch">批量操作</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="columns">选择列</button>' +
       '</div>' +
     '</div>';
   };
 
   var scheduleViewSwitchHtml = function () {
+    var view = eduState.scheduleView || "list";
+    var button = function (key, label) {
+      return '<button class="' + (view === key ? 'active' : '') + '" type="button" data-edu-schedule-view="' + escapeHtml(key) + '">' + escapeHtml(label) + '</button>';
+    };
     return '<div class="edu-view-switch">' +
-      '<button class="active" type="button">按列表显示</button>' +
-      '<button type="button">按月显示</button>' +
-      '<button type="button">按周显示</button>' +
-      '<button type="button">按周+老师显示</button>' +
-      '<button type="button">按周+教室显示</button>' +
-      '<button type="button">按天显示</button>' +
+      button("list", "按列表显示") +
+      button("month", "按月显示") +
+      button("week", "按周显示") +
+      button("teacher", "按周+老师显示") +
+      button("room", "按周+教室显示") +
+      button("day", "按天显示") +
     '</div>';
   };
 
@@ -822,6 +827,145 @@
       if (filters.teachingMode && String(course.teachingMode || "") !== String(filters.teachingMode)) return false;
       return true;
     });
+  };
+
+  var addDays = function (date, days) {
+    var d = new Date(date);
+    d.setDate(d.getDate() + Number(days || 0));
+    return d;
+  };
+
+  var addMinutes = function (date, minutes) {
+    var d = new Date(date);
+    d.setMinutes(d.getMinutes() + Number(minutes || 0));
+    return d;
+  };
+
+  var startOfWeek = function (date) {
+    var d = new Date(date || Date.now());
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return d;
+  };
+
+  var scheduleWeekDays = function () {
+    var base = startOfWeek(Date.now());
+    return [0, 1, 2, 3, 4, 5, 6].map(function (offset) {
+      return addDays(base, offset);
+    });
+  };
+
+  var sessionDateKey = function (session) {
+    return dateOnlyText(session && session.startAt);
+  };
+
+  var sessionTitle = function (session) {
+    var klass = sessionClass(session);
+    var course = sessionCourse(session);
+    return session.classNameSnapshot || klass.className || session.courseNameSnapshot || course.name || "课次";
+  };
+
+  var sessionPayload = function (session, patch) {
+    var teacher = findById(eduState.staff, session.teacherId);
+    var course = sessionCourse(session);
+    var klass = sessionClass(session);
+    return Object.assign({
+      id: idOf(session),
+      branchId: session.branchId,
+      classId: session.classId,
+      classNameSnapshot: session.classNameSnapshot || klass.className,
+      courseProductId: session.courseProductId || klass.courseProductId,
+      courseNameSnapshot: session.courseNameSnapshot || course.name,
+      teacherId: session.teacherId,
+      teacherName: session.teacherName || (teacher && teacher.name),
+      startAt: formatDateTimeLocal(session.startAt),
+      endAt: formatDateTimeLocal(session.endAt),
+      roomId: session.roomId,
+      tableNos: session.tableNos || [],
+      skipConflict: false
+    }, patch || {});
+  };
+
+  var shiftedSessionPayload = function (session, data, copy) {
+    var dayOffset = Number(data.dayOffset || 0);
+    var minuteOffset = Number(data.minuteOffset || 0);
+    var start = addMinutes(addDays(session.startAt, dayOffset), minuteOffset);
+    var end = addMinutes(addDays(session.endAt, dayOffset), minuteOffset);
+    return sessionPayload(session, {
+      id: copy ? "" : idOf(session),
+      startAt: formatDateTimeLocal(start),
+      endAt: formatDateTimeLocal(end),
+      skipConflict: data.skipConflict === "1"
+    });
+  };
+
+  var sessionsByIds = function (ids) {
+    return (ids || []).map(function (id) {
+      return findById(eduState.sessions, id);
+    }).filter(Boolean);
+  };
+
+  var selectedSessions = function () {
+    return sessionsByIds(selectedEduIds("sessions"));
+  };
+
+  var sessionCardHtml = function (session, withCheck) {
+    var id = idOf(session);
+    var place = (session.roomId || '') + ((session.tableNos || []).length ? ' / ' + session.tableNos.join(',') : '');
+    return '<div class="edu-schedule-card">' +
+      '<div class="edu-schedule-card-title">' + (withCheck ? rowCheck('sessions', id) : '') + '<strong>' + escapeHtml(sessionTitle(session)) + '</strong></div>' +
+      '<div>' + escapeHtml(timeOnlyText(session.startAt)) + '-' + escapeHtml(timeOnlyText(session.endAt)) + ' · ' + escapeHtml(session.teacherName || teacherName(session.teacherId)) + '</div>' +
+      '<div class="muted">' + escapeHtml(place || branchName(session.branchId)) + '</div>' +
+      '<div class="club-actions"><button class="club-action" type="button" data-edit-session="' + escapeHtml(id) + '">编辑</button><button class="club-action" type="button" data-cancel-session="' + escapeHtml(id) + '">取消</button></div>' +
+    '</div>';
+  };
+
+  var scheduleVisualHtml = function () {
+    var view = eduState.scheduleView || "list";
+    var rows = filteredSessions();
+    var days = scheduleWeekDays();
+    if (view === "month") {
+      var byDate = {};
+      rows.forEach(function (session) {
+        var key = sessionDateKey(session);
+        if (!byDate[key]) byDate[key] = [];
+        byDate[key].push(session);
+      });
+      var keys = Object.keys(byDate).sort();
+      return '<div class="edu-visual-board month">' + (keys.length ? keys.map(function (key) {
+        return '<div class="edu-visual-day"><div class="edu-visual-head">' + escapeHtml(key) + '</div>' + byDate[key].map(function (session) { return sessionCardHtml(session, true); }).join("") + '</div>';
+      }).join("") : '<div class="empty-state compact">暂无课次</div>') + '</div>';
+    }
+    if (view === "teacher" || view === "room") {
+      var groups = view === "teacher"
+        ? (eduState.staff || []).filter(function (item) { return (item.roles || []).indexOf("teacher") >= 0 || (item.roles || []).indexOf("coach") >= 0 || !(item.roles || []).length; }).map(function (item) { return { id: idOf(item), name: item.name }; })
+        : (eduState.resources || []).map(function (item) { return { id: item.roomId || item.tableNo || item.name, name: item.name || item.tableNo || item.roomId }; });
+      return '<div class="edu-visual-board resource"><div class="edu-visual-grid">' +
+        '<div class="edu-visual-axis"></div>' + days.map(function (day) { return '<div class="edu-visual-head">' + escapeHtml(weekdayText(day.getDay() || 7) + ' ' + dateOnlyText(day)) + '</div>'; }).join("") +
+        groups.map(function (group) {
+          return '<div class="edu-visual-axis"><strong>' + escapeHtml(group.name || "-") + '</strong></div>' + days.map(function (day) {
+            var dayKey = dateOnlyText(day);
+            var dayRows = rows.filter(function (session) {
+              var sameDay = sessionDateKey(session) === dayKey;
+              if (!sameDay) return false;
+              if (view === "teacher") return String(session.teacherId) === String(group.id);
+              return String(session.roomId || "") === String(group.id) || (session.tableNos || []).map(String).indexOf(String(group.id)) >= 0;
+            });
+            return '<div class="edu-visual-cell">' + (dayRows.length ? dayRows.map(function (session) { return sessionCardHtml(session, true); }).join("") : '<span class="muted">空闲</span>') + '</div>';
+          }).join("");
+        }).join("") +
+      '</div></div>';
+    }
+    if (view === "day") {
+      var todayKey = dateOnlyText(new Date());
+      rows = rows.filter(function (session) { return sessionDateKey(session) === todayKey; });
+      return '<div class="edu-visual-board day">' + (rows.length ? rows.map(function (session) { return sessionCardHtml(session, true); }).join("") : '<div class="empty-state compact">今天暂无排课</div>') + '</div>';
+    }
+    return '<div class="edu-visual-board week">' + days.map(function (day) {
+      var key = dateOnlyText(day);
+      var dayRows = rows.filter(function (session) { return sessionDateKey(session) === key; });
+      return '<div class="edu-visual-day"><div class="edu-visual-head">' + escapeHtml(weekdayText(day.getDay() || 7) + ' ' + key) + '</div>' + (dayRows.length ? dayRows.map(function (session) { return sessionCardHtml(session, true); }).join("") : '<div class="muted">无课</div>') + '</div>';
+    }).join("") + '</div>';
   };
 
   var scheduleRowsHtml = function () {
@@ -890,6 +1034,141 @@
       if (filters.date && String(item.date || "") !== String(filters.date)) return false;
       return true;
     });
+  };
+
+  var copyMoveFormHtml = function (ids) {
+    var count = (ids || []).length;
+    return '<form class="edu-form" id="edu-copy-move-form">' +
+      '<input type="hidden" name="ids" value="' + escapeHtml((ids || []).join(',')) + '">' +
+      '<label>操作<select class="form-input" name="mode"><option value="copy">复制排课</option><option value="move">移动排课</option></select></label>' +
+      '<label>日期偏移<input class="form-input" name="dayOffset" type="number" value="7"><span class="edu-note">例如 7 表示复制/移动到下周同一天</span></label>' +
+      '<label>时间偏移(分钟)<input class="form-input" name="minuteOffset" type="number" value="0"></label>' +
+      '<label>冲突处理<select class="form-input" name="skipConflict"><option value="">遇到冲突则拦截</option><option value="1">管理员确认跳过</option></select></label>' +
+      '<div class="club-actions"><button class="club-action primary" type="submit">执行 ' + count + ' 条</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
+    '</form>';
+  };
+
+  var batchOperationFormHtml = function (ids) {
+    var count = (ids || []).length;
+    return '<form class="edu-form" id="edu-batch-session-form">' +
+      '<input type="hidden" name="ids" value="' + escapeHtml((ids || []).join(',')) + '">' +
+      '<label>批量操作<select class="form-input" name="mode"><option value="move">批量移动</option><option value="copy">批量复制</option><option value="cancel">批量取消</option><option value="delete">批量删除</option></select></label>' +
+      '<label>日期偏移<input class="form-input" name="dayOffset" type="number" value="7"></label>' +
+      '<label>时间偏移(分钟)<input class="form-input" name="minuteOffset" type="number" value="0"></label>' +
+      '<label>冲突处理<select class="form-input" name="skipConflict"><option value="">遇到冲突则拦截</option><option value="1">管理员确认跳过</option></select></label>' +
+      '<div class="club-actions"><button class="club-action primary" type="submit">执行 ' + count + ' 条</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
+    '</form>';
+  };
+
+  var openCopyMoveModal = function () {
+    var ids = selectedEduIds("sessions");
+    if (!ids.length) return window.alert("请先勾选要复制/移动的课次。");
+    renderEduModal("复制/移动排课", copyMoveFormHtml(ids));
+  };
+
+  var openBatchSessionModal = function () {
+    var ids = selectedEduIds("sessions");
+    if (!ids.length) return window.alert("请先勾选要批量处理的课次。");
+    renderEduModal("批量操作", batchOperationFormHtml(ids));
+  };
+
+  var applyCopyMoveSessions = function (form) {
+    var data = formData(form);
+    var ids = splitList(data.ids);
+    var rows = sessionsByIds(ids);
+    if (!rows.length) return window.alert("没有可处理的课次。");
+    var copy = data.mode === "copy";
+    return withEduSaving(Promise.all(rows.map(function (session) {
+      return clubData.eduSaveSession(selectedClubId, shiftedSessionPayload(session, data, copy));
+    })));
+  };
+
+  var applyBatchSessions = function (form) {
+    var data = formData(form);
+    var ids = splitList(data.ids);
+    var rows = sessionsByIds(ids);
+    if (!rows.length) return window.alert("没有可处理的课次。");
+    if (data.mode === "cancel") {
+      if (!window.confirm("确认取消选中的 " + rows.length + " 节课？")) return;
+      return withEduSaving(Promise.all(rows.map(function (session) {
+        return clubData.eduCancelSession(selectedClubId, idOf(session), "Web 管理端批量取消");
+      })));
+    }
+    if (data.mode === "delete") {
+      if (!window.confirm("确认删除选中的 " + rows.length + " 条课次？删除后历史记录会保留。")) return;
+      return withEduSaving(Promise.all(rows.map(function (session) {
+        return clubData.eduDeleteSession(selectedClubId, idOf(session), "Web 管理端批量删除");
+      })));
+    }
+    return applyCopyMoveSessions(form);
+  };
+
+  var teacherFreeHtml = function () {
+    var days = scheduleWeekDays();
+    var teachers = (eduState.staff || []).filter(function (item) {
+      var roles = item.roles || [];
+      return roles.indexOf("teacher") >= 0 || roles.indexOf("coach") >= 0 || !roles.length;
+    });
+    return '<div class="edu-free-board"><div class="edu-visual-grid">' +
+      '<div class="edu-visual-axis"></div>' + days.map(function (day) { return '<div class="edu-visual-head">' + escapeHtml(weekdayText(day.getDay() || 7) + ' ' + dateOnlyText(day)) + '</div>'; }).join("") +
+      teachers.map(function (teacher) {
+        var teacherId = idOf(teacher);
+        return '<div class="edu-visual-axis"><strong>' + escapeHtml(teacher.name || '-') + '</strong><br><span class="muted">' + escapeHtml(branchName(teacher.branchId)) + '</span></div>' +
+          days.map(function (day) {
+            var key = dateOnlyText(day);
+            var weekday = day.getDay() || 7;
+            var free = (eduState.availability || []).filter(function (item) {
+              return String(item.teacherId) === String(teacherId) && item.status === "approved" && (String(item.date || "") === key || (!item.date && String(item.weekday || "") === String(weekday)));
+            });
+            var busy = (eduState.sessions || []).filter(function (session) {
+              return String(session.teacherId) === String(teacherId) && sessionDateKey(session) === key && session.status !== "cancelled";
+            });
+            return '<div class="edu-visual-cell">' +
+              (free.length ? free.map(function (item) { return '<div class="edu-free-slot ok">可排 ' + escapeHtml((item.startTime || '-') + '-' + (item.endTime || '-')) + '</div>'; }).join("") : '<div class="edu-free-slot muted">未设置可排</div>') +
+              (busy.length ? busy.map(function (session) { return '<div class="edu-free-slot busy">已排 ' + escapeHtml(timeOnlyText(session.startAt) + '-' + timeOnlyText(session.endAt)) + '</div>'; }).join("") : '') +
+            '</div>';
+          }).join("");
+      }).join("") +
+    '</div></div>';
+  };
+
+  var roomFreeHtml = function () {
+    var days = scheduleWeekDays();
+    var resources = eduState.resources || [];
+    return '<div class="edu-free-board"><div class="edu-visual-grid">' +
+      '<div class="edu-visual-axis"></div>' + days.map(function (day) { return '<div class="edu-visual-head">' + escapeHtml(weekdayText(day.getDay() || 7) + ' ' + dateOnlyText(day)) + '</div>'; }).join("") +
+      resources.map(function (resource) {
+        var keyValue = resource.roomId || resource.tableNo || resource.name;
+        return '<div class="edu-visual-axis"><strong>' + escapeHtml(resource.name || keyValue || '-') + '</strong><br><span class="muted">' + escapeHtml(resource.type === "room" ? "教室" : "球台") + '</span></div>' +
+          days.map(function (day) {
+            var key = dateOnlyText(day);
+            var busy = (eduState.sessions || []).filter(function (session) {
+              return sessionDateKey(session) === key && session.status !== "cancelled" && (String(session.roomId || "") === String(keyValue) || (session.tableNos || []).map(String).indexOf(String(keyValue)) >= 0);
+            });
+            return '<div class="edu-visual-cell">' + (busy.length ? busy.map(function (session) {
+              return '<div class="edu-free-slot busy">' + escapeHtml(timeOnlyText(session.startAt) + '-' + timeOnlyText(session.endAt) + ' ' + sessionTitle(session)) + '</div>';
+            }).join("") : '<div class="edu-free-slot ok">空闲</div>') + '</div>';
+          }).join("");
+      }).join("") +
+    '</div></div>';
+  };
+
+  var scheduleProgressHtml = function () {
+    var classes = eduState.classes || [];
+    return '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>班级</th><th>课程</th><th>老师</th><th>计划课次</th><th>已排</th><th>已完成</th><th>待点名</th><th>进度</th></tr></thead><tbody>' +
+      (classes.length ? classes.map(function (klass) {
+        var classId = idOf(klass);
+        var course = findById(eduState.courses, klass.courseProductId) || {};
+        var rows = (eduState.sessions || []).filter(function (session) {
+          return String(session.classId || "") === String(classId) && session.status !== "cancelled";
+        });
+        var planned = Number(klass.plannedSessionCount || course.plannedSessionCount || 0);
+        var completed = rows.filter(function (session) { return session.status === "completed"; }).length;
+        var pending = rows.filter(function (session) { return session.status === "pending_attendance" || session.status === "scheduled"; }).length;
+        var percent = planned ? Math.min(100, Math.round(rows.length / planned * 100)) : 0;
+        return '<tr><td><strong>' + escapeHtml(klass.className || '-') + '</strong></td><td>' + escapeHtml(klass.courseNameSnapshot || course.name || '-') + '</td><td>' + escapeHtml(klass.teacherName || teacherName(klass.teacherId)) + '</td><td>' + planned + '</td><td>' + rows.length + '</td><td>' + completed + '</td><td>' + pending + '</td><td><div class="edu-progress"><span style="width:' + percent + '%"></span></div><span class="muted">' + percent + '%</span></td></tr>';
+      }).join("") : '<tr><td colspan="8">暂无班级</td></tr>') +
+    '</tbody></table></div>';
   };
 
   var courseFormHtml = function (editItem) {
@@ -1195,9 +1474,11 @@
       scheduleFilterHtml() +
       scheduleToolbarHtml() +
       scheduleViewSwitchHtml() +
-      '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>班级名称</th><th>课程名称</th><th>课程所属期段</th><th>课程所属年级</th><th>课程所属科目</th><th>课程所属类型</th><th>课程所属班型</th><th>所属校区</th><th>任课老师</th><th>助教</th><th>班主任</th><th>任课老师在职类型</th><th>上课教室</th><th>章节内容</th><th>上课内容</th><th>上课时间</th><th>上课时长</th><th>状态</th><th>备注</th><th>实到/应到</th><th>上课学员</th><th>扫码/签到人数</th><th>计费人数</th><th>计费数量</th><th>操作</th></tr></thead><tbody>' +
-        scheduleRowsHtml() +
-      '</tbody></table></div>');
+      ((eduState.scheduleView || "list") === "list"
+        ? '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>班级名称</th><th>课程名称</th><th>课程所属期段</th><th>课程所属年级</th><th>课程所属科目</th><th>课程所属类型</th><th>课程所属班型</th><th>所属校区</th><th>任课老师</th><th>助教</th><th>班主任</th><th>任课老师在职类型</th><th>上课教室</th><th>章节内容</th><th>上课内容</th><th>上课时间</th><th>上课时长</th><th>状态</th><th>备注</th><th>实到/应到</th><th>上课学员</th><th>扫码/签到人数</th><th>计费人数</th><th>计费数量</th><th>操作</th></tr></thead><tbody>' +
+          scheduleRowsHtml() +
+        '</tbody></table></div>'
+        : scheduleVisualHtml()));
     if (active === "sessions") {
       var sf = eduState.scheduleFilters || {};
       setFormValue("edu-schedule-filter-form", "range", sf.range || "all");
@@ -1636,6 +1917,8 @@
     var resourceForm = document.getElementById("edu-resource-form");
     var sessionForm = document.getElementById("edu-session-form");
     var attendanceForm = document.getElementById("edu-attendance-form");
+    var copyMoveForm = document.getElementById("edu-copy-move-form");
+    var batchSessionForm = document.getElementById("edu-batch-session-form");
     var scheduleFilterForm = document.getElementById("edu-schedule-filter-form");
     var availabilityFilterForm = document.getElementById("edu-availability-filter-form");
     if (courseForm) courseForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduCourse(courseForm); });
@@ -1648,6 +1931,8 @@
     if (resourceForm) resourceForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduResource(resourceForm); });
     if (sessionForm) sessionForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduSession(sessionForm); });
     if (attendanceForm) attendanceForm.addEventListener("submit", function (e) { e.preventDefault(); submitEduAttendance(attendanceForm); });
+    if (copyMoveForm) copyMoveForm.addEventListener("submit", function (e) { e.preventDefault(); applyCopyMoveSessions(copyMoveForm); });
+    if (batchSessionForm) batchSessionForm.addEventListener("submit", function (e) { e.preventDefault(); applyBatchSessions(batchSessionForm); });
     if (scheduleFilterForm) scheduleFilterForm.addEventListener("submit", function (e) {
       e.preventDefault();
       eduState.scheduleFilters = formData(scheduleFilterForm);
@@ -1703,6 +1988,12 @@
         renderEduSessions();
       });
     });
+    eduPanelEl.querySelectorAll("[data-edu-schedule-view]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        eduState.scheduleView = button.getAttribute("data-edu-schedule-view") || "list";
+        renderEduSessions();
+      });
+    });
     eduPanelEl.querySelectorAll("[data-edu-room-free]").forEach(function (button) {
       button.addEventListener("click", function () {
         renderEduModal("教室/球台资源", resourceListHtml());
@@ -1712,8 +2003,11 @@
       button.addEventListener("click", function () {
         var type = button.getAttribute("data-edu-schedule-tool");
         if (type === "columns") return window.alert("已显示详细课表常用列。");
-        if (type === "progress") return window.alert("请先选择班级或按班级名称查询后查看排课进度。");
-        if (type === "copy") return window.alert("请先勾选要复制/移动的课次。");
+        if (type === "progress") return renderEduModal("查看排课进度", scheduleProgressHtml());
+        if (type === "copy") return openCopyMoveModal();
+        if (type === "batch") return openBatchSessionModal();
+        if (type === "teacher-free") return renderEduModal("查看老师空闲时间", teacherFreeHtml());
+        if (type === "room-free") return renderEduModal("查看教室空闲时间", roomFreeHtml());
       });
     });
     eduPanelEl.querySelectorAll("[data-edit-course]").forEach(function (button) {
