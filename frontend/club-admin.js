@@ -1012,6 +1012,65 @@
     }).join("");
   };
 
+  var availabilityCalendarDays = function () {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var weekday = today.getDay() || 7;
+    var start = addDays(today, 1 - weekday);
+    var days = [];
+    for (var i = 0; i < 35; i += 1) {
+      var d = addDays(start, i);
+      d.setHours(0, 0, 0, 0);
+      var dayOfWeek = d.getDay() || 7;
+      days.push({
+        date: dateOnlyText(d),
+        weekday: dayOfWeek,
+        disabled: d < today,
+        weekend: dayOfWeek >= 6
+      });
+    }
+    return days;
+  };
+
+  var availabilityBulkHtml = function () {
+    var dayHeads = [1, 2, 3, 4, 5, 6, 7].map(function (day) {
+      return '<span>' + escapeHtml(weekdayText(day).replace('周', '')) + '</span>';
+    }).join('');
+    var dates = availabilityCalendarDays().map(function (day) {
+      var cls = "edu-free-date" + (day.weekend ? " weekend" : "") + (day.disabled ? " disabled" : "");
+      return '<label class="' + cls + '">' +
+        '<input type="checkbox" name="dates" value="' + escapeHtml(day.date) + '" data-weekend="' + (day.weekend ? '1' : '') + '"' + (day.disabled ? ' disabled' : '') + '>' +
+        '<strong>' + escapeHtml(day.date.slice(5)) + '</strong><span>' + escapeHtml(weekdayText(day.weekday)) + '</span>' +
+      '</label>';
+    }).join('');
+    var presets = [
+      ["08:00", "10:00"],
+      ["10:00", "12:00"],
+      ["13:00", "15:00"],
+      ["15:00", "17:00"],
+      ["18:00", "20:00"]
+    ].map(function (slot) {
+      return '<button class="club-action" type="button" data-availability-preset="' + escapeHtml(slot[0] + '-' + slot[1]) + '">' + escapeHtml(slot[0] + '-' + slot[1]) + '</button>';
+    }).join('');
+    return '<form class="edu-free-manage" id="edu-availability-bulk-form">' +
+      '<div class="edu-free-manage-head">' +
+        '<div><strong>批量设置可排时间</strong><span>日期批量设置</span></div>' +
+        '<div class="club-actions"><button class="club-action" type="button" data-availability-skip="clear">清空</button><button class="club-action" type="button" data-availability-skip="weekend">跳过周末</button><button class="club-action" type="button" data-availability-skip="holiday">跳过节假日</button><button class="club-action primary" type="submit">确定</button></div>' +
+      '</div>' +
+      '<div class="edu-filter-grid compact">' +
+        '<label>老师<select class="form-input" name="teacherId" required>' + teacherOptions('') + '</select></label>' +
+        '<label>校区<select class="form-input" name="branchId" required>' + branchOptions(eduState.branchId) + '</select></label>' +
+        '<label>开始时间<input class="form-input text-center" type="time" name="startTime" value="08:00" required></label>' +
+        '<label>结束时间<input class="form-input text-center" type="time" name="endTime" value="10:00" required></label>' +
+        '<label>保存状态<select class="form-input" name="status"><option value="approved">直接通过</option><option value="pending">待审核</option></select></label>' +
+      '</div>' +
+      '<div class="edu-free-calendar-head"><span>已选<strong data-availability-selected-count>0</strong>天</span><span class="muted" data-availability-calendar-note>当前周期</span></div>' +
+      '<div class="edu-free-weekdays">' + dayHeads + '</div>' +
+      '<div class="edu-free-calendar-grid">' + dates + '</div>' +
+      '<div class="edu-free-presets"><span>常用时间段</span>' + presets + '</div>' +
+    '</form>';
+  };
+
   var availabilityFilterHtml = function () {
     var filters = eduState.availabilityFilters || {};
     return '<div class="edu-page-path">当前位置：教务管理 / 排课管理 / 老师可排时间管理</div>' +
@@ -1036,6 +1095,8 @@
       if (filters.weekday && String(item.weekday || "") !== String(filters.weekday)) return false;
       if (filters.date && String(item.date || "") !== String(filters.date)) return false;
       return true;
+    }).sort(function (a, b) {
+      return String(a.date || a.weekday || "").localeCompare(String(b.date || b.weekday || "")) || String(a.startTime || "").localeCompare(String(b.startTime || ""));
     });
   };
 
@@ -1416,18 +1477,22 @@
       '<label>指定日期<input class="form-input" name="date" type="date"></label>' +
       '<label>开始<input class="form-input" name="startTime" type="time" required></label>' +
       '<label>结束<input class="form-input" name="endTime" type="time" required></label>' +
+      '<label>保存状态<select class="form-input" name="status"><option value="pending">待审核</option><option value="approved">直接通过</option></select></label>' +
       '<div class="club-actions"><button class="club-action primary" type="submit">保存可排时间</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
     '</form>';
   };
 
   var renderEduAvailability = function () {
-    return availabilityFilterHtml() +
-      eduActionBar("availability", "新增可排时间") +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>老师</th><th>所属校区</th><th>日期类型</th><th>星期</th><th>指定日期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
+    return availabilityBulkHtml() +
+      availabilityFilterHtml() +
+      eduActionBar("availability", "新增单条可排时间") +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>老师</th><th>所属校区</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
         (filteredAvailability().length ? filteredAvailability().map(function (item) {
           var dateType = item.date ? "指定日期" : (item.weekday ? "每周重复" : "-");
           var actions = item.status === 'pending' ? '<button class="club-action primary" data-approve-availability="' + escapeHtml(idOf(item)) + '">通过</button><button class="club-action" data-reject-availability="' + escapeHtml(idOf(item)) + '">拒绝</button>' : '-';
-          return '<tr><td>' + rowCheck('availability', idOf(item)) + ' <strong>' + escapeHtml(teacherName(item.teacherId)) + '</strong></td><td>' + escapeHtml(branchName(item.branchId)) + '</td><td>' + escapeHtml(dateType) + '</td><td>' + escapeHtml(weekdayText(item.weekday)) + '</td><td>' + escapeHtml(item.date || '-') + '</td><td>' + escapeHtml(item.startTime || '-') + '</td><td>' + escapeHtml(item.endTime || '-') + '</td><td>' + badgeHtml(availabilityStatusLabel(item.status), item.status) + '</td><td>' + actions + '</td><td>-</td></tr>';
+          var day = item.date ? weekdayText(new Date(item.date + 'T00:00:00').getDay() || 7) : weekdayText(item.weekday);
+          var dateTextValue = item.date ? (item.date + ' · ' + day) : (dateType + ' · ' + day);
+          return '<tr><td>' + rowCheck('availability', idOf(item)) + ' <strong>' + escapeHtml(teacherName(item.teacherId)) + '</strong></td><td>' + escapeHtml(branchName(item.branchId)) + '</td><td>' + escapeHtml(dateTextValue) + '</td><td>' + escapeHtml(item.startTime || '-') + '</td><td>' + escapeHtml(item.endTime || '-') + '</td><td>' + badgeHtml(availabilityStatusLabel(item.status), item.status) + '</td><td>' + escapeHtml(item.submittedBy || item.createdBy || '-') + '</td><td>' + escapeHtml(item.approvedBy || item.rejectedBy || '-') + '</td><td>' + actions + '</td><td>-</td></tr>';
         }).join("") : '<tr><td colspan="10">暂无可排时间</td></tr>') +
       '</tbody></table></div>';
   };
@@ -2065,8 +2130,29 @@
       weekday: data.weekday,
       date: data.date,
       startTime: data.startTime,
-      endTime: data.endTime
+      endTime: data.endTime,
+      status: data.status || "pending"
     }));
+  };
+
+  var saveEduAvailabilityBulk = function (form) {
+    var data = formData(form);
+    var dates = data.dates ? (Array.isArray(data.dates) ? data.dates : [data.dates]) : [];
+    if (!dates.length) return window.alert("请先选择可排日期。");
+    if (!data.teacherId) return window.alert("请选择老师。");
+    if (!data.branchId) return window.alert("请选择校区。");
+    if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
+    if (data.startTime >= data.endTime) return window.alert("开始时间必须早于结束时间。");
+    return withEduSaving(Promise.all(dates.map(function (date) {
+      return clubData.eduSaveAvailability(selectedClubId, {
+        teacherId: data.teacherId,
+        branchId: data.branchId,
+        date: date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        status: data.status || "approved"
+      });
+    })));
   };
 
   var saveEduResource = function (form) {
@@ -2263,7 +2349,9 @@
           { label: "日期/星期", value: function (row) { return row.date || (row.weekday ? '周' + '一二三四五六日'.charAt(Number(row.weekday) - 1) : ''); } },
           { label: "开始", value: function (row) { return row.startTime || ""; } },
           { label: "结束", value: function (row) { return row.endTime || ""; } },
-          { label: "状态", value: function (row) { return row.status || ""; } }
+          { label: "状态", value: function (row) { return availabilityStatusLabel(row.status); } },
+          { label: "提交人", value: function (row) { return row.submittedBy || row.createdBy || ""; } },
+          { label: "审核人", value: function (row) { return row.approvedBy || row.rejectedBy || ""; } }
         ]
       },
       ledgers: {
@@ -2308,6 +2396,61 @@
     })));
   };
 
+  var syncAvailabilityBulkSelection = function () {
+    var form = document.getElementById("edu-availability-bulk-form");
+    if (!form) return;
+    var checked = 0;
+    form.querySelectorAll('input[name="dates"]').forEach(function (input) {
+      var label = input.closest(".edu-free-date");
+      if (input.checked) checked += 1;
+      if (label) label.classList.toggle("selected", input.checked);
+    });
+    var count = form.querySelector("[data-availability-selected-count]");
+    if (count) count.textContent = checked;
+  };
+
+  var bindAvailabilityBulkControls = function (form) {
+    if (!form) return;
+    form.querySelectorAll('input[name="dates"]').forEach(function (input) {
+      input.addEventListener("change", syncAvailabilityBulkSelection);
+    });
+    form.querySelectorAll("[data-availability-preset]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var parts = String(button.getAttribute("data-availability-preset") || "").split("-");
+        if (parts.length === 2) {
+          form.querySelector('[name="startTime"]').value = parts[0];
+          form.querySelector('[name="endTime"]').value = parts[1];
+        }
+      });
+    });
+    form.querySelectorAll("[data-availability-skip]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var mode = button.getAttribute("data-availability-skip");
+        var changed = 0;
+        form.querySelectorAll('input[name="dates"]').forEach(function (input) {
+          if (mode === "clear" && input.checked) {
+            input.checked = false;
+            changed += 1;
+          }
+          if (mode === "weekend" && input.dataset.weekend === "1" && input.checked) {
+            input.checked = false;
+            changed += 1;
+          }
+          if (mode === "holiday" && input.dataset.holiday === "1" && input.checked) {
+            input.checked = false;
+            changed += 1;
+          }
+        });
+        var note = form.querySelector("[data-availability-calendar-note]");
+        if (note) {
+          note.textContent = mode === "holiday" && !changed ? "无节假日" : "已更新";
+        }
+        syncAvailabilityBulkSelection();
+      });
+    });
+    syncAvailabilityBulkSelection();
+  };
+
   var bindEduPanelEvents = function () {
     if (!eduPanelEl) return;
     var courseForm = document.getElementById("edu-course-form");
@@ -2322,6 +2465,7 @@
     var attendanceForm = document.getElementById("edu-attendance-form");
     var copyMoveForm = document.getElementById("edu-copy-move-form");
     var batchSessionForm = document.getElementById("edu-batch-session-form");
+    var availabilityBulkForm = document.getElementById("edu-availability-bulk-form");
     var scheduleFilterForm = document.getElementById("edu-schedule-filter-form");
     var availabilityFilterForm = document.getElementById("edu-availability-filter-form");
     var reportFilterForm = document.getElementById("edu-report-filter-form");
@@ -2332,6 +2476,10 @@
     if (classForm) classForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduClass(classForm); });
     if (staffForm) staffForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduStaff(staffForm); });
     if (availabilityForm) availabilityForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduAvailability(availabilityForm); });
+    if (availabilityBulkForm) {
+      bindAvailabilityBulkControls(availabilityBulkForm);
+      availabilityBulkForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduAvailabilityBulk(availabilityBulkForm); });
+    }
     if (resourceForm) resourceForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduResource(resourceForm); });
     if (sessionForm) sessionForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduSession(sessionForm); });
     if (attendanceForm) attendanceForm.addEventListener("submit", function (e) { e.preventDefault(); submitEduAttendance(attendanceForm); });

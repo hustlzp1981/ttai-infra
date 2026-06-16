@@ -999,6 +999,104 @@ a {
   border-radius: 8px;
 }
 
+.edu-free-manage {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.edu-free-manage-head,
+.edu-free-calendar-head,
+.edu-free-presets {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.edu-free-manage-head strong {
+  display: block;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.edu-free-manage-head span,
+.edu-free-calendar-head,
+.edu-free-presets {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.edu-free-calendar-head strong {
+  margin: 0 3px;
+  color: var(--color-primary);
+}
+
+.edu-free-weekdays,
+.edu-free-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(72px, 1fr));
+  gap: 4px;
+}
+
+.edu-free-weekdays span {
+  min-height: 24px;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+}
+
+.edu-free-date {
+  display: grid;
+  gap: 2px;
+  min-height: 52px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.edu-free-date input {
+  display: none;
+}
+
+.edu-free-date strong {
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.edu-free-date span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.edu-free-date.weekend {
+  background: #fafafa;
+}
+
+.edu-free-date.selected {
+  border-color: rgba(16, 67, 89, 0.45);
+  background: rgba(16, 67, 89, 0.08);
+}
+
+.edu-free-date.disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.edu-free-presets {
+  justify-content: flex-start;
+}
+
 .edu-free-slot {
   margin-bottom: 5px;
   border-radius: 5px;
@@ -1274,6 +1372,16 @@ a {
 
   .edu-report-summary {
     grid-template-columns: 1fr;
+  }
+
+  .edu-free-weekdays,
+  .edu-free-calendar-grid {
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
+  }
+
+  .edu-free-date {
+    min-height: 46px;
+    padding: 4px;
   }
 
   .edu-form .wide {
