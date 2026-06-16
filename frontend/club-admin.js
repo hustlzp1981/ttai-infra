@@ -154,6 +154,17 @@
     return cents ? "¥" + (Number(cents || 0) / 100).toFixed(2) : "-";
   };
 
+  var moneyInputValue = function (cents) {
+    var value = Number(cents || 0) / 100;
+    return value ? String(Number(value.toFixed(2))) : "";
+  };
+
+  var moneyInputCents = function (value) {
+    var amount = Number(value || 0);
+    if (!Number.isFinite(amount) || amount < 0) return 0;
+    return Math.round(amount * 100);
+  };
+
   var labelOf = function (map, value) {
     return map[value] || value || "-";
   };
@@ -537,6 +548,7 @@
 
   var renderEduCourses = function (editItem) {
     var item = editItem || {};
+    var priceRules = item.priceRules || {};
     eduPanelEl.innerHTML =
       eduFrameStart("课程管理", "课程负责商品、计费方式和分店授权；排课和扣课分别在课次、点名完成。") +
       '<div class="mini-card">' +
@@ -544,27 +556,38 @@
         '<form class="edu-form" id="edu-course-form">' +
           '<input type="hidden" name="id" value="' + escapeHtml(idOf(item)) + '">' +
           '<label>课程名称<input class="form-input" name="name" value="' + escapeHtml(item.name || '') + '" required></label>' +
-          '<label>班型<select class="form-input" name="teachingMode"><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option><option value="camp">训练营</option></select></label>' +
+          '<label>课程类型<select class="form-input" name="teachingMode"><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option><option value="camp">训练营</option></select></label>' +
           '<label>计费<select class="form-input" name="billingMode"><option value="lesson">课时</option><option value="term">按期</option><option value="month">按月</option><option value="day">按天预留</option></select></label>' +
+          '<label>单价(元)<input class="form-input" name="standardPriceYuan" type="number" min="0" step="0.01" value="' + escapeHtml(moneyInputValue(item.standardPriceCents)) + '"></label>' +
+          '<label>单位<input class="form-input" name="unit" value="' + escapeHtml(item.unit || '期') + '"></label>' +
+          '<label>类型<input class="form-input" name="typeName" value="' + escapeHtml(item.typeName || item.courseLevelCode || '') + '"></label>' +
+          '<label>班型<input class="form-input" name="classTypeName" value="' + escapeHtml(item.classTypeName || item.classTypeCode || '') + '"></label>' +
+          '<label>期段<input class="form-input" name="termName" value="' + escapeHtml(item.termName || item.termCode || '') + '"></label>' +
+          '<label>年份<input class="form-input" name="year" value="' + escapeHtml(item.year || '') + '"></label>' +
+          '<label>按期收费<input class="form-input" name="termFeeText" value="' + escapeHtml(priceRules.termFeeText || '') + '"></label>' +
           '<label>默认扣课<input class="form-input" name="defaultDeductUnits10" type="number" min="0" step="0.1" value="' + escapeHtml(lessonInputValue(item.defaultDeductUnits10, '1')) + '"></label>' +
           '<label>计划排课数<input class="form-input" name="plannedSessionCount" type="number" min="0" value="' + escapeHtml(item.plannedSessionCount || 0) + '"></label>' +
           '<label>容量<input class="form-input" name="capacity" type="number" min="0" value="' + escapeHtml(item.capacity || 0) + '"></label>' +
+          '<label>动态消课<select class="form-input" name="dynamicDeduct"><option value="false">否</option><option value="true">是</option></select></label>' +
           '<label>状态<select class="form-input" name="status"><option value="active">启用</option><option value="inactive">停用</option></select></label>' +
           '<label class="wide">授权分店<select class="form-input" name="authorizedBranchIds" multiple size="3">' + branchOptions(item.authorizedBranchIds || []) + '</select></label>' +
           '<div class="club-actions"><button class="club-action primary" type="submit">保存课程</button><button class="club-action" type="button" data-edu-clear="courses">清空</button></div>' +
         '</form>' +
       '</div>' +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>课程</th><th>班型</th><th>计费</th><th>扣课</th><th>计划</th><th>授权</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>课程</th><th>单价</th><th>类型/班型</th><th>期段/年份</th><th>课程类型</th><th>按期收费</th><th>动态消课</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
         (eduState.courses.length ? eduState.courses.map(function (course) {
-          return '<tr><td><strong>' + escapeHtml(course.name) + '</strong><br><span class="muted">' + escapeHtml(course.description || '-') + '</span></td><td>' + escapeHtml(teachingModeLabel(course.teachingMode)) + '</td><td>' + escapeHtml(billingModeLabel(course.billingMode)) + '</td><td>' + escapeHtml(lessonText(course.defaultDeductUnits10)) + '</td><td>' + (course.plannedSessionCount || 0) + '</td><td>' + ((course.authorizedBranchIds || []).map(branchName).join('、') || '全部') + '</td><td>' + badgeHtml(course.status === 'active' ? '启用' : '停用', course.status) + '</td><td><button class="club-action" data-edit-course="' + escapeHtml(idOf(course)) + '">编辑</button></td></tr>';
-        }).join("") : '<tr><td colspan="8">暂无课程</td></tr>') +
+          var rules = course.priceRules || {};
+          return '<tr><td><strong>' + escapeHtml(course.name) + '</strong><br><span class="muted">' + escapeHtml(course.unit || '-') + '</span></td><td>' + escapeHtml(moneyText(course.standardPriceCents)) + '</td><td>' + escapeHtml(course.typeName || course.courseLevelCode || '-') + '<br><span class="muted">' + escapeHtml(course.classTypeName || course.classTypeCode || '-') + '</span></td><td>' + escapeHtml(course.termName || course.termCode || '-') + '<br><span class="muted">' + escapeHtml(course.year || '-') + '</span></td><td>' + escapeHtml(teachingModeLabel(course.teachingMode)) + '</td><td>' + escapeHtml(rules.termFeeText || '-') + '</td><td>' + badgeHtml(course.dynamicDeduct ? '是' : '否', course.dynamicDeduct ? 'pending' : 'none') + '</td><td>' + badgeHtml(course.status === 'active' ? '启用' : '停用', course.status) + '</td><td><button class="club-action" data-edit-course="' + escapeHtml(idOf(course)) + '">编辑</button></td></tr>';
+        }).join("") : '<tr><td colspan="9">暂无课程</td></tr>') +
       '</tbody></table></div>';
     var modeSelect = eduPanelEl.querySelector('[name="teachingMode"]');
     var billingSelect = eduPanelEl.querySelector('[name="billingMode"]');
     var statusSelect = eduPanelEl.querySelector('[name="status"]');
+    var dynamicSelect = eduPanelEl.querySelector('[name="dynamicDeduct"]');
     if (modeSelect) modeSelect.value = item.teachingMode || 'group';
     if (billingSelect) billingSelect.value = item.billingMode || 'lesson';
     if (statusSelect) statusSelect.value = item.status || 'active';
+    if (dynamicSelect) dynamicSelect.value = item.dynamicDeduct ? 'true' : 'false';
     bindEduPanelEvents();
   };
 
@@ -861,9 +884,23 @@
       name: data.name,
       teachingMode: data.teachingMode,
       billingMode: data.billingMode,
+      unit: data.unit,
+      year: data.year,
+      termCode: data.termName,
+      termName: data.termName,
+      courseLevelCode: data.typeName,
+      typeName: data.typeName,
+      classTypeCode: data.classTypeName,
+      classTypeName: data.classTypeName,
+      standardPriceCents: moneyInputCents(data.standardPriceYuan),
       defaultDeductUnits10: lessonInputUnits10(data.defaultDeductUnits10 || 1),
       plannedSessionCount: Number(data.plannedSessionCount || 0),
       capacity: Number(data.capacity || 0),
+      dynamicDeduct: data.dynamicDeduct === "true",
+      isByTerm: data.billingMode === "term",
+      priceRules: {
+        termFeeText: data.termFeeText
+      },
       status: data.status || "active",
       authorizedBranchIds: selected
     }));
