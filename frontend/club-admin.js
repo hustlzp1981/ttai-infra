@@ -129,6 +129,19 @@
     return (Number.isInteger(value) ? String(value) : value.toFixed(1)) + " 课时";
   };
 
+  var lessonInputUnits10 = function (value) {
+    var lessons = Number(value || 0);
+    if (!Number.isFinite(lessons) || lessons < 0) return 0;
+    return Math.round(lessons * 10);
+  };
+
+  var lessonInputValue = function (units10, fallbackLessons) {
+    var value = Number(units10);
+    if (!Number.isFinite(value)) return fallbackLessons;
+    var lessons = value / 10;
+    return Number.isInteger(lessons) ? String(lessons) : String(Number(lessons.toFixed(1)));
+  };
+
   var dateText = function (value) {
     if (!value) return "-";
     var d = new Date(value);
@@ -533,7 +546,7 @@
           '<label>课程名称<input class="form-input" name="name" value="' + escapeHtml(item.name || '') + '" required></label>' +
           '<label>班型<select class="form-input" name="teachingMode"><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option><option value="camp">训练营</option></select></label>' +
           '<label>计费<select class="form-input" name="billingMode"><option value="lesson">课时</option><option value="term">按期</option><option value="month">按月</option><option value="day">按天预留</option></select></label>' +
-          '<label>默认扣课<input class="form-input" name="defaultDeductUnits10" type="number" min="0" value="' + escapeHtml(item.defaultDeductUnits10 || 10) + '"></label>' +
+          '<label>默认扣课<input class="form-input" name="defaultDeductUnits10" type="number" min="0" step="0.1" value="' + escapeHtml(lessonInputValue(item.defaultDeductUnits10, '1')) + '"></label>' +
           '<label>计划排课数<input class="form-input" name="plannedSessionCount" type="number" min="0" value="' + escapeHtml(item.plannedSessionCount || 0) + '"></label>' +
           '<label>容量<input class="form-input" name="capacity" type="number" min="0" value="' + escapeHtml(item.capacity || 0) + '"></label>' +
           '<label>状态<select class="form-input" name="status"><option value="active">启用</option><option value="inactive">停用</option></select></label>' +
@@ -623,7 +636,7 @@
           '<form class="edu-form" id="edu-wallet-form">' +
             '<label>学员<select class="form-input" name="studentId" required>' + studentOptions() + '</select></label>' +
             '<label>课包模板<select class="form-input" name="packageTemplateId">' + packageOptions() + '</select></label>' +
-            '<label>课时<input class="form-input" name="totalUnits10" type="number" min="1" value="10" required></label>' +
+            '<label>课时<input class="form-input" name="totalUnits10" type="number" min="0.1" step="0.1" value="10" required></label>' +
             '<label>实收金额(分)<input class="form-input" name="amountCents" type="number" min="0" value="0"></label>' +
             '<label>有效期至<input class="form-input" name="expireAt" type="date"></label>' +
             '<label class="wide">收款备注<input class="form-input" name="paymentRemark" placeholder="微信转账/现金/团购核销等"></label>' +
@@ -636,10 +649,10 @@
         '<form class="edu-form" id="edu-package-form">' +
           '<label>模板名<input class="form-input" name="name" required></label>' +
           '<label>关联课程<select class="form-input" name="courseProductId">' + courseOptions() + '</select></label>' +
-          '<label>课时<input class="form-input" name="lessonUnits10" type="number" min="1" value="10" required></label>' +
+          '<label>课时<input class="form-input" name="lessonUnits10" type="number" min="0.1" step="0.1" value="10" required></label>' +
           '<label>有效天数<input class="form-input" name="validDays" type="number" min="0" value="365"></label>' +
           '<label>默认价格(分)<input class="form-input" name="defaultPriceCents" type="number" min="0" value="0"></label>' +
-          '<label>扣课<input class="form-input" name="deductUnits10" type="number" min="1" value="10"></label>' +
+          '<label>默认扣课<input class="form-input" name="deductUnits10" type="number" min="0.1" step="0.1" value="1"></label>' +
           '<div class="club-actions"><button class="club-action primary" type="submit">保存模板</button></div>' +
         '</form>' +
       '</div>' +
@@ -780,7 +793,7 @@
   var renderEduAttendance = function () {
     var walletOptions = '<option value="">选择课包</option>' + (eduState.attendanceWallets || []).map(function (wallet) {
       var id = idOf(wallet);
-      var label = packageName(wallet.packageTemplateId) + ' · 剩余 ' + ((wallet.remainingUnits10 || 0) / 10);
+      var label = packageName(wallet.packageTemplateId) + ' · 剩余 ' + lessonText(wallet.remainingUnits10);
       return '<option value="' + escapeHtml(id) + '">' + escapeHtml(label) + '</option>';
     }).join('');
     eduPanelEl.innerHTML =
@@ -795,7 +808,7 @@
           '<label>学员<select class="form-input" name="studentId" id="edu-attendance-student" required>' + studentOptions(eduState.attendanceStudentId) + '</select></label>' +
           '<label>课包<select class="form-input" name="walletId">' + walletOptions + '</select></label>' +
           '<label>状态<select class="form-input" name="status"><option value="attended">出勤扣课</option><option value="leave">请假</option><option value="absent">缺席</option></select></label>' +
-          '<label>扣课<input class="form-input" name="deductUnits10" type="number" min="0" value="10"></label>' +
+          '<label>扣课课时<input class="form-input" name="deductUnits10" type="number" min="0" step="0.1" value="1"></label>' +
           '<label class="wide">课堂备注<input class="form-input" name="coachNote"></label>' +
           '<div class="club-actions"><button class="club-action primary" type="submit">确认点名</button><button class="club-action" type="button" id="edu-load-attendance-wallets">加载学员课包</button></div>' +
         '</form>' +
@@ -848,7 +861,7 @@
       name: data.name,
       teachingMode: data.teachingMode,
       billingMode: data.billingMode,
-      defaultDeductUnits10: Number(data.defaultDeductUnits10 || 10),
+      defaultDeductUnits10: lessonInputUnits10(data.defaultDeductUnits10 || 1),
       plannedSessionCount: Number(data.plannedSessionCount || 0),
       capacity: Number(data.capacity || 0),
       status: data.status || "active",
@@ -874,10 +887,10 @@
     return withEduSaving(clubData.eduSavePackageTemplate(selectedClubId, {
       name: data.name,
       courseProductId: data.courseProductId,
-      lessonUnits10: Number(data.lessonUnits10 || 0),
+      lessonUnits10: lessonInputUnits10(data.lessonUnits10),
       validDays: Number(data.validDays || 0),
       defaultPriceCents: Number(data.defaultPriceCents || 0),
-      deductUnits10: Number(data.deductUnits10 || 10),
+      deductUnits10: lessonInputUnits10(data.deductUnits10 || 1),
       status: "active"
     }));
   };
@@ -886,7 +899,7 @@
     var data = formData(form);
     return withEduSaving(clubData.eduCreateWallet(selectedClubId, data.studentId, {
       packageTemplateId: data.packageTemplateId,
-      totalUnits10: Number(data.totalUnits10 || 0),
+      totalUnits10: lessonInputUnits10(data.totalUnits10),
       amountCents: Number(data.amountCents || 0),
       expireAt: data.expireAt,
       paymentRemark: data.paymentRemark
@@ -991,7 +1004,7 @@
       studentId: data.studentId,
       walletId: data.walletId,
       status: data.status || "attended",
-      deductUnits10: Number(data.deductUnits10 || 0),
+      deductUnits10: lessonInputUnits10(data.deductUnits10),
       coachNote: data.coachNote
     }]));
   };
