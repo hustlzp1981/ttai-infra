@@ -1540,51 +1540,93 @@
   };
 
   var feeReportRows = function () {
-    return (eduState.wallets || []).filter(function (wallet) {
-      return branchInReportScope(walletBranchId(wallet)) && dateInReportRange(wallet.createdAt || wallet.purchaseAt || wallet.startAt);
-    }).map(function (wallet) {
-      return {
-        createdAt: wallet.createdAt || wallet.purchaseAt || wallet.startAt || "",
-        branchId: walletBranchId(wallet),
-        studentName: studentName(wallet.studentId),
-        packageName: packageName(wallet.packageTemplateId),
-        totalUnits10: Number(wallet.totalUnits10 || 0),
-        remainingUnits10: Number(wallet.remainingUnits10 || 0),
-        amountCents: walletAmountCents(wallet),
-        expireAt: wallet.expireAt,
-        status: walletStatusLabel(wallet.status || "active"),
-        remark: wallet.paymentRemark || wallet.remark || ""
-      };
+    var filters = eduState.reportFilters || {};
+    var groupBy = filters.groupBy || "branch";
+    var groups = {};
+    (eduState.wallets || []).filter(function (wallet) {
+      var text = [packageName(wallet.packageTemplateId), studentName(wallet.studentId)].join(" ").toLowerCase();
+      return branchInReportScope(walletBranchId(wallet)) &&
+        dateInReportRange(wallet.createdAt || wallet.purchaseAt || wallet.startAt) &&
+        (!filters.courseKeyword || text.indexOf(String(filters.courseKeyword).toLowerCase()) >= 0);
+    }).forEach(function (wallet) {
+      var template = findById(eduState.packageTemplates, wallet.packageTemplateId) || {};
+      var course = findById(eduState.courses, template.courseProductId) || {};
+      var key = walletBranchId(wallet);
+      var name = branchName(key);
+      if (groupBy === "course") {
+        key = template.courseProductId || wallet.packageTemplateId || "unknown";
+        name = course.name || packageName(wallet.packageTemplateId);
+      } else if (groupBy === "term") {
+        key = course.termName || course.termCode || "-";
+        name = key;
+      } else if (groupBy === "type") {
+        key = course.typeName || course.courseLevelCode || "-";
+        name = key;
+      } else if (groupBy === "classType") {
+        key = course.classTypeName || course.classTypeCode || "-";
+        name = key;
+      } else if (groupBy === "year") {
+        key = course.year || "-";
+        name = key;
+      }
+      if (!groups[key]) {
+        groups[key] = { groupName: name, chargeCount: 0, paidCents: 0, walletCents: 0, refundCount: 0, refundCents: 0, transferCount: 0, transferCents: 0, totalUnits10: 0 };
+      }
+      groups[key].chargeCount += 1;
+      groups[key].paidCents += walletAmountCents(wallet);
+      groups[key].totalUnits10 += Number(wallet.totalUnits10 || 0);
+    });
+    return Object.keys(groups).map(function (key) {
+      var row = groups[key];
+      row.netCents = row.paidCents - row.refundCents - row.transferCents;
+      return row;
     });
   };
 
   var consumeReportRows = function () {
+    var filters = eduState.reportFilters || {};
     return (eduState.ledgers || []).filter(function (ledger) {
       var student = findById(eduState.students, ledger.studentId) || {};
+      var studentText = [studentName(ledger.studentId), student.studentNo, student.no, student.phone, ledger.reason, ledger.walletId].join(" ").toLowerCase();
+      var courseText = [ledger.courseNameSnapshot, ledger.courseProductId].join(" ").toLowerCase();
+      var classText = [ledger.classNameSnapshot, ledger.classId].join(" ").toLowerCase();
       return ["attendance", "revoke", "adjust"].indexOf(ledger.type) >= 0 &&
         branchInReportScope(ledger.branchId || student.branchId) &&
-        dateInReportRange(ledger.createdAt);
+        dateInReportRange(ledger.createdAt) &&
+        (!filters.studentKeyword || studentText.indexOf(String(filters.studentKeyword).toLowerCase()) >= 0) &&
+        (!filters.courseKeyword || courseText.indexOf(String(filters.courseKeyword).toLowerCase()) >= 0) &&
+        (!filters.classKeyword || classText.indexOf(String(filters.classKeyword).toLowerCase()) >= 0) &&
+        (!filters.consumeType || String(ledger.type || "") === String(filters.consumeType));
     }).map(function (ledger) {
       var student = findById(eduState.students, ledger.studentId) || {};
       return {
+        studentNo: student.studentNo || student.no || "",
         createdAt: ledger.createdAt,
         branchId: ledger.branchId || student.branchId,
         type: ledgerTypeLabel(ledger.type),
         studentName: studentName(ledger.studentId),
+        courseName: ledger.courseNameSnapshot || "-",
+        className: ledger.classNameSnapshot || "-",
+        teacherName: ledger.teacherName || "-",
+        durationText: ledger.durationText || "-",
         walletId: ledger.walletId || "",
         deltaUnits10: Number(ledger.unitsDelta10 || 0),
+        consumeAmountCents: Number(ledger.amountCents || 0),
         balanceAfter10: Number(ledger.balanceAfter10 || 0),
+        attendanceText: ledger.type === "attendance" ? "出勤" : "-",
         reason: ledger.reason || ledger.coachNote || ""
       };
     });
   };
 
   var performanceReportRows = function () {
+    var filters = eduState.reportFilters || {};
     return (eduState.staff || []).filter(function (teacher) {
       var roles = teacher.roles || [];
       return (roles.indexOf("teacher") >= 0 || roles.indexOf("coach") >= 0 || !roles.length) &&
         branchInReportScope(teacher.branchId) &&
-        teacherInReportScope(idOf(teacher));
+        teacherInReportScope(idOf(teacher)) &&
+        (!filters.employmentType || String(teacher.employmentType || teacher.employmentStatus || "") === String(filters.employmentType));
     }).map(function (teacher) {
       var tid = idOf(teacher);
       var rows = (eduState.sessions || []).filter(function (session) {
@@ -1608,14 +1650,25 @@
         pendingCount: pending.length,
         cancelledCount: rows.length - activeRows.length,
         units10: units10,
+        paidCents: 0,
+        arrearsCents: 0,
+        uncountedUnits10: 0,
         classCount: Array.from(new Set(activeRows.map(function (session) { return session.classId || ""; }).filter(Boolean))).length
       };
     });
   };
 
   var classReportRows = function () {
+    var filters = eduState.reportFilters || {};
     return (eduState.classes || []).filter(function (klass) {
-      return branchInReportScope(klass.branchId) && teacherInReportScope(klass.teacherId);
+      var course = findById(eduState.courses, klass.courseProductId) || {};
+      var text = [klass.className, klass.courseNameSnapshot, course.name, klass.defaultRoomId, (klass.defaultTableNos || []).join(",")].join(" ").toLowerCase();
+      return branchInReportScope(klass.branchId) &&
+        teacherInReportScope(klass.teacherId) &&
+        (!filters.courseKeyword || text.indexOf(String(filters.courseKeyword).toLowerCase()) >= 0) &&
+        (!filters.classKeyword || text.indexOf(String(filters.classKeyword).toLowerCase()) >= 0) &&
+        (!filters.roomKeyword || text.indexOf(String(filters.roomKeyword).toLowerCase()) >= 0) &&
+        (filters.includeGraduated === "1" || String(klass.graduationStatus || "active") !== "graduated");
     }).map(function (klass) {
       var classId = idOf(klass);
       var course = findById(eduState.courses, klass.courseProductId) || {};
@@ -1630,7 +1683,13 @@
         className: klass.className || classId,
         branchId: klass.branchId,
         courseName: klass.courseNameSnapshot || course.name || courseName(klass.courseProductId),
+        classTypeName: course.classTypeName || course.classTypeCode || "-",
         teacherName: klass.teacherName || teacherName(klass.teacherId),
+        assistantName: klass.assistantName || "-",
+        headTeacherName: klass.headTeacherName || "-",
+        scheduleText: klass.scheduleText || "-",
+        defaultRoom: klass.defaultRoomId || ((klass.defaultTableNos || []).join(",") || "-"),
+        studentCount: Number(klass.studentCount || klass.currentStudentCount || 0),
         capacity: Number(klass.capacity || 0),
         plannedCount: planned,
         scheduledCount: activeRows.length,
@@ -1646,17 +1705,23 @@
     var reportType = type || eduState.reportTab || "fee";
     if (reportType === "consume") {
       return {
-        name: "消课报销",
+        name: "课消报表",
         rows: consumeReportRows(),
         columns: [
-          { label: "时间", value: function (row) { return formatCST(row.createdAt); } },
-          { label: "所属校区", value: function (row) { return branchName(row.branchId); } },
-          { label: "类型", value: function (row) { return row.type; } },
+          { label: "学号", value: function (row) { return row.studentNo; } },
           { label: "学员", value: function (row) { return row.studentName; } },
-          { label: "课包", value: function (row) { return row.walletId; } },
-          { label: "变动课时", value: function (row) { return lessonText(row.deltaUnits10); } },
-          { label: "课后余额", value: function (row) { return lessonText(row.balanceAfter10); } },
-          { label: "原因", value: function (row) { return row.reason; } }
+          { label: "课程", value: function (row) { return row.courseName; } },
+          { label: "班级", value: function (row) { return row.className; } },
+          { label: "上课校区", value: function (row) { return branchName(row.branchId); } },
+          { label: "任课老师", value: function (row) { return row.teacherName; } },
+          { label: "上课时间", value: function (row) { return formatCST(row.createdAt); } },
+          { label: "上课时长", value: function (row) { return row.durationText; } },
+          { label: "数量", value: function (row) { return lessonText(row.deltaUnits10); } },
+          { label: "课消金额", value: function (row) { return moneyText(row.consumeAmountCents); } },
+          { label: "出勤", value: function (row) { return row.attendanceText; } },
+          { label: "扣费课程", value: function (row) { return row.walletId; } },
+          { label: "备注", value: function (row) { return row.reason; } },
+          { label: "操作时间", value: function (row) { return formatCST(row.createdAt); } }
         ]
       };
     }
@@ -1666,13 +1731,17 @@
         rows: performanceReportRows(),
         columns: [
           { label: "老师", value: function (row) { return row.teacherName; } },
-          { label: "所属校区", value: function (row) { return branchName(row.branchId); } },
-          { label: "授课班级数", value: function (row) { return row.classCount; } },
+          { label: "班级", value: function (row) { return row.classCount; } },
+          { label: "课程", value: function () { return "-"; } },
+          { label: "年级", value: function () { return "-"; } },
+          { label: "班型", value: function () { return "-"; } },
+          { label: "科目", value: function () { return "-"; } },
           { label: "已排课次", value: function (row) { return row.scheduledCount; } },
           { label: "已完成", value: function (row) { return row.completedCount; } },
-          { label: "待上课/点名", value: function (row) { return row.pendingCount; } },
-          { label: "已取消", value: function (row) { return row.cancelledCount; } },
-          { label: "消课课时", value: function (row) { return lessonText(row.units10); } }
+          { label: "消耗课时", value: function (row) { return lessonText(row.units10); } },
+          { label: "实收金额", value: function (row) { return moneyText(row.paidCents); } },
+          { label: "欠费金额", value: function (row) { return moneyText(row.arrearsCents); } },
+          { label: "未计业绩课消", value: function (row) { return lessonText(row.uncountedUnits10); } }
         ]
       };
     }
@@ -1681,16 +1750,17 @@
         name: "班级报表",
         rows: classReportRows(),
         columns: [
-          { label: "班级", value: function (row) { return row.className; } },
-          { label: "课程", value: function (row) { return row.courseName; } },
-          { label: "所属校区", value: function (row) { return branchName(row.branchId); } },
+          { label: "校区", value: function (row) { return branchName(row.branchId); } },
+          { label: "课程名称", value: function (row) { return row.courseName; } },
+          { label: "班级名称", value: function (row) { return row.className; } },
+          { label: "班型", value: function (row) { return row.classTypeName; } },
           { label: "任课老师", value: function (row) { return row.teacherName; } },
-          { label: "容量", value: function (row) { return row.capacity; } },
-          { label: "计划课次", value: function (row) { return row.plannedCount; } },
-          { label: "已排课次", value: function (row) { return row.scheduledCount; } },
-          { label: "已完成", value: function (row) { return row.completedCount; } },
-          { label: "进度", value: function (row) { return row.progress + "%"; } },
-          { label: "状态", value: function (row) { return row.status; } }
+          { label: "助教", value: function (row) { return row.assistantName; } },
+          { label: "班主任", value: function (row) { return row.headTeacherName; } },
+          { label: "上课时间", value: function (row) { return row.scheduleText; } },
+          { label: "默认教室", value: function (row) { return row.defaultRoom; } },
+          { label: "预招人数", value: function (row) { return row.capacity; } },
+          { label: "人数", value: function (row) { return row.studentCount; } }
         ]
       };
     }
@@ -1698,16 +1768,15 @@
       name: "收费报表",
       rows: feeReportRows(),
       columns: [
-        { label: "收费时间", value: function (row) { return formatCST(row.createdAt); } },
-        { label: "所属校区", value: function (row) { return branchName(row.branchId); } },
-        { label: "学员", value: function (row) { return row.studentName; } },
-        { label: "已购课程", value: function (row) { return row.packageName; } },
-        { label: "总课时", value: function (row) { return lessonText(row.totalUnits10); } },
-        { label: "剩余课时", value: function (row) { return lessonText(row.remainingUnits10); } },
-        { label: "收费金额", value: function (row) { return moneyText(row.amountCents); } },
-        { label: "有效期", value: function (row) { return dateText(row.expireAt); } },
-        { label: "状态", value: function (row) { return row.status; } },
-        { label: "备注", value: function (row) { return row.remark; } }
+        { label: "校区/汇总项", value: function (row) { return row.groupName; } },
+        { label: "收费人次数", value: function (row) { return row.chargeCount; } },
+        { label: "收费实交金额", value: function (row) { return moneyText(row.paidCents); } },
+        { label: "收费电子钱包", value: function (row) { return moneyText(row.walletCents); } },
+        { label: "退费人次数", value: function (row) { return row.refundCount; } },
+        { label: "退费金额", value: function (row) { return moneyText(row.refundCents); } },
+        { label: "结转人次数", value: function (row) { return row.transferCount; } },
+        { label: "结转金额", value: function (row) { return moneyText(row.transferCents); } },
+        { label: "销售净额", value: function (row) { return moneyText(row.netCents); } }
       ]
     };
   };
@@ -1719,7 +1788,7 @@
     };
     return '<div class="edu-subtabs">' +
       item("fee", "收费报表") +
-      item("consume", "消课报销") +
+      item("consume", "课消报表") +
       item("performance", "业绩报表") +
       item("class", "班级报表") +
     '</div>';
@@ -1727,12 +1796,38 @@
 
   var reportFilterHtml = function () {
     var filters = eduState.reportFilters || {};
+    var tab = eduState.reportTab || "fee";
+    var extra = "";
+    if (tab === "fee") {
+      extra =
+        '<label>课程名称<input class="form-input" name="courseKeyword" value="' + escapeHtml(filters.courseKeyword || '') + '" placeholder="选择/输入课程"></label>' +
+        '<label>汇总方式<select class="form-input" name="groupBy"><option value="branch">校区</option><option value="term">期段</option><option value="type">类型</option><option value="course">课程</option><option value="year">年份</option><option value="classType">班型</option></select></label>';
+    } else if (tab === "consume") {
+      extra =
+        '<label>学员<input class="form-input" name="studentKeyword" value="' + escapeHtml(filters.studentKeyword || '') + '" placeholder="姓名/学号/电话"></label>' +
+        '<label>课程<input class="form-input" name="courseKeyword" value="' + escapeHtml(filters.courseKeyword || '') + '" placeholder="选择/输入课程"></label>' +
+        '<label>班级<input class="form-input" name="classKeyword" value="' + escapeHtml(filters.classKeyword || '') + '" placeholder="选择/输入班级"></label>' +
+        '<label>课消类型<select class="form-input" name="consumeType"><option value="">不限</option><option value="attendance">正常的课消</option><option value="adjust">调整的课消</option><option value="revoke">冲销/撤销</option></select></label>';
+    } else if (tab === "performance") {
+      extra =
+        '<label>员工姓名<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
+        '<label>老师角色<select class="form-input" name="teacherRole"><option value="">主教/助教</option><option value="main">主教</option><option value="assistant">助教</option></select></label>' +
+        '<label>在职类型<select class="form-input" name="employmentType"><option value="">全部</option><option value="active">全职/在职</option><option value="part_time">兼职</option><option value="dedicated">专职</option></select></label>' +
+        '<label>班型<select class="form-input" name="teachingMode"><option value="">全部</option><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option></select></label>';
+    } else {
+      extra =
+        '<label>课程名称<input class="form-input" name="courseKeyword" value="' + escapeHtml(filters.courseKeyword || '') + '" placeholder="选择/输入课程"></label>' +
+        '<label>班级名称<input class="form-input" name="classKeyword" value="' + escapeHtml(filters.classKeyword || '') + '" placeholder="选择/输入班级"></label>' +
+        '<label>任课老师<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
+        '<label>默认教室<input class="form-input" name="roomKeyword" value="' + escapeHtml(filters.roomKeyword || '') + '" placeholder="教室/球台"></label>' +
+        '<label>班级范围<select class="form-input" name="includeGraduated"><option value="">未结业班级</option><option value="1">包含结业班级</option></select></label>';
+    }
     return '<form class="edu-filter-panel" id="edu-report-filter-form">' +
-      '<div class="edu-filter-grid compact">' +
+      '<div class="edu-filter-grid">' +
         '<label>开始日期<input class="form-input" type="date" name="startDate" value="' + escapeHtml(filters.startDate || '') + '"></label>' +
         '<label>结束日期<input class="form-input" type="date" name="endDate" value="' + escapeHtml(filters.endDate || '') + '"></label>' +
         '<label>所属校区<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
-        '<label>任课老师<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
+        extra +
         '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="reports">重置</button><button class="club-action" type="button" data-edu-export="report-' + escapeHtml(eduState.reportTab || "fee") + '">导出</button></div>' +
       '</div>' +
     '</form>';
@@ -1743,8 +1838,8 @@
     var cells = [];
     if ((eduState.reportTab || "fee") === "fee") {
       cells = [
-        ["收费笔数", rows.length],
-        ["收费金额", moneyText(rows.reduce(function (sum, row) { return sum + Number(row.amountCents || 0); }, 0))],
+        ["收费人次数", rows.reduce(function (sum, row) { return sum + Number(row.chargeCount || 0); }, 0)],
+        ["销售净额", moneyText(rows.reduce(function (sum, row) { return sum + Number(row.netCents || 0); }, 0))],
         ["售出课时", lessonText(rows.reduce(function (sum, row) { return sum + Number(row.totalUnits10 || 0); }, 0))]
       ];
     } else if (eduState.reportTab === "consume") {
@@ -1792,6 +1887,13 @@
       reportFilterHtml() +
       reportSummaryHtml(definition) +
       reportTableHtml(definition);
+    var filters = eduState.reportFilters || {};
+    setFormValue("edu-report-filter-form", "groupBy", filters.groupBy || "branch");
+    setFormValue("edu-report-filter-form", "consumeType", filters.consumeType || "");
+    setFormValue("edu-report-filter-form", "teacherRole", filters.teacherRole || "");
+    setFormValue("edu-report-filter-form", "employmentType", filters.employmentType || "");
+    setFormValue("edu-report-filter-form", "teachingMode", filters.teachingMode || "");
+    setFormValue("edu-report-filter-form", "includeGraduated", filters.includeGraduated || "");
     bindEduPanelEvents();
   };
 
