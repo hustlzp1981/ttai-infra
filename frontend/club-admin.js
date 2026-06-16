@@ -1485,7 +1485,7 @@
   var renderEduAvailability = function () {
     return availabilityBulkHtml() +
       availabilityFilterHtml() +
-      eduActionBar("availability", "新增单条可排时间") +
+      '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div></div>' +
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>老师</th><th>所属校区</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
         (filteredAvailability().length ? filteredAvailability().map(function (item) {
           var dateType = item.date ? "指定日期" : (item.weekday ? "每周重复" : "-");
