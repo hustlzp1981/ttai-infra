@@ -550,7 +550,7 @@
     var item = editItem || {};
     var priceRules = item.priceRules || {};
     eduPanelEl.innerHTML =
-      eduFrameStart("课程管理", "课程负责商品、计费方式和分店授权；排课和扣课分别在课次、点名完成。") +
+      eduFrameStart("课程与课包配置", "课程定义教学商品和授权分店；课包模板定义售卖规格，给学员开课包时引用。") +
       '<div class="mini-card">' +
         '<div class="edu-toolbar"><strong>' + (idOf(item) ? '编辑课程' : '新增课程') + '</strong><span class="edu-note">课程只定义商品和授权校区，不直接代表课表。</span></div>' +
         '<form class="edu-form" id="edu-course-form">' +
@@ -579,6 +579,23 @@
           var rules = course.priceRules || {};
           return '<tr><td><strong>' + escapeHtml(course.name) + '</strong><br><span class="muted">' + escapeHtml(course.unit || '-') + '</span></td><td>' + escapeHtml(moneyText(course.standardPriceCents)) + '</td><td>' + escapeHtml(course.typeName || course.courseLevelCode || '-') + '<br><span class="muted">' + escapeHtml(course.classTypeName || course.classTypeCode || '-') + '</span></td><td>' + escapeHtml(course.termName || course.termCode || '-') + '<br><span class="muted">' + escapeHtml(course.year || '-') + '</span></td><td>' + escapeHtml(teachingModeLabel(course.teachingMode)) + '</td><td>' + escapeHtml(rules.termFeeText || '-') + '</td><td>' + badgeHtml(course.dynamicDeduct ? '是' : '否', course.dynamicDeduct ? 'pending' : 'none') + '</td><td>' + badgeHtml(course.status === 'active' ? '启用' : '停用', course.status) + '</td><td><button class="club-action" data-edit-course="' + escapeHtml(idOf(course)) + '">编辑</button></td></tr>';
         }).join("") : '<tr><td colspan="9">暂无课程</td></tr>') +
+      '</tbody></table></div>' +
+      '<div class="mini-card">' +
+        '<div class="edu-toolbar"><strong>课包模板</strong><span class="edu-note">模板是开课包的默认规格，修改模板不影响历史已购课包。</span></div>' +
+        '<form class="edu-form" id="edu-package-form">' +
+          '<label>模板名<input class="form-input" name="name" required></label>' +
+          '<label>关联课程<select class="form-input" name="courseProductId">' + courseOptions() + '</select></label>' +
+          '<label>课时<input class="form-input" name="lessonUnits10" type="number" min="0.1" step="0.1" value="10" required></label>' +
+          '<label>有效天数<input class="form-input" name="validDays" type="number" min="0" value="365"></label>' +
+          '<label>默认价格(分)<input class="form-input" name="defaultPriceCents" type="number" min="0" value="0"></label>' +
+          '<label>默认扣课<input class="form-input" name="deductUnits10" type="number" min="0.1" step="0.1" value="1"></label>' +
+          '<div class="club-actions"><button class="club-action primary" type="submit">保存模板</button></div>' +
+        '</form>' +
+      '</div>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>模板</th><th>课程</th><th>课时</th><th>有效天数</th><th>默认价格</th><th>默认扣课</th><th>状态</th></tr></thead><tbody>' +
+        (eduState.packageTemplates.length ? eduState.packageTemplates.map(function (tpl) {
+          return '<tr><td><strong>' + escapeHtml(tpl.name) + '</strong></td><td>' + escapeHtml(courseName(tpl.courseProductId)) + '</td><td>' + escapeHtml(lessonText(tpl.lessonUnits10)) + '</td><td>' + (tpl.validDays || 0) + '</td><td>' + escapeHtml(moneyText(tpl.defaultPriceCents)) + '</td><td>' + escapeHtml(lessonText(tpl.deductUnits10)) + '</td><td>' + badgeHtml(tpl.status === 'active' ? '启用' : tpl.status, tpl.status) + '</td></tr>';
+        }).join("") : '<tr><td colspan="7">暂无课包模板</td></tr>') +
       '</tbody></table></div>';
     var modeSelect = eduPanelEl.querySelector('[name="teachingMode"]');
     var billingSelect = eduPanelEl.querySelector('[name="billingMode"]');
@@ -639,10 +656,29 @@
   var renderEduStudents = function (editItem) {
     var item = editItem || {};
     eduPanelEl.innerHTML =
-      eduFrameStart("学员课包", "学员档案、课包模板、剩余课时和线下收款入账集中在这里。") +
+      eduFrameStart("学员余额", "先看每个学员剩余课时和到期情况；开课包只负责给学员生成实际可扣课余额。") +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>分店</th><th>手机号</th><th>剩余课时</th><th>有效课包</th><th>最近到期</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
+        (eduState.students.length ? eduState.students.map(function (student) {
+          var summary = studentWalletSummary(idOf(student));
+          var balanceType = summary.remainingUnits10 > 10 ? "ok" : (summary.remainingUnits10 > 0 ? "pending" : "none");
+          return '<tr><td><strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.parentName || student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + summary.usable + '/' + summary.total + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + badgeHtml(student.status === 'active' ? '在读' : student.status, student.status) + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button></td></tr>';
+        }).join("") : '<tr><td colspan="8">暂无学员</td></tr>') +
+      '</tbody></table></div>' +
       '<div class="grid-2">' +
         '<div class="mini-card">' +
-          '<div class="edu-toolbar"><strong>' + (idOf(item) ? '编辑学员' : '新增学员') + '</strong><span class="edu-note">学员档案是课包、排课和点名的归属。</span></div>' +
+          '<div class="edu-toolbar"><strong>给学员开课包</strong><span class="edu-note">线下收款后在这里入账，系统生成 purchase 流水并增加余额。</span></div>' +
+          '<form class="edu-form" id="edu-wallet-form">' +
+            '<label>学员<select class="form-input" name="studentId" required>' + studentOptions() + '</select></label>' +
+            '<label>课包模板<select class="form-input" name="packageTemplateId">' + packageOptions() + '</select></label>' +
+            '<label>课时<input class="form-input" name="totalUnits10" type="number" min="0.1" step="0.1" value="10" required></label>' +
+            '<label>实收金额(分)<input class="form-input" name="amountCents" type="number" min="0" value="0"></label>' +
+            '<label>有效期至<input class="form-input" name="expireAt" type="date"></label>' +
+            '<label class="wide">收款备注<input class="form-input" name="paymentRemark" placeholder="微信转账/现金/团购核销等"></label>' +
+            '<div class="club-actions"><button class="club-action primary" type="submit">开通课包</button></div>' +
+          '</form>' +
+        '</div>' +
+        '<div class="mini-card">' +
+          '<div class="edu-toolbar"><strong>' + (idOf(item) ? '编辑学员' : '新增学员') + '</strong><span class="edu-note">学员档案是余额、排课和点名的归属。</span></div>' +
           '<form class="edu-form" id="edu-student-form">' +
             '<input type="hidden" name="id" value="' + escapeHtml(idOf(item)) + '">' +
             '<label>姓名<input class="form-input" name="name" value="' + escapeHtml(item.name || '') + '" required></label>' +
@@ -654,47 +690,11 @@
             '<div class="club-actions"><button class="club-action primary" type="submit">保存学员</button><button class="club-action" type="button" data-edu-clear="students">清空</button></div>' +
           '</form>' +
         '</div>' +
-        '<div class="mini-card">' +
-          '<div class="edu-toolbar"><strong>开课包</strong><span class="edu-note">线下收款后在这里入账，系统生成 purchase 流水。</span></div>' +
-          '<form class="edu-form" id="edu-wallet-form">' +
-            '<label>学员<select class="form-input" name="studentId" required>' + studentOptions() + '</select></label>' +
-            '<label>课包模板<select class="form-input" name="packageTemplateId">' + packageOptions() + '</select></label>' +
-            '<label>课时<input class="form-input" name="totalUnits10" type="number" min="0.1" step="0.1" value="10" required></label>' +
-            '<label>实收金额(分)<input class="form-input" name="amountCents" type="number" min="0" value="0"></label>' +
-            '<label>有效期至<input class="form-input" name="expireAt" type="date"></label>' +
-            '<label class="wide">收款备注<input class="form-input" name="paymentRemark" placeholder="微信转账/现金/团购核销等"></label>' +
-            '<div class="club-actions"><button class="club-action primary" type="submit">开通课包</button></div>' +
-          '</form>' +
-        '</div>' +
       '</div>' +
-      '<div class="mini-card">' +
-        '<div class="edu-toolbar"><strong>课包模板</strong><span class="edu-note">模板修改不影响历史已购课包。</span></div>' +
-        '<form class="edu-form" id="edu-package-form">' +
-          '<label>模板名<input class="form-input" name="name" required></label>' +
-          '<label>关联课程<select class="form-input" name="courseProductId">' + courseOptions() + '</select></label>' +
-          '<label>课时<input class="form-input" name="lessonUnits10" type="number" min="0.1" step="0.1" value="10" required></label>' +
-          '<label>有效天数<input class="form-input" name="validDays" type="number" min="0" value="365"></label>' +
-          '<label>默认价格(分)<input class="form-input" name="defaultPriceCents" type="number" min="0" value="0"></label>' +
-          '<label>默认扣课<input class="form-input" name="deductUnits10" type="number" min="0.1" step="0.1" value="1"></label>' +
-          '<div class="club-actions"><button class="club-action primary" type="submit">保存模板</button></div>' +
-        '</form>' +
-      '</div>' +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>分店</th><th>手机号</th><th>剩余课时</th><th>有效课包</th><th>最近到期</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
-        (eduState.students.length ? eduState.students.map(function (student) {
-          var summary = studentWalletSummary(idOf(student));
-          var balanceType = summary.remainingUnits10 > 10 ? "ok" : (summary.remainingUnits10 > 0 ? "pending" : "none");
-          return '<tr><td><strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.parentName || student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + summary.usable + '/' + summary.total + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + badgeHtml(student.status === 'active' ? '在读' : student.status, student.status) + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button></td></tr>';
-        }).join("") : '<tr><td colspan="8">暂无学员</td></tr>') +
-      '</tbody></table></div>' +
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>课包</th><th>课程</th><th>分店</th><th>总课时</th><th>剩余</th><th>有效期</th><th>状态</th></tr></thead><tbody>' +
         (eduState.wallets.length ? eduState.wallets.map(function (wallet) {
           return '<tr><td><strong>' + escapeHtml(studentName(wallet.studentId)) + '</strong></td><td>' + escapeHtml(packageName(wallet.packageTemplateId)) + '</td><td>' + escapeHtml(courseName(wallet.courseProductId)) + '</td><td>' + escapeHtml(branchName(wallet.branchId)) + '</td><td>' + escapeHtml(lessonText(wallet.totalUnits10)) + '</td><td><strong>' + escapeHtml(lessonText(wallet.remainingUnits10)) + '</strong></td><td>' + escapeHtml(dateText(wallet.expireAt)) + '</td><td>' + walletStatusHtml(wallet) + '</td></tr>';
         }).join("") : '<tr><td colspan="8">暂无课包余额</td></tr>') +
-      '</tbody></table></div>' +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>模板</th><th>课程</th><th>课时</th><th>有效天数</th><th>默认价格</th><th>扣课</th><th>状态</th></tr></thead><tbody>' +
-        (eduState.packageTemplates.length ? eduState.packageTemplates.map(function (tpl) {
-          return '<tr><td><strong>' + escapeHtml(tpl.name) + '</strong></td><td>' + escapeHtml(courseName(tpl.courseProductId)) + '</td><td>' + escapeHtml(lessonText(tpl.lessonUnits10)) + '</td><td>' + (tpl.validDays || 0) + '</td><td>' + escapeHtml(moneyText(tpl.defaultPriceCents)) + '</td><td>' + escapeHtml(lessonText(tpl.deductUnits10)) + '</td><td>' + badgeHtml(tpl.status === 'active' ? '启用' : tpl.status, tpl.status) + '</td></tr>';
-        }).join("") : '<tr><td colspan="7">暂无课包模板</td></tr>') +
       '</tbody></table></div>';
     var statusSelect = eduPanelEl.querySelector('[name="status"]');
     if (statusSelect) statusSelect.value = item.status || 'active';
@@ -833,7 +833,7 @@
           '<label>状态<select class="form-input" name="status"><option value="attended">出勤扣课</option><option value="leave">请假</option><option value="absent">缺席</option></select></label>' +
           '<label>扣课课时<input class="form-input" name="deductUnits10" type="number" min="0" step="0.1" value="1"></label>' +
           '<label class="wide">课堂备注<input class="form-input" name="coachNote"></label>' +
-          '<div class="club-actions"><button class="club-action primary" type="submit">确认点名</button><button class="club-action" type="button" id="edu-load-attendance-wallets">加载学员课包</button></div>' +
+          '<div class="club-actions"><button class="club-action primary" type="submit">确认点名</button><button class="club-action" type="button" id="edu-load-attendance-wallets">加载可用课包</button></div>' +
         '</form>' +
       '</div>' +
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>类型</th><th>学员</th><th>课包</th><th>变动</th><th>余额</th><th>原因</th><th>操作</th></tr></thead><tbody>' +
