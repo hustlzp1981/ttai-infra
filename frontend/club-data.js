@@ -81,6 +81,14 @@
     });
   };
 
+  var apiPut = function (path, body, auth) {
+    return fetchJson(apiBase + path, {
+      method: "PUT",
+      headers: Object.assign({ "Content-Type": "application/json" }, auth ? authHeaders() : {}),
+      body: JSON.stringify(body || {})
+    });
+  };
+
   var apiDelete = function (path, body, auth) {
     return fetchJson(apiBase + path, {
       method: "DELETE",
@@ -173,6 +181,133 @@
           leads: (parts[2] && (parts[2].items || parts[2].leads)) || []
         };
       });
+    },
+    eduMeta: function (clubId) {
+      return apiGet("/club-admin/edu/meta", { clubId: clubId }, true);
+    },
+    eduCourseProducts: function (clubId, params) {
+      return apiGet("/club-admin/edu/course-products", Object.assign({ clubId: clubId, page: 1, pageSize: 50 }, params || {}), true);
+    },
+    eduStudents: function (clubId, params) {
+      return apiGet("/club-admin/edu/students", Object.assign({ clubId: clubId, page: 1, pageSize: 80 }, params || {}), true);
+    },
+    eduSaveStudent: function (clubId, student) {
+      student = Object.assign({ clubId: clubId }, student || {});
+      if (student.id || student._id) {
+        return apiPut("/club-admin/edu/students/" + encodeURIComponent(student.id || student._id), student, true);
+      }
+      return apiPost("/club-admin/edu/students", student, true);
+    },
+    eduPackageTemplates: function (clubId, params) {
+      return apiGet("/club-admin/edu/package-templates", Object.assign({ clubId: clubId, page: 1, pageSize: 80 }, params || {}), true);
+    },
+    eduSavePackageTemplate: function (clubId, template) {
+      template = Object.assign({ clubId: clubId }, template || {});
+      if (template.id || template._id) {
+        return apiPut("/club-admin/edu/package-templates/" + encodeURIComponent(template.id || template._id), template, true);
+      }
+      return apiPost("/club-admin/edu/package-templates", template, true);
+    },
+    eduCreateWallet: function (clubId, studentId, wallet) {
+      return apiPost("/club-admin/edu/students/" + encodeURIComponent(studentId) + "/wallets", Object.assign({ clubId: clubId }, wallet || {}), true);
+    },
+    eduStudentWallets: function (clubId, studentId, params) {
+      return apiGet("/club-admin/edu/students/" + encodeURIComponent(studentId) + "/wallets", Object.assign({ clubId: clubId, page: 1, pageSize: 50 }, params || {}), true);
+    },
+    eduWallets: function (clubId, params) {
+      return apiGet("/club-admin/edu/wallets", Object.assign({ clubId: clubId, page: 1, pageSize: 200 }, params || {}), true);
+    },
+    eduStudentLedgers: function (clubId, studentId, params) {
+      return apiGet("/club-admin/edu/students/" + encodeURIComponent(studentId) + "/ledgers", Object.assign({ clubId: clubId, page: 1, pageSize: 50 }, params || {}), true);
+    },
+    eduLedgers: function (clubId, params) {
+      return apiGet("/club-admin/edu/ledgers", Object.assign({ clubId: clubId, page: 1, pageSize: 80 }, params || {}), true);
+    },
+    eduSaveCourseProduct: function (clubId, course) {
+      course = Object.assign({ clubId: clubId }, course || {});
+      if (course.id || course._id) {
+        return apiPut("/club-admin/edu/course-products/" + encodeURIComponent(course.id || course._id), course, true);
+      }
+      return apiPost("/club-admin/edu/course-products", course, true);
+    },
+    eduClasses: function (clubId, params) {
+      return apiGet("/club-admin/edu/classes", Object.assign({ clubId: clubId, page: 1, pageSize: 50 }, params || {}), true);
+    },
+    eduSaveClass: function (clubId, klass) {
+      klass = Object.assign({ clubId: clubId }, klass || {});
+      if (klass.id || klass._id) {
+        return apiPut("/club-admin/edu/classes/" + encodeURIComponent(klass.id || klass._id), klass, true);
+      }
+      return apiPost("/club-admin/edu/classes", klass, true);
+    },
+    eduStaff: function (clubId, params) {
+      return apiGet("/club-admin/edu/staff", Object.assign({ clubId: clubId, page: 1, pageSize: 100 }, params || {}), true);
+    },
+    eduSaveStaff: function (clubId, staff) {
+      staff = Object.assign({ clubId: clubId }, staff || {});
+      if (staff.id || staff._id) {
+        return apiPut("/club-admin/edu/staff/" + encodeURIComponent(staff.id || staff._id), staff, true);
+      }
+      return apiPost("/club-admin/edu/staff", staff, true);
+    },
+    eduAvailability: function (clubId, params) {
+      return apiGet("/club-admin/edu/teacher-availability", Object.assign({ clubId: clubId, page: 1, pageSize: 100 }, params || {}), true);
+    },
+    eduSaveAvailability: function (clubId, availability) {
+      return apiPost("/club-admin/edu/teacher-availability", Object.assign({ clubId: clubId }, availability || {}), true);
+    },
+    eduApproveAvailability: function (clubId, id, approve) {
+      return apiPost("/club-admin/edu/teacher-availability/" + encodeURIComponent(id) + "/approve", {
+        clubId: clubId,
+        approve: approve !== false
+      }, true);
+    },
+    eduResources: function (clubId, params) {
+      return apiGet("/club-admin/edu/resources", Object.assign({ clubId: clubId, page: 1, pageSize: 100 }, params || {}), true);
+    },
+    eduSaveResource: function (clubId, resource) {
+      resource = Object.assign({ clubId: clubId }, resource || {});
+      if (resource.id || resource._id) {
+        return apiPut("/club-admin/edu/resources/" + encodeURIComponent(resource.id || resource._id), resource, true);
+      }
+      return apiPost("/club-admin/edu/resources", resource, true);
+    },
+    eduSessions: function (clubId, params) {
+      return apiGet("/club-admin/edu/sessions", Object.assign({ clubId: clubId, page: 1, pageSize: 80 }, params || {}), true);
+    },
+    eduSaveSession: function (clubId, session) {
+      session = Object.assign({ clubId: clubId }, session || {});
+      if (session.id || session._id) {
+        return apiPut("/club-admin/edu/sessions/" + encodeURIComponent(session.id || session._id), session, true);
+      }
+      return apiPost("/club-admin/edu/sessions", session, true);
+    },
+    eduCancelSession: function (clubId, sessionId, reason) {
+      return apiPost("/club-admin/edu/sessions/" + encodeURIComponent(sessionId) + "/cancel", {
+        clubId: clubId,
+        reason: reason || ""
+      }, true);
+    },
+    eduAttendance: function (clubId, sessionId) {
+      return apiGet("/club-admin/edu/sessions/" + encodeURIComponent(sessionId) + "/attendance", { clubId: clubId }, true);
+    },
+    eduSaveRoster: function (clubId, sessionId, items) {
+      return apiPost("/club-admin/edu/sessions/" + encodeURIComponent(sessionId) + "/roster", {
+        clubId: clubId,
+        items: items || []
+      }, true);
+    },
+    eduSubmitAttendance: function (clubId, sessionId, records) {
+      return apiPost("/club-admin/edu/sessions/" + encodeURIComponent(sessionId) + "/attendance", {
+        clubId: clubId,
+        records: records || []
+      }, true);
+    },
+    eduRevokeAttendance: function (clubId, attendanceId, reason) {
+      return apiPost("/club-admin/edu/attendance/" + encodeURIComponent(attendanceId) + "/revoke", {
+        clubId: clubId,
+        reason: reason || ""
+      }, true);
     }
   };
 })();

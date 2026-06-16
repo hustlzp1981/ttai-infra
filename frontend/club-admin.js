@@ -38,6 +38,7 @@
     courses: [],
     students: [],
     packageTemplates: [],
+    wallets: [],
     ledgers: [],
     attendanceStudentId: "",
     attendanceWallets: [],
@@ -114,9 +115,26 @@
     return template ? template.name : (templateId || "-");
   };
 
+  var walletStatusLabel = function (value) {
+    return labelOf({
+      active: "有效",
+      inactive: "停用",
+      expired: "已过期",
+      archived: "归档"
+    }, value);
+  };
+
   var lessonText = function (units10) {
     var value = Number(units10 || 0) / 10;
     return (Number.isInteger(value) ? String(value) : value.toFixed(1)) + " 课时";
+  };
+
+  var dateText = function (value) {
+    if (!value) return "-";
+    var d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "-";
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
   };
 
   var moneyText = function (cents) {
@@ -422,6 +440,7 @@
         clubData.eduCourseProducts(selectedClubId, params),
         clubData.eduStudents(selectedClubId, params),
         clubData.eduPackageTemplates(selectedClubId, {}),
+        clubData.eduWallets(selectedClubId, params),
         clubData.eduLedgers(selectedClubId, params),
         clubData.eduClasses(selectedClubId, params),
         clubData.eduStaff(selectedClubId, params),
@@ -433,12 +452,13 @@
       eduState.courses = eduList(parts[0]);
       eduState.students = eduList(parts[1]);
       eduState.packageTemplates = eduList(parts[2]);
-      eduState.ledgers = eduList(parts[3]);
-      eduState.classes = eduList(parts[4]);
-      eduState.staff = eduList(parts[5]);
-      eduState.availability = eduList(parts[6]);
-      eduState.resources = eduList(parts[7]);
-      eduState.sessions = eduList(parts[8]);
+      eduState.wallets = eduList(parts[3]);
+      eduState.ledgers = eduList(parts[4]);
+      eduState.classes = eduList(parts[5]);
+      eduState.staff = eduList(parts[6]);
+      eduState.availability = eduList(parts[7]);
+      eduState.resources = eduList(parts[8]);
+      eduState.sessions = eduList(parts[9]);
       renderEduPanel();
     }).catch(function (err) {
       eduPanelEl.innerHTML = eduErrorHtml(err);
@@ -535,10 +555,55 @@
     bindEduPanelEvents();
   };
 
+  var walletExpired = function (wallet) {
+    if (!wallet || !wallet.expireAt) return false;
+    var end = new Date(wallet.expireAt);
+    if (Number.isNaN(end.getTime())) return false;
+    end.setHours(23, 59, 59, 999);
+    return end.getTime() < Date.now();
+  };
+
+  var walletsForStudent = function (studentId) {
+    return (eduState.wallets || []).filter(function (wallet) {
+      return String(wallet.studentId || "") === String(studentId || "");
+    });
+  };
+
+  var walletUsable = function (wallet) {
+    return wallet && wallet.status === "active" && !walletExpired(wallet) && Number(wallet.remainingUnits10 || 0) > 0;
+  };
+
+  var walletStatusHtml = function (wallet) {
+    if (walletExpired(wallet)) return badgeHtml("已过期", "expired");
+    if (wallet.status === "active" && Number(wallet.remainingUnits10 || 0) <= 0) return badgeHtml("余额 0", "pending");
+    return badgeHtml(walletStatusLabel(wallet.status || "active"), wallet.status || "active");
+  };
+
+  var studentWalletSummary = function (studentId) {
+    var wallets = walletsForStudent(studentId);
+    var usable = wallets.filter(walletUsable);
+    var remainingUnits10 = usable.reduce(function (sum, wallet) {
+      return sum + Number(wallet.remainingUnits10 || 0);
+    }, 0);
+    var nearest = usable.map(function (wallet) {
+      return wallet.expireAt ? new Date(wallet.expireAt) : null;
+    }).filter(function (date) {
+      return date && !Number.isNaN(date.getTime());
+    }).sort(function (a, b) {
+      return a.getTime() - b.getTime();
+    })[0];
+    return {
+      total: wallets.length,
+      usable: usable.length,
+      remainingUnits10: remainingUnits10,
+      nearestExpireAt: nearest ? nearest.toISOString() : ""
+    };
+  };
+
   var renderEduStudents = function (editItem) {
     var item = editItem || {};
     eduPanelEl.innerHTML =
-      eduFrameStart("学员课包", "学员档案、课包模板和线下收款入账集中在这里；开课包会生成 purchase 流水。") +
+      eduFrameStart("学员课包", "学员档案、课包模板、剩余课时和线下收款入账集中在这里。") +
       '<div class="grid-2">' +
         '<div class="mini-card">' +
           '<div class="edu-toolbar"><strong>' + (idOf(item) ? '编辑学员' : '新增学员') + '</strong><span class="edu-note">学员档案是课包、排课和点名的归属。</span></div>' +
@@ -578,10 +643,17 @@
           '<div class="club-actions"><button class="club-action primary" type="submit">保存模板</button></div>' +
         '</form>' +
       '</div>' +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>分店</th><th>手机号</th><th>家长</th><th>水平</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>分店</th><th>手机号</th><th>剩余课时</th><th>有效课包</th><th>最近到期</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
         (eduState.students.length ? eduState.students.map(function (student) {
-          return '<tr><td><strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + escapeHtml(student.parentName || '-') + '</td><td>' + escapeHtml(student.level || '-') + '</td><td>' + badgeHtml(student.status === 'active' ? '在读' : student.status, student.status) + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button></td></tr>';
-        }).join("") : '<tr><td colspan="7">暂无学员</td></tr>') +
+          var summary = studentWalletSummary(idOf(student));
+          var balanceType = summary.remainingUnits10 > 10 ? "ok" : (summary.remainingUnits10 > 0 ? "pending" : "none");
+          return '<tr><td><strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.parentName || student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + summary.usable + '/' + summary.total + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + badgeHtml(student.status === 'active' ? '在读' : student.status, student.status) + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button></td></tr>';
+        }).join("") : '<tr><td colspan="8">暂无学员</td></tr>') +
+      '</tbody></table></div>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>课包</th><th>课程</th><th>分店</th><th>总课时</th><th>剩余</th><th>有效期</th><th>状态</th></tr></thead><tbody>' +
+        (eduState.wallets.length ? eduState.wallets.map(function (wallet) {
+          return '<tr><td><strong>' + escapeHtml(studentName(wallet.studentId)) + '</strong></td><td>' + escapeHtml(packageName(wallet.packageTemplateId)) + '</td><td>' + escapeHtml(courseName(wallet.courseProductId)) + '</td><td>' + escapeHtml(branchName(wallet.branchId)) + '</td><td>' + escapeHtml(lessonText(wallet.totalUnits10)) + '</td><td><strong>' + escapeHtml(lessonText(wallet.remainingUnits10)) + '</strong></td><td>' + escapeHtml(dateText(wallet.expireAt)) + '</td><td>' + walletStatusHtml(wallet) + '</td></tr>';
+        }).join("") : '<tr><td colspan="8">暂无课包余额</td></tr>') +
       '</tbody></table></div>' +
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>模板</th><th>课程</th><th>课时</th><th>有效天数</th><th>默认价格</th><th>扣课</th><th>状态</th></tr></thead><tbody>' +
         (eduState.packageTemplates.length ? eduState.packageTemplates.map(function (tpl) {
