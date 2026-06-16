@@ -49,7 +49,9 @@
     sessions: [],
     scheduleView: "list",
     scheduleFilters: {},
-    availabilityFilters: {}
+    availabilityFilters: {},
+    reportTab: "fee",
+    reportFilters: {}
   };
   eduState.scheduleTab = "sessions";
 
@@ -610,6 +612,7 @@
     if (eduState.activeTab === "teachers") return renderEduTeachers();
     if (eduState.activeTab === "classes") return renderEduClasses();
     if (eduState.activeTab === "attendance") return renderEduAttendance();
+    if (eduState.activeTab === "reports") return renderEduReports();
     return renderEduSessions();
   };
 
@@ -1526,6 +1529,272 @@
     bindEduPanelEvents();
   };
 
+  var walletBranchId = function (wallet) {
+    var student = findById(eduState.students, wallet && wallet.studentId);
+    return wallet && wallet.branchId || student && student.branchId || "";
+  };
+
+  var walletAmountCents = function (wallet) {
+    var template = findById(eduState.packageTemplates, wallet && wallet.packageTemplateId) || {};
+    return Number(wallet && (wallet.amountCents || wallet.paidAmountCents || wallet.defaultPriceCents) || template.defaultPriceCents || 0);
+  };
+
+  var feeReportRows = function () {
+    return (eduState.wallets || []).filter(function (wallet) {
+      return branchInReportScope(walletBranchId(wallet)) && dateInReportRange(wallet.createdAt || wallet.purchaseAt || wallet.startAt);
+    }).map(function (wallet) {
+      return {
+        createdAt: wallet.createdAt || wallet.purchaseAt || wallet.startAt || "",
+        branchId: walletBranchId(wallet),
+        studentName: studentName(wallet.studentId),
+        packageName: packageName(wallet.packageTemplateId),
+        totalUnits10: Number(wallet.totalUnits10 || 0),
+        remainingUnits10: Number(wallet.remainingUnits10 || 0),
+        amountCents: walletAmountCents(wallet),
+        expireAt: wallet.expireAt,
+        status: walletStatusLabel(wallet.status || "active"),
+        remark: wallet.paymentRemark || wallet.remark || ""
+      };
+    });
+  };
+
+  var consumeReportRows = function () {
+    return (eduState.ledgers || []).filter(function (ledger) {
+      var student = findById(eduState.students, ledger.studentId) || {};
+      return ["attendance", "revoke", "adjust"].indexOf(ledger.type) >= 0 &&
+        branchInReportScope(ledger.branchId || student.branchId) &&
+        dateInReportRange(ledger.createdAt);
+    }).map(function (ledger) {
+      var student = findById(eduState.students, ledger.studentId) || {};
+      return {
+        createdAt: ledger.createdAt,
+        branchId: ledger.branchId || student.branchId,
+        type: ledgerTypeLabel(ledger.type),
+        studentName: studentName(ledger.studentId),
+        walletId: ledger.walletId || "",
+        deltaUnits10: Number(ledger.unitsDelta10 || 0),
+        balanceAfter10: Number(ledger.balanceAfter10 || 0),
+        reason: ledger.reason || ledger.coachNote || ""
+      };
+    });
+  };
+
+  var performanceReportRows = function () {
+    return (eduState.staff || []).filter(function (teacher) {
+      var roles = teacher.roles || [];
+      return (roles.indexOf("teacher") >= 0 || roles.indexOf("coach") >= 0 || !roles.length) &&
+        branchInReportScope(teacher.branchId) &&
+        teacherInReportScope(idOf(teacher));
+    }).map(function (teacher) {
+      var tid = idOf(teacher);
+      var rows = (eduState.sessions || []).filter(function (session) {
+        return String(session.teacherId || "") === String(tid) &&
+          branchInReportScope(session.branchId || teacher.branchId) &&
+          dateInReportRange(session.startAt);
+      });
+      var activeRows = rows.filter(function (session) { return session.status !== "cancelled"; });
+      var completed = activeRows.filter(function (session) { return session.status === "completed"; });
+      var pending = activeRows.filter(function (session) { return session.status === "scheduled" || session.status === "pending_attendance"; });
+      var units10 = completed.reduce(function (sum, session) {
+        var course = sessionCourse(session);
+        return sum + Number(session.deductUnits10 || course.defaultDeductUnits10 || 10);
+      }, 0);
+      return {
+        teacherId: tid,
+        teacherName: teacher.name || tid,
+        branchId: teacher.branchId,
+        scheduledCount: activeRows.length,
+        completedCount: completed.length,
+        pendingCount: pending.length,
+        cancelledCount: rows.length - activeRows.length,
+        units10: units10,
+        classCount: Array.from(new Set(activeRows.map(function (session) { return session.classId || ""; }).filter(Boolean))).length
+      };
+    });
+  };
+
+  var classReportRows = function () {
+    return (eduState.classes || []).filter(function (klass) {
+      return branchInReportScope(klass.branchId) && teacherInReportScope(klass.teacherId);
+    }).map(function (klass) {
+      var classId = idOf(klass);
+      var course = findById(eduState.courses, klass.courseProductId) || {};
+      var rows = (eduState.sessions || []).filter(function (session) {
+        return String(session.classId || "") === String(classId) && dateInReportRange(session.startAt);
+      });
+      var activeRows = rows.filter(function (session) { return session.status !== "cancelled"; });
+      var completed = activeRows.filter(function (session) { return session.status === "completed"; }).length;
+      var planned = Number(klass.plannedSessionCount || course.plannedSessionCount || 0);
+      var percent = planned ? Math.min(100, Math.round(activeRows.length / planned * 100)) : 0;
+      return {
+        className: klass.className || classId,
+        branchId: klass.branchId,
+        courseName: klass.courseNameSnapshot || course.name || courseName(klass.courseProductId),
+        teacherName: klass.teacherName || teacherName(klass.teacherId),
+        capacity: Number(klass.capacity || 0),
+        plannedCount: planned,
+        scheduledCount: activeRows.length,
+        completedCount: completed,
+        pendingCount: activeRows.length - completed,
+        progress: percent,
+        status: klass.status || ""
+      };
+    });
+  };
+
+  var reportDefinition = function (type) {
+    var reportType = type || eduState.reportTab || "fee";
+    if (reportType === "consume") {
+      return {
+        name: "消课报销",
+        rows: consumeReportRows(),
+        columns: [
+          { label: "时间", value: function (row) { return formatCST(row.createdAt); } },
+          { label: "所属校区", value: function (row) { return branchName(row.branchId); } },
+          { label: "类型", value: function (row) { return row.type; } },
+          { label: "学员", value: function (row) { return row.studentName; } },
+          { label: "课包", value: function (row) { return row.walletId; } },
+          { label: "变动课时", value: function (row) { return lessonText(row.deltaUnits10); } },
+          { label: "课后余额", value: function (row) { return lessonText(row.balanceAfter10); } },
+          { label: "原因", value: function (row) { return row.reason; } }
+        ]
+      };
+    }
+    if (reportType === "performance") {
+      return {
+        name: "业绩报表",
+        rows: performanceReportRows(),
+        columns: [
+          { label: "老师", value: function (row) { return row.teacherName; } },
+          { label: "所属校区", value: function (row) { return branchName(row.branchId); } },
+          { label: "授课班级数", value: function (row) { return row.classCount; } },
+          { label: "已排课次", value: function (row) { return row.scheduledCount; } },
+          { label: "已完成", value: function (row) { return row.completedCount; } },
+          { label: "待上课/点名", value: function (row) { return row.pendingCount; } },
+          { label: "已取消", value: function (row) { return row.cancelledCount; } },
+          { label: "消课课时", value: function (row) { return lessonText(row.units10); } }
+        ]
+      };
+    }
+    if (reportType === "class") {
+      return {
+        name: "班级报表",
+        rows: classReportRows(),
+        columns: [
+          { label: "班级", value: function (row) { return row.className; } },
+          { label: "课程", value: function (row) { return row.courseName; } },
+          { label: "所属校区", value: function (row) { return branchName(row.branchId); } },
+          { label: "任课老师", value: function (row) { return row.teacherName; } },
+          { label: "容量", value: function (row) { return row.capacity; } },
+          { label: "计划课次", value: function (row) { return row.plannedCount; } },
+          { label: "已排课次", value: function (row) { return row.scheduledCount; } },
+          { label: "已完成", value: function (row) { return row.completedCount; } },
+          { label: "进度", value: function (row) { return row.progress + "%"; } },
+          { label: "状态", value: function (row) { return row.status; } }
+        ]
+      };
+    }
+    return {
+      name: "收费报表",
+      rows: feeReportRows(),
+      columns: [
+        { label: "收费时间", value: function (row) { return formatCST(row.createdAt); } },
+        { label: "所属校区", value: function (row) { return branchName(row.branchId); } },
+        { label: "学员", value: function (row) { return row.studentName; } },
+        { label: "已购课程", value: function (row) { return row.packageName; } },
+        { label: "总课时", value: function (row) { return lessonText(row.totalUnits10); } },
+        { label: "剩余课时", value: function (row) { return lessonText(row.remainingUnits10); } },
+        { label: "收费金额", value: function (row) { return moneyText(row.amountCents); } },
+        { label: "有效期", value: function (row) { return dateText(row.expireAt); } },
+        { label: "状态", value: function (row) { return row.status; } },
+        { label: "备注", value: function (row) { return row.remark; } }
+      ]
+    };
+  };
+
+  var reportTabsHtml = function () {
+    var active = eduState.reportTab || "fee";
+    var item = function (key, label) {
+      return '<button class="edu-subtab ' + (active === key ? 'active' : '') + '" type="button" data-edu-report-tab="' + key + '">' + label + '</button>';
+    };
+    return '<div class="edu-subtabs">' +
+      item("fee", "收费报表") +
+      item("consume", "消课报销") +
+      item("performance", "业绩报表") +
+      item("class", "班级报表") +
+    '</div>';
+  };
+
+  var reportFilterHtml = function () {
+    var filters = eduState.reportFilters || {};
+    return '<form class="edu-filter-panel" id="edu-report-filter-form">' +
+      '<div class="edu-filter-grid compact">' +
+        '<label>开始日期<input class="form-input" type="date" name="startDate" value="' + escapeHtml(filters.startDate || '') + '"></label>' +
+        '<label>结束日期<input class="form-input" type="date" name="endDate" value="' + escapeHtml(filters.endDate || '') + '"></label>' +
+        '<label>所属校区<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
+        '<label>任课老师<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
+        '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="reports">重置</button><button class="club-action" type="button" data-edu-export="report-' + escapeHtml(eduState.reportTab || "fee") + '">导出</button></div>' +
+      '</div>' +
+    '</form>';
+  };
+
+  var reportSummaryHtml = function (definition) {
+    var rows = definition.rows || [];
+    var cells = [];
+    if ((eduState.reportTab || "fee") === "fee") {
+      cells = [
+        ["收费笔数", rows.length],
+        ["收费金额", moneyText(rows.reduce(function (sum, row) { return sum + Number(row.amountCents || 0); }, 0))],
+        ["售出课时", lessonText(rows.reduce(function (sum, row) { return sum + Number(row.totalUnits10 || 0); }, 0))]
+      ];
+    } else if (eduState.reportTab === "consume") {
+      cells = [
+        ["流水条数", rows.length],
+        ["出勤/调整", rows.filter(function (row) { return row.deltaUnits10 < 0; }).length],
+        ["课时变动", lessonText(rows.reduce(function (sum, row) { return sum + Number(row.deltaUnits10 || 0); }, 0))]
+      ];
+    } else if (eduState.reportTab === "performance") {
+      cells = [
+        ["老师数", rows.length],
+        ["完成课次", rows.reduce(function (sum, row) { return sum + Number(row.completedCount || 0); }, 0)],
+        ["消课课时", lessonText(rows.reduce(function (sum, row) { return sum + Number(row.units10 || 0); }, 0))]
+      ];
+    } else {
+      cells = [
+        ["班级数", rows.length],
+        ["已排课次", rows.reduce(function (sum, row) { return sum + Number(row.scheduledCount || 0); }, 0)],
+        ["平均进度", (rows.length ? Math.round(rows.reduce(function (sum, row) { return sum + Number(row.progress || 0); }, 0) / rows.length) : 0) + "%"]
+      ];
+    }
+    return '<div class="edu-report-summary">' + cells.map(function (cell) {
+      return '<div><span>' + escapeHtml(cell[0]) + '</span><strong>' + escapeHtml(cell[1]) + '</strong></div>';
+    }).join("") + '</div>';
+  };
+
+  var reportTableHtml = function (definition) {
+    var rows = definition.rows || [];
+    var columns = definition.columns || [];
+    return '<div class="admin-table-wrap"><table class="admin-table"><thead><tr>' +
+      columns.map(function (col) { return '<th>' + escapeHtml(col.label) + '</th>'; }).join("") +
+      '</tr></thead><tbody>' +
+      (rows.length ? rows.map(function (row) {
+        return '<tr>' + columns.map(function (col) { return '<td>' + escapeHtml(col.value(row)) + '</td>'; }).join("") + '</tr>';
+      }).join("") : '<tr><td colspan="' + columns.length + '">暂无报表数据</td></tr>') +
+      '</tbody></table></div>';
+  };
+
+  var renderEduReports = function () {
+    var definition = reportDefinition(eduState.reportTab);
+    eduPanelEl.innerHTML =
+      eduFrameStart("报表管理", "按收费、消课、业绩和班级维度统计教务经营数据。") +
+      reportTabsHtml() +
+      '<div class="edu-page-path">当前位置：教务管理 / 报表管理 / ' + escapeHtml(definition.name) + '</div>' +
+      reportFilterHtml() +
+      reportSummaryHtml(definition) +
+      reportTableHtml(definition);
+    bindEduPanelEvents();
+  };
+
   var formData = function (form) {
     var data = {};
     var fd = new FormData(form);
@@ -1544,6 +1813,34 @@
     return String(value || "").split(",").map(function (item) {
       return item.trim();
     }).filter(Boolean);
+  };
+
+  var dateInReportRange = function (value) {
+    var filters = eduState.reportFilters || {};
+    if (!value || (!filters.startDate && !filters.endDate)) return true;
+    var d = new Date(value);
+    if (Number.isNaN(d.getTime())) return false;
+    if (filters.startDate) {
+      var start = new Date(filters.startDate);
+      start.setHours(0, 0, 0, 0);
+      if (d < start) return false;
+    }
+    if (filters.endDate) {
+      var end = new Date(filters.endDate);
+      end.setHours(23, 59, 59, 999);
+      if (d > end) return false;
+    }
+    return true;
+  };
+
+  var branchInReportScope = function (branchId) {
+    var filters = eduState.reportFilters || {};
+    return !filters.branchId || String(branchId || "") === String(filters.branchId);
+  };
+
+  var teacherInReportScope = function (teacherId) {
+    var filters = eduState.reportFilters || {};
+    return !filters.teacherId || String(teacherId || "") === String(filters.teacherId);
   };
 
   var withEduSaving = function (promise) {
@@ -1762,6 +2059,10 @@
   };
 
   var exportEduData = function (type) {
+    if (String(type || "").indexOf("report-") === 0) {
+      var report = reportDefinition(String(type).replace("report-", ""));
+      return downloadCsv(report.name, report.rows || [], report.columns || []);
+    }
     var exporters = {
       courses: {
         name: "课程管理",
@@ -1921,6 +2222,7 @@
     var batchSessionForm = document.getElementById("edu-batch-session-form");
     var scheduleFilterForm = document.getElementById("edu-schedule-filter-form");
     var availabilityFilterForm = document.getElementById("edu-availability-filter-form");
+    var reportFilterForm = document.getElementById("edu-report-filter-form");
     if (courseForm) courseForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduCourse(courseForm); });
     if (studentForm) studentForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduStudent(studentForm); });
     if (packageForm) packageForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduPackageTemplate(packageForm); });
@@ -1942,6 +2244,11 @@
       e.preventDefault();
       eduState.availabilityFilters = formData(availabilityFilterForm);
       renderEduSessions();
+    });
+    if (reportFilterForm) reportFilterForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      eduState.reportFilters = formData(reportFilterForm);
+      renderEduReports();
     });
 
     document.querySelectorAll("[data-edu-modal-close]").forEach(function (button) {
@@ -1979,7 +2286,17 @@
         var type = button.getAttribute("data-edu-filter-reset");
         if (type === "schedule") eduState.scheduleFilters = {};
         if (type === "availability") eduState.availabilityFilters = {};
+        if (type === "reports") {
+          eduState.reportFilters = {};
+          return renderEduReports();
+        }
         renderEduSessions();
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-edu-report-tab]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        eduState.reportTab = button.getAttribute("data-edu-report-tab") || "fee";
+        renderEduReports();
       });
     });
     eduPanelEl.querySelectorAll("[data-edu-schedule-tab]").forEach(function (button) {
