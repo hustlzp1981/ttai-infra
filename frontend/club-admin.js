@@ -42,6 +42,8 @@
     ledgers: [],
     attendanceStudentId: "",
     attendanceWallets: [],
+    attendanceSessionId: "",
+    attendanceData: null,
     classes: [],
     staff: [],
     availability: [],
@@ -91,34 +93,40 @@
     var branch = branches.find(function (item) {
       return String(item.id) === String(branchId);
     });
-    return branch ? branch.name : (branchId || "-");
+    if (branch) return branch.name;
+    return branchId ? "未知分店" : "-";
   };
 
   var teacherName = function (teacherId) {
     var teacher = (eduState.staff || []).find(function (item) {
       return String(idOf(item)) === String(teacherId);
     });
-    return teacher ? teacher.name : (teacherId || "-");
+    if (teacher) return teacher.name;
+    return teacherId ? "已删除教练" : "-";
   };
 
   var courseName = function (courseId) {
     var course = findById(eduState.courses, courseId);
-    return course ? course.name : (courseId || "-");
+    if (course) return course.name;
+    return courseId ? "已删除课程" : "-";
   };
 
   var className = function (classId) {
     var klass = findById(eduState.classes, classId);
-    return klass ? klass.className : (classId || "-");
+    if (klass) return klass.className;
+    return classId ? "已删除班级" : "-";
   };
 
   var studentName = function (studentId) {
     var student = findById(eduState.students, studentId);
-    return student ? student.name : (studentId || "-");
+    if (student) return student.name;
+    return studentId ? "已删除学员" : "-";
   };
 
   var packageName = function (templateId) {
     var template = findById(eduState.packageTemplates, templateId);
-    return template ? template.name : (templateId || "-");
+    if (template) return template.name;
+    return templateId ? "已删除课包" : "-";
   };
 
   var walletStatusLabel = function (value) {
@@ -171,8 +179,123 @@
     return Math.round(amount * 100);
   };
 
-  var labelOf = function (map, value) {
-    return map[value] || value || "-";
+  var labelOf = function (map, value, emptyText) {
+    if (!value) return emptyText || "-";
+    return map[value] || "其他";
+  };
+
+  var namedCodeLabel = function (name, code, map) {
+    if (name) return name;
+    if (!code) return "-";
+    return (map || {})[code] || "其他";
+  };
+
+  var courseStatusLabel = function (value) {
+    return labelOf({
+      active: "启用",
+      inactive: "停用",
+      archived: "归档"
+    }, value);
+  };
+
+  var studentStatusLabel = function (value) {
+    return labelOf({
+      active: "在读",
+      inactive: "停用",
+      archived: "归档"
+    }, value);
+  };
+
+  var classStatusLabel = function (value) {
+    return labelOf({
+      active: "启用",
+      inactive: "停用",
+      graduated: "结业",
+      archived: "归档"
+    }, value);
+  };
+
+  var graduationStatusLabel = function (value) {
+    return labelOf({
+      active: "未结业",
+      not_graduated: "未结业",
+      graduated: "已结业"
+    }, value, "未结业");
+  };
+
+  var resourceTypeLabel = function (value) {
+    return labelOf({
+      table: "球台",
+      room: "场地"
+    }, value);
+  };
+
+  var resourceStatusLabel = function (value) {
+    return labelOf({
+      active: "启用",
+      inactive: "停用",
+      archived: "归档"
+    }, value);
+  };
+
+  var attendanceStatusLabel = function (value) {
+    return labelOf({
+      attended: "出勤扣课",
+      leave: "请假",
+      absent: "缺席",
+      revoked: "已撤销"
+    }, value);
+  };
+
+  var subjectLabel = function (name, code) {
+    return namedCodeLabel(name, code, {
+      table_tennis: "乒乓球",
+      pingpong: "乒乓球",
+      physical: "体能"
+    });
+  };
+
+  var courseLevelLabel = function (name, code) {
+    return namedCodeLabel(name, code, {
+      beginner: "启蒙",
+      basic: "基础",
+      intermediate: "进阶",
+      advanced: "提高",
+      competition: "竞赛",
+      private: "一对一"
+    });
+  };
+
+  var termLabel = function (name, code) {
+    return namedCodeLabel(name, code, {
+      spring: "春季",
+      summer: "暑期",
+      autumn: "秋季",
+      fall: "秋季",
+      winter: "寒假",
+      term: "常规期"
+    });
+  };
+
+  var gradeLabel = function (name, code) {
+    return namedCodeLabel(name, code, {
+      preschool: "学龄前",
+      primary: "小学",
+      junior: "初中",
+      senior: "高中",
+      adult: "成人"
+    });
+  };
+
+  var classTypeLabel = function (name, code) {
+    return namedCodeLabel(name, code, {
+      group: "集体班",
+      small_group: "小班",
+      private: "一对一",
+      semi_private: "一对多",
+      camp: "训练营",
+      trial: "体验课"
+    });
   };
 
   var teachingModeLabel = function (value) {
@@ -187,7 +310,7 @@
 
   var staffRoleLabel = function (value) {
     var map = {
-      teacher: "老师",
+      teacher: "教练",
       coach: "教练",
       assistant: "助教",
       head_teacher: "班主任",
@@ -202,7 +325,7 @@
 
   var staffRolesText = function (roles) {
     var list = Array.isArray(roles) ? roles : [];
-    if (!list.length) return "老师";
+    if (!list.length) return "教练";
     return list.map(staffRoleLabel).join("、");
   };
 
@@ -570,7 +693,7 @@
       var roles = item.roles || [];
       return roles.indexOf("teacher") >= 0 || roles.indexOf("coach") >= 0 || roles.length === 0;
     });
-    return '<option value="">选择老师</option>' + teachers.map(function (item) {
+    return '<option value="">选择教练</option>' + teachers.map(function (item) {
       var id = idOf(item);
       return '<option value="' + escapeHtml(id) + '"' + (String(id) === String(selected || "") ? ' selected' : '') + '>' + escapeHtml(item.name || id) + '</option>';
     }).join("");
@@ -670,16 +793,16 @@
     var active = eduState.scheduleTab || "sessions";
     return '<div class="edu-subtabs">' +
       '<button class="edu-subtab ' + (active === 'sessions' ? 'active' : '') + '" type="button" data-edu-schedule-tab="sessions">详细课表</button>' +
-      '<button class="edu-subtab ' + (active === 'availability' ? 'active' : '') + '" type="button" data-edu-schedule-tab="availability">老师可排时间管理</button>' +
+      '<button class="edu-subtab ' + (active === 'availability' ? 'active' : '') + '" type="button" data-edu-schedule-tab="availability">教练可排时间管理</button>' +
     '</div>';
   };
 
   var filterBranchOptions = function (selected) {
-    return '<option value="">全部校区</option>' + branchOptions(selected);
+    return '<option value="">全部分店</option>' + branchOptions(selected);
   };
 
   var filterTeacherOptions = function (selected) {
-    return '<option value="">全部老师</option>' + teacherOptions(selected).replace('<option value="">选择老师</option>', '');
+    return '<option value="">全部教练</option>' + teacherOptions(selected).replace('<option value="">选择教练</option>', '');
   };
 
   var weekdayText = function (value) {
@@ -761,11 +884,11 @@
           '<label>上课时间<select class="form-input" name="range"><option value="all">不限</option><option value="today">今天</option><option value="thisWeek">本周</option><option value="lastWeek">上周</option><option value="nextWeek">下周</option><option value="thisMonth">本月</option><option value="lastMonth">上月</option></select></label>' +
           '<label>日段<select class="form-input" name="dayPart"><option value="">全部</option><option value="上午">上午</option><option value="下午">下午</option><option value="晚上">晚上</option></select></label>' +
           '<label>班级状态<select class="form-input" name="classStatus"><option value="">全部</option><option value="active">未结业班级的排课</option><option value="graduated">已结业班级的排课</option></select></label>' +
-          '<label>所属校区<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
-          '<label>任课老师<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
+          '<label>所属分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
+          '<label>任课教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
           '<label>助教<input class="form-input" name="assistant" value="' + escapeHtml(filters.assistant || '') + '" placeholder="暂按备注检索"></label>' +
           '<label>班主任<input class="form-input" name="headTeacher" value="' + escapeHtml(filters.headTeacher || '') + '" placeholder="暂按备注检索"></label>' +
-          '<label>上课教室<input class="form-input" name="roomId" value="' + escapeHtml(filters.roomId || '') + '" placeholder="教室/球台"></label>' +
+          '<label>上课场地<input class="form-input" name="roomId" value="' + escapeHtml(filters.roomId || '') + '" placeholder="场地/球台"></label>' +
           '<label>课程属性<select class="form-input" name="teachingMode"><option value="">全部</option><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option><option value="trial">体验课</option></select></label>' +
           '<label>班级标签<input class="form-input" name="classTag" value="' + escapeHtml(filters.classTag || '') + '" placeholder="标签"></label>' +
           '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="schedule">重置</button><button class="club-action" type="button" data-edu-export="sessions">导出</button></div>' +
@@ -780,8 +903,8 @@
         '<button class="club-action" type="button" data-edu-create="sessions">一对一排课</button>' +
         '<button class="club-action" type="button" data-edu-schedule-view="week">可视化排课</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="copy">复制/移动排课</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tool="teacher-free">查看老师空闲时间</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tool="room-free">查看教室空闲时间</button>' +
+        '<button class="club-action" type="button" data-edu-schedule-tool="teacher-free">查看教练空闲时间</button>' +
+        '<button class="club-action" type="button" data-edu-schedule-tool="room-free">查看场地空闲时间</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="progress">查看排课进度</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="batch">批量操作</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="columns">选择列</button>' +
@@ -798,8 +921,8 @@
       button("list", "按列表显示") +
       button("month", "按月显示") +
       button("week", "按周显示") +
-      button("teacher", "按周+老师显示") +
-      button("room", "按周+教室显示") +
+      button("teacher", "按周+教练显示") +
+      button("room", "按周+场地显示") +
       button("day", "按天显示") +
     '</div>';
   };
@@ -868,6 +991,10 @@
     return session.classNameSnapshot || klass.className || session.courseNameSnapshot || course.name || "课次";
   };
 
+  var canAttendanceSession = function (session) {
+    return session && ["cancelled", "completed"].indexOf(String(session.status || "")) < 0;
+  };
+
   var sessionPayload = function (session, patch) {
     var teacher = findById(eduState.staff, session.teacherId);
     var course = sessionCourse(session);
@@ -919,7 +1046,7 @@
       '<div class="edu-schedule-card-title">' + (withCheck ? rowCheck('sessions', id) : '') + '<strong>' + escapeHtml(sessionTitle(session)) + '</strong></div>' +
       '<div>' + escapeHtml(timeOnlyText(session.startAt)) + '-' + escapeHtml(timeOnlyText(session.endAt)) + ' · ' + escapeHtml(session.teacherName || teacherName(session.teacherId)) + '</div>' +
       '<div class="muted">' + escapeHtml(place || branchName(session.branchId)) + '</div>' +
-      '<div class="club-actions"><button class="club-action" type="button" data-edit-session="' + escapeHtml(id) + '">编辑</button><button class="club-action" type="button" data-cancel-session="' + escapeHtml(id) + '">取消</button></div>' +
+      '<div class="club-actions"><button class="club-action" type="button" data-edit-session="' + escapeHtml(id) + '">编辑</button>' + (canAttendanceSession(session) ? '<button class="club-action primary" type="button" data-attendance-session="' + escapeHtml(id) + '">点名</button>' : '') + '<button class="club-action" type="button" data-cancel-session="' + escapeHtml(id) + '">取消</button></div>' +
     '</div>';
   };
 
@@ -985,11 +1112,11 @@
       return '<tr>' +
         '<td>' + rowCheck('sessions', id) + ' <strong>' + escapeHtml(classTitle) + '</strong></td>' +
         '<td>' + escapeHtml(courseTitle) + '</td>' +
-        '<td>' + escapeHtml(course.termName || course.termCode || '-') + '</td>' +
-        '<td>' + escapeHtml(course.gradeName || course.gradeCode || '-') + '</td>' +
-        '<td>' + escapeHtml(course.subjectName || course.subjectCode || '-') + '</td>' +
-        '<td>' + escapeHtml(course.typeName || course.courseLevelCode || '-') + '</td>' +
-        '<td>' + escapeHtml(course.classTypeName || course.classTypeCode || '-') + '</td>' +
+        '<td>' + escapeHtml(termLabel(course.termName, course.termCode)) + '</td>' +
+        '<td>' + escapeHtml(gradeLabel(course.gradeName, course.gradeCode)) + '</td>' +
+        '<td>' + escapeHtml(subjectLabel(course.subjectName, course.subjectCode)) + '</td>' +
+        '<td>' + escapeHtml(courseLevelLabel(course.typeName, course.courseLevelCode)) + '</td>' +
+        '<td>' + escapeHtml(classTypeLabel(course.classTypeName, course.classTypeCode)) + '</td>' +
         '<td>' + escapeHtml(branchName(session.branchId)) + '</td>' +
         '<td>' + escapeHtml(session.teacherName || teacherName(session.teacherId)) + '</td>' +
         '<td>' + escapeHtml(session.assistantName || '-') + '</td>' +
@@ -1007,7 +1134,7 @@
         '<td>' + escapeHtml(session.checkinCount != null ? session.checkinCount : '-') + '</td>' +
         '<td>' + escapeHtml(session.billingCount != null ? session.billingCount : '-') + '</td>' +
         '<td>' + escapeHtml(billed) + '</td>' +
-        '<td><button class="club-action" data-edit-session="' + escapeHtml(id) + '">编辑</button><button class="club-action" data-cancel-session="' + escapeHtml(id) + '">取消</button></td>' +
+        '<td><button class="club-action" data-edit-session="' + escapeHtml(id) + '">编辑</button>' + (canAttendanceSession(session) ? '<button class="club-action primary" data-attendance-session="' + escapeHtml(id) + '">点名</button>' : '') + '<button class="club-action" data-cancel-session="' + escapeHtml(id) + '">取消</button></td>' +
       '</tr>';
     }).join("");
   };
@@ -1058,8 +1185,8 @@
         '<div class="club-actions"><button class="club-action" type="button" data-availability-skip="clear">清空</button><button class="club-action" type="button" data-availability-skip="weekend">跳过周末</button><button class="club-action" type="button" data-availability-skip="holiday">跳过节假日</button><button class="club-action primary" type="submit">确定</button></div>' +
       '</div>' +
       '<div class="edu-filter-grid compact">' +
-        '<label>老师<select class="form-input" name="teacherId" required>' + teacherOptions('') + '</select></label>' +
-        '<label>校区<select class="form-input" name="branchId" required>' + branchOptions(eduState.branchId) + '</select></label>' +
+        '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions('') + '</select></label>' +
+        '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(eduState.branchId) + '</select></label>' +
         '<label>开始时间<input class="form-input text-center" type="time" name="startTime" value="08:00" required></label>' +
         '<label>结束时间<input class="form-input text-center" type="time" name="endTime" value="10:00" required></label>' +
         '<label>保存状态<select class="form-input" name="status"><option value="approved">直接通过</option><option value="pending">待审核</option></select></label>' +
@@ -1073,11 +1200,11 @@
 
   var availabilityFilterHtml = function () {
     var filters = eduState.availabilityFilters || {};
-    return '<div class="edu-page-path">当前位置：教务管理 / 排课管理 / 老师可排时间管理</div>' +
+    return '<div class="edu-page-path">当前位置：教务管理 / 排课管理 / 教练可排时间管理</div>' +
       '<form class="edu-filter-panel" id="edu-availability-filter-form">' +
         '<div class="edu-filter-grid compact">' +
-          '<label>老师<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
-          '<label>校区<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
+          '<label>教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
+          '<label>分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
           '<label>状态<select class="form-input" name="status"><option value="">全部</option><option value="pending">待审核</option><option value="approved">已通过</option><option value="rejected">已拒绝</option></select></label>' +
           '<label>星期<select class="form-input" name="weekday"><option value="">全部</option><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="7">周日</option></select></label>' +
           '<label>指定日期<input class="form-input" type="date" name="date" value="' + escapeHtml(filters.date || '') + '"></label>' +
@@ -1203,7 +1330,7 @@
       '<div class="edu-visual-axis"></div>' + days.map(function (day) { return '<div class="edu-visual-head">' + escapeHtml(weekdayText(day.getDay() || 7) + ' ' + dateOnlyText(day)) + '</div>'; }).join("") +
       resources.map(function (resource) {
         var keyValue = resource.roomId || resource.tableNo || resource.name;
-        return '<div class="edu-visual-axis"><strong>' + escapeHtml(resource.name || keyValue || '-') + '</strong><br><span class="muted">' + escapeHtml(resource.type === "room" ? "教室" : "球台") + '</span></div>' +
+        return '<div class="edu-visual-axis"><strong>' + escapeHtml(resource.name || keyValue || '-') + '</strong><br><span class="muted">' + escapeHtml(resourceTypeLabel(resource.type)) + '</span></div>' +
           days.map(function (day) {
             var key = dateOnlyText(day);
             var busy = (eduState.sessions || []).filter(function (session) {
@@ -1219,7 +1346,7 @@
 
   var scheduleProgressHtml = function () {
     var classes = eduState.classes || [];
-    return '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>班级</th><th>课程</th><th>老师</th><th>计划课次</th><th>已排</th><th>已完成</th><th>待点名</th><th>进度</th></tr></thead><tbody>' +
+    return '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>班级</th><th>课程</th><th>教练</th><th>计划课次</th><th>已排</th><th>已完成</th><th>待点名</th><th>进度</th></tr></thead><tbody>' +
       (classes.length ? classes.map(function (klass) {
         var classId = idOf(klass);
         var course = findById(eduState.courses, klass.courseProductId) || {};
@@ -1245,15 +1372,15 @@
       '<label>计费<select class="form-input" name="billingMode"><option value="lesson">课时</option><option value="term">按期</option><option value="month">按月</option><option value="day">按天预留</option></select></label>' +
       '<label>单价(元)<input class="form-input" name="standardPriceYuan" type="number" min="0" step="0.01" value="' + escapeHtml(moneyInputValue(item.standardPriceCents)) + '"></label>' +
       '<label>单位<input class="form-input" name="unit" value="' + escapeHtml(item.unit || '期') + '"></label>' +
-      '<label>类型<input class="form-input" name="typeName" value="' + escapeHtml(item.typeName || item.courseLevelCode || '') + '"></label>' +
-      '<label>班型<input class="form-input" name="classTypeName" value="' + escapeHtml(item.classTypeName || item.classTypeCode || '') + '"></label>' +
-      '<label>期段<input class="form-input" name="termName" value="' + escapeHtml(item.termName || item.termCode || '') + '"></label>' +
+      '<label>类型<input class="form-input" name="typeName" value="' + escapeHtml(item.typeName || (item.courseLevelCode ? courseLevelLabel('', item.courseLevelCode) : '')) + '"></label>' +
+      '<label>班型<input class="form-input" name="classTypeName" value="' + escapeHtml(item.classTypeName || (item.classTypeCode ? classTypeLabel('', item.classTypeCode) : '')) + '"></label>' +
+      '<label>期段<input class="form-input" name="termName" value="' + escapeHtml(item.termName || (item.termCode ? termLabel('', item.termCode) : '')) + '"></label>' +
       '<label>年份<input class="form-input" name="year" value="' + escapeHtml(item.year || '') + '"></label>' +
       '<label>按期收费<input class="form-input" name="termFeeText" value="' + escapeHtml(priceRules.termFeeText || '') + '"></label>' +
       '<label>默认扣课<input class="form-input" name="defaultDeductUnits10" type="number" min="0" step="0.1" value="' + escapeHtml(lessonInputValue(item.defaultDeductUnits10, '1')) + '"></label>' +
       '<label>计划排课数<input class="form-input" name="plannedSessionCount" type="number" min="0" value="' + escapeHtml(item.plannedSessionCount || 0) + '"></label>' +
       '<label>容量<input class="form-input" name="capacity" type="number" min="0" value="' + escapeHtml(item.capacity || 0) + '"></label>' +
-      '<label>动态消课<select class="form-input" name="dynamicDeduct"><option value="false">否</option><option value="true">是</option></select></label>' +
+      '<label>按实际上课扣课<select class="form-input" name="dynamicDeduct"><option value="false">否</option><option value="true">是</option></select></label>' +
       '<label>状态<select class="form-input" name="status"><option value="active">启用</option><option value="inactive">停用</option></select></label>' +
       '<label class="wide">授权分店<select class="form-input" name="authorizedBranchIds" multiple size="3">' + branchOptions(item.authorizedBranchIds || []) + '</select></label>' +
       '<div class="club-actions"><button class="club-action primary" type="submit">保存课程</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
@@ -1290,16 +1417,16 @@
     eduPanelEl.innerHTML =
       eduFrameStart("课程管理", "课程定义教学商品、计费方式、授权分店和收费课时规格。") +
       eduActionBar("courses", "新增课程") +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>课程</th><th>单价</th><th>类型/班型</th><th>期段/年份</th><th>课程类型</th><th>按期收费</th><th>动态消课</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>课程</th><th>单价</th><th>类型/班型</th><th>期段/年份</th><th>课程类型</th><th>按期收费</th><th>按实际上课扣课</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
         (eduState.courses.length ? eduState.courses.map(function (course) {
           var rules = course.priceRules || {};
-          return '<tr><td>' + rowCheck('courses', idOf(course)) + ' <strong>' + escapeHtml(course.name) + '</strong><br><span class="muted">' + escapeHtml(course.unit || '-') + '</span></td><td>' + escapeHtml(moneyText(course.standardPriceCents)) + '</td><td>' + escapeHtml(course.typeName || course.courseLevelCode || '-') + '<br><span class="muted">' + escapeHtml(course.classTypeName || course.classTypeCode || '-') + '</span></td><td>' + escapeHtml(course.termName || course.termCode || '-') + '<br><span class="muted">' + escapeHtml(course.year || '-') + '</span></td><td>' + escapeHtml(teachingModeLabel(course.teachingMode)) + '</td><td>' + escapeHtml(rules.termFeeText || '-') + '</td><td>' + badgeHtml(course.dynamicDeduct ? '是' : '否', course.dynamicDeduct ? 'pending' : 'none') + '</td><td>' + badgeHtml(course.status === 'active' ? '启用' : '停用', course.status) + '</td><td><button class="club-action" data-edit-course="' + escapeHtml(idOf(course)) + '">编辑</button></td></tr>';
+          return '<tr><td>' + rowCheck('courses', idOf(course)) + ' <strong>' + escapeHtml(course.name) + '</strong><br><span class="muted">' + escapeHtml(course.unit || '-') + '</span></td><td>' + escapeHtml(moneyText(course.standardPriceCents)) + '</td><td>' + escapeHtml(courseLevelLabel(course.typeName, course.courseLevelCode)) + '<br><span class="muted">' + escapeHtml(classTypeLabel(course.classTypeName, course.classTypeCode)) + '</span></td><td>' + escapeHtml(termLabel(course.termName, course.termCode)) + '<br><span class="muted">' + escapeHtml(course.year || '-') + '</span></td><td>' + escapeHtml(teachingModeLabel(course.teachingMode)) + '</td><td>' + escapeHtml(rules.termFeeText || '-') + '</td><td>' + badgeHtml(course.dynamicDeduct ? '是' : '否', course.dynamicDeduct ? 'pending' : 'none') + '</td><td>' + badgeHtml(courseStatusLabel(course.status || 'active'), course.status || 'active') + '</td><td><button class="club-action" data-edit-course="' + escapeHtml(idOf(course)) + '">编辑</button></td></tr>';
         }).join("") : '<tr><td colspan="9">暂无课程</td></tr>') +
       '</tbody></table></div>' +
       eduActionBar("packageTemplates", "新增收费/课时规格") +
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>规格</th><th>课程</th><th>课时</th><th>有效天数</th><th>默认价格</th><th>默认扣课</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
         (eduState.packageTemplates.length ? eduState.packageTemplates.map(function (tpl) {
-          return '<tr><td>' + rowCheck('packageTemplates', idOf(tpl)) + ' <strong>' + escapeHtml(tpl.name) + '</strong></td><td>' + escapeHtml(courseName(tpl.courseProductId)) + '</td><td>' + escapeHtml(lessonText(tpl.lessonUnits10)) + '</td><td>' + (tpl.validDays || 0) + '</td><td>' + escapeHtml(moneyText(tpl.defaultPriceCents)) + '</td><td>' + escapeHtml(lessonText(tpl.deductUnits10)) + '</td><td>' + badgeHtml(tpl.status === 'active' ? '启用' : tpl.status, tpl.status) + '</td><td><button class="club-action" data-edit-package-template="' + escapeHtml(idOf(tpl)) + '">编辑</button></td></tr>';
+          return '<tr><td>' + rowCheck('packageTemplates', idOf(tpl)) + ' <strong>' + escapeHtml(tpl.name) + '</strong></td><td>' + escapeHtml(courseName(tpl.courseProductId)) + '</td><td>' + escapeHtml(lessonText(tpl.lessonUnits10)) + '</td><td>' + (tpl.validDays || 0) + '</td><td>' + escapeHtml(moneyText(tpl.defaultPriceCents)) + '</td><td>' + escapeHtml(lessonText(tpl.deductUnits10)) + '</td><td>' + badgeHtml(courseStatusLabel(tpl.status || 'active'), tpl.status || 'active') + '</td><td><button class="club-action" data-edit-package-template="' + escapeHtml(idOf(tpl)) + '">编辑</button></td></tr>';
         }).join("") : '<tr><td colspan="8">暂无收费/课时规格</td></tr>') +
       '</tbody></table></div>';
     bindEduPanelEvents();
@@ -1389,7 +1516,7 @@
         (eduState.students.length ? eduState.students.map(function (student) {
           var summary = studentWalletSummary(idOf(student));
           var balanceType = summary.remainingUnits10 > 10 ? "ok" : (summary.remainingUnits10 > 0 ? "pending" : "none");
-          return '<tr><td>' + rowCheck('students', idOf(student)) + ' <strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + escapeHtml(student.parentName || '-') + '</td><td>' + escapeHtml(student.level || '-') + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + badgeHtml(student.status === 'active' ? '在读' : student.status, student.status) + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button></td></tr>';
+          return '<tr><td>' + rowCheck('students', idOf(student)) + ' <strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + escapeHtml(student.parentName || '-') + '</td><td>' + escapeHtml(student.level || '-') + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + badgeHtml(studentStatusLabel(student.status || 'active'), student.status || 'active') + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button></td></tr>';
         }).join("") : '<tr><td colspan="9">暂无学员</td></tr>') +
       '</tbody></table></div>' +
       eduActionBar("wallets", "", "") +
@@ -1408,10 +1535,10 @@
       '<label>班级名称<input class="form-input" name="className" value="' + escapeHtml(item.className || '') + '" required></label>' +
       '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(item.branchId) + '</select></label>' +
       '<label>课程<select class="form-input" name="courseProductId" required>' + courseOptions(item.courseProductId) + '</select></label>' +
-      '<label>任课老师<select class="form-input" name="teacherId">' + teacherOptions(item.teacherId) + '</select></label>' +
+      '<label>任课教练<select class="form-input" name="teacherId">' + teacherOptions(item.teacherId) + '</select></label>' +
       '<label>容量<input class="form-input" name="capacity" type="number" min="0" value="' + escapeHtml(item.capacity || 0) + '"></label>' +
       '<label>计划课次<input class="form-input" name="plannedSessionCount" type="number" min="0" value="' + escapeHtml(item.plannedSessionCount || 0) + '"></label>' +
-      '<label>默认教室<input class="form-input" name="defaultRoomId" value="' + escapeHtml(item.defaultRoomId || '') + '"></label>' +
+      '<label>默认场地<input class="form-input" name="defaultRoomId" value="' + escapeHtml(item.defaultRoomId || '') + '"></label>' +
       '<label>默认球台<input class="form-input" name="defaultTableNos" value="' + escapeHtml((item.defaultTableNos || []).join(',')) + '" placeholder="1,2"></label>' +
       '<label>状态<select class="form-input" name="status"><option value="active">启用</option><option value="inactive">停用</option><option value="graduated">结业</option></select></label>' +
       '<div class="club-actions"><button class="club-action primary" type="submit">保存班级</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
@@ -1425,11 +1552,11 @@
 
   var renderEduClasses = function () {
     eduPanelEl.innerHTML =
-      eduFrameStart("班级管理", "班级是长期教学组织，关联课程、老师、容量和默认资源。") +
+      eduFrameStart("班级管理", "班级是长期教学组织，关联课程、教练、容量和默认资源。") +
       eduActionBar("classes", "新增班级") +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>班级</th><th>分店</th><th>课程</th><th>老师</th><th>容量</th><th>计划</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>班级</th><th>分店</th><th>课程</th><th>教练</th><th>容量</th><th>计划</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
         (eduState.classes.length ? eduState.classes.map(function (klass) {
-          return '<tr><td>' + rowCheck('classes', idOf(klass)) + ' <strong>' + escapeHtml(klass.className) + '</strong><br><span class="muted">' + escapeHtml(klass.graduationStatus || '-') + '</span></td><td>' + escapeHtml(branchName(klass.branchId)) + '</td><td>' + escapeHtml(klass.courseNameSnapshot || courseName(klass.courseProductId)) + '</td><td>' + escapeHtml(klass.teacherName || teacherName(klass.teacherId)) + '</td><td>' + (klass.capacity || 0) + '</td><td>' + (klass.plannedSessionCount || 0) + '</td><td>' + badgeHtml(klass.status === 'active' ? '启用' : klass.status, klass.status) + '</td><td><button class="club-action" data-edit-class="' + escapeHtml(idOf(klass)) + '">编辑</button></td></tr>';
+          return '<tr><td>' + rowCheck('classes', idOf(klass)) + ' <strong>' + escapeHtml(klass.className) + '</strong><br><span class="muted">' + escapeHtml(graduationStatusLabel(klass.graduationStatus)) + '</span></td><td>' + escapeHtml(branchName(klass.branchId)) + '</td><td>' + escapeHtml(klass.courseNameSnapshot || courseName(klass.courseProductId)) + '</td><td>' + escapeHtml(klass.teacherName || teacherName(klass.teacherId)) + '</td><td>' + (klass.capacity || 0) + '</td><td>' + (klass.plannedSessionCount || 0) + '</td><td>' + badgeHtml(classStatusLabel(klass.status || 'active'), klass.status || 'active') + '</td><td><button class="club-action" data-edit-class="' + escapeHtml(idOf(klass)) + '">编辑</button></td></tr>';
         }).join("") : '<tr><td colspan="8">暂无班级</td></tr>') +
       '</tbody></table></div>';
     bindEduPanelEvents();
@@ -1443,12 +1570,12 @@
       '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(item.branchId) + '</select></label>' +
       '<label>手机号<input class="form-input" name="phone" value="' + escapeHtml(item.phone || '') + '"></label>' +
       '<label>状态<select class="form-input" name="employmentStatus"><option value="active">在职</option><option value="inactive">停用</option><option value="left">离职</option></select></label>' +
-      '<div class="club-actions"><button class="club-action primary" type="submit">保存老师</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
+      '<div class="club-actions"><button class="club-action primary" type="submit">保存教练</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
     '</form>';
   };
 
   var openStaffModal = function (item) {
-    renderEduModal(idOf(item) ? "编辑老师" : "新增老师", staffFormHtml(item));
+    renderEduModal(idOf(item) ? "编辑教练" : "新增教练", staffFormHtml(item));
     setSelectValue("employmentStatus", item && item.employmentStatus || "active");
   };
 
@@ -1459,19 +1586,19 @@
       return renderEduCourses();
     }
     eduPanelEl.innerHTML =
-      eduFrameStart("老师管理", "维护老师档案；排课和老师可排时间管理都会引用这里的数据。") +
-      eduActionBar("teachers", "新增老师") +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>老师</th><th>分店</th><th>手机号</th><th>角色</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
+      eduFrameStart("教练管理", "维护教练档案；排课和教练可排时间管理都会引用这里的数据。") +
+      eduActionBar("teachers", "新增教练") +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>教练</th><th>分店</th><th>手机号</th><th>角色</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
         (eduState.staff.length ? eduState.staff.map(function (item) {
           return '<tr><td>' + rowCheck('teachers', idOf(item)) + ' <strong>' + escapeHtml(item.name) + '</strong></td><td>' + escapeHtml(branchName(item.branchId)) + '</td><td>' + escapeHtml(item.phone || '-') + '</td><td>' + escapeHtml(staffRolesText(item.roles)) + '</td><td>' + badgeHtml(employmentStatusLabel(item.employmentStatus), item.employmentStatus) + '</td><td><button class="club-action" data-edit-staff="' + escapeHtml(idOf(item)) + '">编辑</button></td></tr>';
-        }).join("") : '<tr><td colspan="6">暂无老师</td></tr>') +
+        }).join("") : '<tr><td colspan="6">暂无教练</td></tr>') +
       '</tbody></table></div>';
     bindEduPanelEvents();
   };
 
   var availabilityFormHtml = function () {
     return '<form class="edu-form" id="edu-availability-form">' +
-      '<label>老师<select class="form-input" name="teacherId" required>' + teacherOptions() + '</select></label>' +
+      '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions() + '</select></label>' +
       '<label>分店<select class="form-input" name="branchId" required>' + branchOptions() + '</select></label>' +
       '<label>星期<select class="form-input" name="weekday"><option value="">按日期</option><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="7">周日</option></select></label>' +
       '<label>指定日期<input class="form-input" name="date" type="date"></label>' +
@@ -1486,7 +1613,7 @@
     return availabilityBulkHtml() +
       availabilityFilterHtml() +
       '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div></div>' +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>老师</th><th>所属校区</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>教练</th><th>所属分店</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
         (filteredAvailability().length ? filteredAvailability().map(function (item) {
           var dateType = item.date ? "指定日期" : (item.weekday ? "每周重复" : "-");
           var actions = item.status === 'pending' ? '<button class="club-action primary" data-approve-availability="' + escapeHtml(idOf(item)) + '">通过</button><button class="club-action" data-reject-availability="' + escapeHtml(idOf(item)) + '">拒绝</button>' : '-';
@@ -1501,7 +1628,7 @@
     return '<form class="edu-form" id="edu-resource-form">' +
       '<label>资源名称<input class="form-input" name="name" required></label>' +
       '<label>分店<select class="form-input" name="branchId" required>' + branchOptions() + '</select></label>' +
-      '<label>类型<select class="form-input" name="type"><option value="table">球台</option><option value="room">教室</option></select></label>' +
+      '<label>类型<select class="form-input" name="type"><option value="table">球台</option><option value="room">场地</option></select></label>' +
       '<label>编号<input class="form-input" name="tableNo" placeholder="球台号"></label>' +
       '<div class="club-actions"><button class="club-action primary" type="submit">保存资源</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
     '</form>';
@@ -1510,7 +1637,7 @@
   var resourceListHtml = function () {
     return '<div class="admin-table-wrap compact"><table class="admin-table"><thead><tr><th>资源</th><th>分店</th><th>类型</th><th>编号</th><th>状态</th></tr></thead><tbody>' +
       (eduState.resources.length ? eduState.resources.map(function (item) {
-        return '<tr><td><strong>' + escapeHtml(item.name) + '</strong></td><td>' + escapeHtml(branchName(item.branchId)) + '</td><td>' + escapeHtml(item.type === 'room' ? '教室' : '球台') + '</td><td>' + escapeHtml(item.tableNo || item.roomId || '-') + '</td><td>' + badgeHtml(item.status === 'active' ? '启用' : item.status, item.status) + '</td></tr>';
+        return '<tr><td><strong>' + escapeHtml(item.name) + '</strong></td><td>' + escapeHtml(branchName(item.branchId)) + '</td><td>' + escapeHtml(resourceTypeLabel(item.type)) + '</td><td>' + escapeHtml(item.tableNo || item.roomId || '-') + '</td><td>' + badgeHtml(resourceStatusLabel(item.status || 'active'), item.status || 'active') + '</td></tr>';
       }).join("") : '<tr><td colspan="5">暂无教学资源</td></tr>') +
     '</tbody></table></div>' +
     '<div class="club-actions"><button class="club-action" type="button" data-edu-modal-close="1">关闭</button></div>';
@@ -1523,10 +1650,10 @@
       '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(item.branchId) + '</select></label>' +
       '<label>班级<select class="form-input" name="classId">' + classOptions(item.classId) + '</select></label>' +
       '<label>课程<select class="form-input" name="courseProductId">' + courseOptions(item.courseProductId) + '</select></label>' +
-      '<label>老师<select class="form-input" name="teacherId" required>' + teacherOptions(item.teacherId) + '</select></label>' +
+      '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions(item.teacherId) + '</select></label>' +
       '<label>开始<input class="form-input" name="startAt" type="datetime-local" value="' + escapeHtml(formatDateTimeLocal(item.startAt)) + '" required></label>' +
       '<label>结束<input class="form-input" name="endAt" type="datetime-local" value="' + escapeHtml(formatDateTimeLocal(item.endAt)) + '" required></label>' +
-      '<label>教室<input class="form-input" name="roomId" value="' + escapeHtml(item.roomId || '') + '"></label>' +
+      '<label>场地<input class="form-input" name="roomId" value="' + escapeHtml(item.roomId || '') + '"></label>' +
       '<label>球台<input class="form-input" name="tableNos" value="' + escapeHtml((item.tableNos || []).join(',')) + '" placeholder="1,2"></label>' +
       '<label>跳过冲突<select class="form-input" name="skipConflict"><option value="">不跳过</option><option value="1">管理员确认跳过</option></select></label>' +
       '<div class="club-actions"><button class="club-action primary" type="submit">保存课次</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
@@ -1536,14 +1663,14 @@
   var renderEduSessions = function () {
     var active = eduState.scheduleTab || "sessions";
     eduPanelEl.innerHTML =
-      eduFrameStart("排课管理", "详细课表负责课次；老师可排时间管理负责排课前置时间约束。") +
+      eduFrameStart("排课管理", "详细课表负责课次；教练可排时间管理负责排课前置时间约束。") +
       eduScheduleTabs() +
       (active === "availability" ? renderEduAvailability() :
       scheduleFilterHtml() +
       scheduleToolbarHtml() +
       scheduleViewSwitchHtml() +
       ((eduState.scheduleView || "list") === "list"
-        ? '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>班级名称</th><th>课程名称</th><th>课程所属期段</th><th>课程所属年级</th><th>课程所属科目</th><th>课程所属类型</th><th>课程所属班型</th><th>所属校区</th><th>任课老师</th><th>助教</th><th>班主任</th><th>任课老师在职类型</th><th>上课教室</th><th>章节内容</th><th>上课内容</th><th>上课时间</th><th>上课时长</th><th>状态</th><th>备注</th><th>实到/应到</th><th>上课学员</th><th>扫码/签到人数</th><th>计费人数</th><th>计费数量</th><th>操作</th></tr></thead><tbody>' +
+        ? '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>班级名称</th><th>课程名称</th><th>课程所属期段</th><th>课程所属年级</th><th>课程所属科目</th><th>课程所属类型</th><th>课程所属班型</th><th>所属分店</th><th>任课教练</th><th>助教</th><th>班主任</th><th>任课教练在职类型</th><th>上课场地</th><th>章节内容</th><th>上课内容</th><th>上课时间</th><th>上课时长</th><th>状态</th><th>备注</th><th>实到/应到</th><th>上课学员</th><th>扫码/签到人数</th><th>计费人数</th><th>计费数量</th><th>操作</th></tr></thead><tbody>' +
           scheduleRowsHtml() +
         '</tbody></table></div>'
         : scheduleVisualHtml()));
@@ -1561,34 +1688,99 @@
     bindEduPanelEvents();
   };
 
-  var attendanceFormHtml = function () {
-    var walletOptions = '<option value="">选择课包</option>' + (eduState.attendanceWallets || []).map(function (wallet) {
-      var id = idOf(wallet);
-      var label = packageName(wallet.packageTemplateId) + ' · 剩余 ' + lessonText(wallet.remainingUnits10);
-      return '<option value="' + escapeHtml(id) + '">' + escapeHtml(label) + '</option>';
+  var attendanceSessionRows = function () {
+    return (eduState.sessions || []).filter(canAttendanceSession).sort(function (a, b) {
+      return new Date(a.startAt || 0).getTime() - new Date(b.startAt || 0).getTime();
+    });
+  };
+
+  var defaultAttendanceSessionId = function () {
+    var rows = attendanceSessionRows();
+    var pending = rows.find(function (session) { return String(session.status || "") === "pending_attendance"; });
+    return idOf(pending || rows[0] || {});
+  };
+
+  var attendanceSessionOptions = function (selected) {
+    var rows = attendanceSessionRows();
+    if (!rows.length) return '<option value="">暂无可点名课次</option>';
+    return rows.map(function (session) {
+      var id = idOf(session);
+      var label = formatCST(session.startAt) + ' · ' + sessionTitle(session) + ' · ' + sessionStatusLabel(session.status);
+      return '<option value="' + escapeHtml(id) + '"' + (String(id) === String(selected || "") ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
     }).join('');
+  };
+
+  var walletOptionLabel = function (wallet) {
+    var template = findById(eduState.packageTemplates, wallet && wallet.packageTemplateId) || {};
+    var course = courseName(wallet && (wallet.courseProductId || template.courseProductId));
+    return packageName(wallet && wallet.packageTemplateId) + (course && course !== "-" ? ' · ' + course : '') + ' · 剩余 ' + lessonText(wallet && wallet.remainingUnits10);
+  };
+
+  var walletOptionsForAttendance = function (wallets, selected) {
+    var rows = (wallets || []).filter(walletUsable);
+    if (!rows.length) return '<option value="">无可用课包</option>';
+    return '<option value="">未选择课包</option>' + rows.map(function (wallet) {
+      var id = idOf(wallet);
+      return '<option value="' + escapeHtml(id) + '"' + (String(id) === String(selected || "") ? ' selected' : '') + '>' + escapeHtml(walletOptionLabel(wallet)) + '</option>';
+    }).join('');
+  };
+
+  var defaultWalletIdForAttendance = function (row) {
+    var preferred = row && row.attendance && row.attendance.walletId || row && row.roster && row.roster.walletId || "";
+    var rows = ((row && row.wallets) || walletsForStudent(row && row.studentId)).filter(walletUsable);
+    if (preferred && rows.some(function (wallet) { return String(idOf(wallet)) === String(preferred); })) return preferred;
+    return idOf(rows[0] || {});
+  };
+
+  var attendanceRosterTableHtml = function () {
+    var data = eduState.attendanceData;
+    if (!eduState.attendanceSessionId) return '<div class="empty-state compact full">暂无可点名课次</div>';
+    if (!data) return '<div class="empty-state compact full">正在加载课次名单...</div>';
+    var roster = data.roster || [];
+    if (!roster.length) return '<div class="empty-state compact full">此课次暂无名单，请先维护课次学员名单后再点名。</div>';
+    var session = data.session || sessionById(eduState.attendanceSessionId) || {};
+    var course = sessionCourse(session);
+    return '<div class="admin-table-wrap wide full"><table class="admin-table"><thead><tr><th>学员</th><th>分店</th><th>状态</th><th>课包</th><th>扣课课时</th><th>课堂备注</th><th>已有记录</th></tr></thead><tbody>' +
+      roster.map(function (row) {
+        var student = row.student || findById(eduState.students, row.studentId) || {};
+        var studentId = row.studentId || idOf(student);
+        var existing = row.attendance && row.attendance.status && row.attendance.status !== "revoked" ? row.attendance : null;
+        var selectedWalletId = defaultWalletIdForAttendance(row);
+        var defaultDeductUnits10 = existing && existing.deductUnits10 || row.roster && row.roster.expectedDeductUnits10 || session.deductUnits10 || course.defaultDeductUnits10 || 10;
+        var status = existing && existing.status || row.roster && ["leave", "absent"].indexOf(row.roster.status) >= 0 && row.roster.status || "attended";
+        var note = existing && existing.coachNote || row.roster && row.roster.notes || "";
+        var disabled = existing ? " disabled" : "";
+        return '<tr data-attendance-student="' + escapeHtml(studentId) + '"' + (existing ? ' data-attendance-done="1"' : '') + '>' +
+          '<td><strong>' + escapeHtml(student.name || studentName(studentId)) + '</strong><br><span class="muted">' + escapeHtml(student.phone || student.studentNo || '-') + '</span></td>' +
+          '<td>' + escapeHtml(branchName(student.branchId || row.roster && row.roster.branchId || session.branchId)) + '</td>' +
+          '<td><select class="form-input" data-attendance-field="status"' + disabled + '><option value="attended"' + (status === "attended" ? " selected" : "") + '>出勤扣课</option><option value="leave"' + (status === "leave" ? " selected" : "") + '>请假</option><option value="absent"' + (status === "absent" ? " selected" : "") + '>缺席</option></select></td>' +
+          '<td><select class="form-input" data-attendance-field="walletId"' + disabled + '>' + walletOptionsForAttendance(row.wallets || walletsForStudent(studentId), selectedWalletId) + '</select></td>' +
+          '<td><input class="form-input" data-attendance-field="deductUnits10" type="number" min="0" step="0.1" value="' + escapeHtml(lessonInputValue(defaultDeductUnits10, '1')) + '"' + disabled + '></td>' +
+          '<td><input class="form-input" data-attendance-field="coachNote" value="' + escapeHtml(note) + '"' + disabled + '></td>' +
+          '<td>' + (existing ? badgeHtml(attendanceStatusLabel(existing.status), existing.status) : '<span class="muted">待点名</span>') + '</td>' +
+        '</tr>';
+      }).join('') +
+    '</tbody></table></div>';
+  };
+
+  var attendanceFormHtml = function () {
+    var sessionId = eduState.attendanceSessionId || defaultAttendanceSessionId();
+    eduState.attendanceSessionId = sessionId || "";
     return '<form class="edu-form" id="edu-attendance-form">' +
-      '<label>课次<select class="form-input" name="sessionId" required>' + (eduState.sessions || []).map(function (session) {
-        var id = idOf(session);
-        return '<option value="' + escapeHtml(id) + '">' + escapeHtml(formatCST(session.startAt) + ' · ' + (session.classNameSnapshot || session.courseNameSnapshot || id)) + '</option>';
-      }).join('') + '</select></label>' +
-      '<label>学员<select class="form-input" name="studentId" id="edu-attendance-student" required>' + studentOptions(eduState.attendanceStudentId) + '</select></label>' +
-      '<label>课包<select class="form-input" name="walletId">' + walletOptions + '</select></label>' +
-      '<label>状态<select class="form-input" name="status"><option value="attended">出勤扣课</option><option value="leave">请假</option><option value="absent">缺席</option></select></label>' +
-      '<label>扣课课时<input class="form-input" name="deductUnits10" type="number" min="0" step="0.1" value="1"></label>' +
-      '<label class="wide">课堂备注<input class="form-input" name="coachNote"></label>' +
-      '<div class="club-actions"><button class="club-action primary" type="submit">确认点名</button><button class="club-action" type="button" id="edu-load-attendance-wallets">加载可用课时</button></div>' +
+      '<label class="full">课次<select class="form-input" name="sessionId" id="edu-attendance-session" required>' + attendanceSessionOptions(sessionId) + '</select></label>' +
+      attendanceRosterTableHtml() +
+      '<div class="club-actions full"><button class="club-action primary" type="submit"' + (sessionId ? '' : ' disabled') + '>批量确认点名</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
     '</form>';
   };
 
   var renderEduAttendance = function () {
     eduPanelEl.innerHTML =
-      eduFrameStart("点名账本", "出勤扣课生成流水；撤销会返还课时，请假/缺席不扣课。") +
-      eduActionBar("ledgers", "", '<div class="club-actions"><button class="club-action primary" type="button" data-edu-create="attendance">点名划课</button></div>') +
+      eduFrameStart("点名/课时账本", "出勤扣课生成流水；撤销会返还课时，请假/缺席不扣课。") +
+      eduActionBar("ledgers", "", '<div class="club-actions"><button class="club-action primary" type="button" data-edu-create="attendance">按课次点名</button></div>') +
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>类型</th><th>学员</th><th>课包</th><th>变动</th><th>余额</th><th>原因</th><th>操作</th></tr></thead><tbody>' +
         (eduState.ledgers.length ? eduState.ledgers.map(function (ledger) {
           var canRevoke = ledger.type === 'attendance' && ledger.relatedAttendanceId;
-          return '<tr><td>' + escapeHtml(formatCST(ledger.createdAt)) + '</td><td>' + badgeHtml(ledgerTypeLabel(ledger.type), ledger.type) + '</td><td><strong>' + escapeHtml(studentName(ledger.studentId)) + '</strong></td><td><span class="muted">' + escapeHtml(ledger.walletId || '-') + '</span></td><td><strong>' + escapeHtml(lessonText(ledger.unitsDelta10)) + '</strong></td><td>' + escapeHtml(lessonText(ledger.balanceAfter10)) + '</td><td>' + escapeHtml(ledger.reason || '-') + '</td><td>' + (canRevoke ? '<button class="club-action" data-revoke-attendance="' + escapeHtml(ledger.relatedAttendanceId) + '">撤销</button>' : '-') + '</td></tr>';
+          return '<tr><td>' + escapeHtml(formatCST(ledger.createdAt)) + '</td><td>' + badgeHtml(ledgerTypeLabel(ledger.type), ledger.type) + '</td><td><strong>' + escapeHtml(studentName(ledger.studentId)) + '</strong></td><td><span class="muted">' + escapeHtml(walletName(ledger.walletId)) + '</span></td><td><strong>' + escapeHtml(lessonText(ledger.unitsDelta10)) + '</strong></td><td>' + escapeHtml(lessonText(ledger.balanceAfter10)) + '</td><td>' + escapeHtml(ledger.reason || '-') + '</td><td>' + (canRevoke ? '<button class="club-action" data-revoke-attendance="' + escapeHtml(ledger.relatedAttendanceId) + '">撤销</button>' : '-') + '</td></tr>';
         }).join("") : '<tr><td colspan="8">暂无账本流水</td></tr>') +
       '</tbody></table></div>';
     bindEduPanelEvents();
@@ -1602,6 +1794,50 @@
   var walletAmountCents = function (wallet) {
     var template = findById(eduState.packageTemplates, wallet && wallet.packageTemplateId) || {};
     return Number(wallet && (wallet.amountCents || wallet.paidAmountCents || wallet.defaultPriceCents) || template.defaultPriceCents || 0);
+  };
+
+  var walletCourseName = function (walletId) {
+    var wallet = findById(eduState.wallets, walletId);
+    if (!wallet) return "";
+    var template = findById(eduState.packageTemplates, wallet.packageTemplateId) || {};
+    return courseName(wallet.courseProductId || template.courseProductId);
+  };
+
+  var walletName = function (walletId) {
+    if (!walletId) return "未选择课包";
+    var wallet = findById(eduState.wallets, walletId);
+    if (!wallet) return "已删除课包";
+    var label = packageName(wallet.packageTemplateId);
+    var course = walletCourseName(walletId);
+    return course && course !== "-" ? label + " · " + course : label;
+  };
+
+  var sessionById = function (sessionId) {
+    return findById(eduState.sessions, sessionId);
+  };
+
+  var sessionCourseName = function (sessionId) {
+    var session = sessionById(sessionId);
+    if (!session) return "";
+    return session.courseNameSnapshot || courseName(session.courseProductId || (sessionClass(session).courseProductId));
+  };
+
+  var sessionClassName = function (sessionId) {
+    var session = sessionById(sessionId);
+    if (!session) return "";
+    return session.classNameSnapshot || className(session.classId);
+  };
+
+  var sessionTeacherName = function (sessionId) {
+    var session = sessionById(sessionId);
+    if (!session) return "";
+    return session.teacherName || teacherName(session.teacherId);
+  };
+
+  var sessionDurationText = function (sessionId) {
+    var session = sessionById(sessionId);
+    if (!session) return "";
+    return durationText(session.startAt, session.endAt);
   };
 
   var feeReportRows = function () {
@@ -1622,13 +1858,13 @@
         key = template.courseProductId || wallet.packageTemplateId || "unknown";
         name = course.name || packageName(wallet.packageTemplateId);
       } else if (groupBy === "term") {
-        key = course.termName || course.termCode || "-";
+        key = termLabel(course.termName, course.termCode);
         name = key;
       } else if (groupBy === "type") {
-        key = course.typeName || course.courseLevelCode || "-";
+        key = courseLevelLabel(course.typeName, course.courseLevelCode);
         name = key;
       } else if (groupBy === "classType") {
-        key = course.classTypeName || course.classTypeCode || "-";
+        key = classTypeLabel(course.classTypeName, course.classTypeCode);
         name = key;
       } else if (groupBy === "year") {
         key = course.year || "-";
@@ -1653,7 +1889,7 @@
     return (eduState.ledgers || []).filter(function (ledger) {
       var student = findById(eduState.students, ledger.studentId) || {};
       var studentText = [studentName(ledger.studentId), student.studentNo, student.no, student.phone, ledger.reason, ledger.walletId].join(" ").toLowerCase();
-      var courseText = [ledger.courseNameSnapshot, ledger.courseProductId].join(" ").toLowerCase();
+      var courseText = [ledger.courseNameSnapshot, ledger.courseProductId, walletName(ledger.walletId)].join(" ").toLowerCase();
       var classText = [ledger.classNameSnapshot, ledger.classId].join(" ").toLowerCase();
       return ["attendance", "revoke", "adjust"].indexOf(ledger.type) >= 0 &&
         branchInReportScope(ledger.branchId || student.branchId) &&
@@ -1670,11 +1906,11 @@
         branchId: ledger.branchId || student.branchId,
         type: ledgerTypeLabel(ledger.type),
         studentName: studentName(ledger.studentId),
-        courseName: ledger.courseNameSnapshot || "-",
-        className: ledger.classNameSnapshot || "-",
-        teacherName: ledger.teacherName || "-",
-        durationText: ledger.durationText || "-",
-        walletId: ledger.walletId || "",
+        courseName: ledger.courseNameSnapshot || sessionCourseName(ledger.relatedSessionId) || walletCourseName(ledger.walletId) || "暂未记录",
+        className: ledger.classNameSnapshot || sessionClassName(ledger.relatedSessionId) || "暂未记录",
+        teacherName: ledger.teacherName || sessionTeacherName(ledger.relatedSessionId) || "暂未记录",
+        durationText: ledger.durationText || sessionDurationText(ledger.relatedSessionId) || "暂未记录",
+        walletName: walletName(ledger.walletId),
         deltaUnits10: Number(ledger.unitsDelta10 || 0),
         consumeAmountCents: Number(ledger.amountCents || 0),
         balanceAfter10: Number(ledger.balanceAfter10 || 0),
@@ -1748,7 +1984,7 @@
         className: klass.className || classId,
         branchId: klass.branchId,
         courseName: klass.courseNameSnapshot || course.name || courseName(klass.courseProductId),
-        classTypeName: course.classTypeName || course.classTypeCode || "-",
+        classTypeName: classTypeLabel(course.classTypeName, course.classTypeCode),
         teacherName: klass.teacherName || teacherName(klass.teacherId),
         assistantName: klass.assistantName || "-",
         headTeacherName: klass.headTeacherName || "-",
@@ -1761,7 +1997,7 @@
         completedCount: completed,
         pendingCount: activeRows.length - completed,
         progress: percent,
-        status: klass.status || ""
+        status: classStatusLabel(klass.status || "active")
       };
     });
   };
@@ -1777,14 +2013,14 @@
           { label: "学员", value: function (row) { return row.studentName; } },
           { label: "课程", value: function (row) { return row.courseName; } },
           { label: "班级", value: function (row) { return row.className; } },
-          { label: "上课校区", value: function (row) { return branchName(row.branchId); } },
-          { label: "任课老师", value: function (row) { return row.teacherName; } },
+          { label: "上课分店", value: function (row) { return branchName(row.branchId); } },
+          { label: "任课教练", value: function (row) { return row.teacherName; } },
           { label: "上课时间", value: function (row) { return formatCST(row.createdAt); } },
           { label: "上课时长", value: function (row) { return row.durationText; } },
           { label: "数量", value: function (row) { return lessonText(row.deltaUnits10); } },
           { label: "课消金额", value: function (row) { return moneyText(row.consumeAmountCents); } },
           { label: "出勤", value: function (row) { return row.attendanceText; } },
-          { label: "扣费课程", value: function (row) { return row.walletId; } },
+          { label: "扣课课包", value: function (row) { return row.walletName; } },
           { label: "备注", value: function (row) { return row.reason; } },
           { label: "操作时间", value: function (row) { return formatCST(row.createdAt); } }
         ]
@@ -1795,7 +2031,7 @@
         name: "业绩报表",
         rows: performanceReportRows(),
         columns: [
-          { label: "老师", value: function (row) { return row.teacherName; } },
+          { label: "教练", value: function (row) { return row.teacherName; } },
           { label: "班级", value: function (row) { return row.classCount; } },
           { label: "课程", value: function () { return "-"; } },
           { label: "年级", value: function () { return "-"; } },
@@ -1803,7 +2039,7 @@
           { label: "科目", value: function () { return "-"; } },
           { label: "已排课次", value: function (row) { return row.scheduledCount; } },
           { label: "已完成", value: function (row) { return row.completedCount; } },
-          { label: "消耗课时", value: function (row) { return lessonText(row.units10); } },
+          { label: "课消总量", value: function (row) { return lessonText(row.units10); } },
           { label: "实收金额", value: function (row) { return moneyText(row.paidCents); } },
           { label: "欠费金额", value: function (row) { return moneyText(row.arrearsCents); } },
           { label: "未计业绩课消", value: function (row) { return lessonText(row.uncountedUnits10); } }
@@ -1815,15 +2051,15 @@
         name: "班级报表",
         rows: classReportRows(),
         columns: [
-          { label: "校区", value: function (row) { return branchName(row.branchId); } },
+          { label: "分店", value: function (row) { return branchName(row.branchId); } },
           { label: "课程名称", value: function (row) { return row.courseName; } },
           { label: "班级名称", value: function (row) { return row.className; } },
           { label: "班型", value: function (row) { return row.classTypeName; } },
-          { label: "任课老师", value: function (row) { return row.teacherName; } },
+          { label: "任课教练", value: function (row) { return row.teacherName; } },
           { label: "助教", value: function (row) { return row.assistantName; } },
           { label: "班主任", value: function (row) { return row.headTeacherName; } },
           { label: "上课时间", value: function (row) { return row.scheduleText; } },
-          { label: "默认教室", value: function (row) { return row.defaultRoom; } },
+          { label: "默认场地", value: function (row) { return row.defaultRoom; } },
           { label: "预招人数", value: function (row) { return row.capacity; } },
           { label: "人数", value: function (row) { return row.studentCount; } }
         ]
@@ -1833,10 +2069,10 @@
       name: "收费报表",
       rows: feeReportRows(),
       columns: [
-        { label: "校区/汇总项", value: function (row) { return row.groupName; } },
+        { label: "分店/汇总项", value: function (row) { return row.groupName; } },
         { label: "收费人次数", value: function (row) { return row.chargeCount; } },
         { label: "收费实交金额", value: function (row) { return moneyText(row.paidCents); } },
-        { label: "收费电子钱包", value: function (row) { return moneyText(row.walletCents); } },
+        { label: "课时余额金额", value: function (row) { return moneyText(row.walletCents); } },
         { label: "退费人次数", value: function (row) { return row.refundCount; } },
         { label: "退费金额", value: function (row) { return moneyText(row.refundCents); } },
         { label: "结转人次数", value: function (row) { return row.transferCount; } },
@@ -1866,32 +2102,32 @@
     if (tab === "fee") {
       extra =
         '<label>课程名称<input class="form-input" name="courseKeyword" value="' + escapeHtml(filters.courseKeyword || '') + '" placeholder="选择/输入课程"></label>' +
-        '<label>汇总方式<select class="form-input" name="groupBy"><option value="branch">校区</option><option value="term">期段</option><option value="type">类型</option><option value="course">课程</option><option value="year">年份</option><option value="classType">班型</option></select></label>';
+        '<label>汇总方式<select class="form-input" name="groupBy"><option value="branch">分店</option><option value="term">期段</option><option value="type">类型</option><option value="course">课程</option><option value="year">年份</option><option value="classType">班型</option></select></label>';
     } else if (tab === "consume") {
       extra =
         '<label>学员<input class="form-input" name="studentKeyword" value="' + escapeHtml(filters.studentKeyword || '') + '" placeholder="姓名/学号/电话"></label>' +
         '<label>课程<input class="form-input" name="courseKeyword" value="' + escapeHtml(filters.courseKeyword || '') + '" placeholder="选择/输入课程"></label>' +
         '<label>班级<input class="form-input" name="classKeyword" value="' + escapeHtml(filters.classKeyword || '') + '" placeholder="选择/输入班级"></label>' +
-        '<label>课消类型<select class="form-input" name="consumeType"><option value="">不限</option><option value="attendance">正常的课消</option><option value="adjust">调整的课消</option><option value="revoke">冲销/撤销</option></select></label>';
+        '<label>课消类型<select class="form-input" name="consumeType"><option value="">不限</option><option value="attendance">正常课消</option><option value="adjust">调整课消</option><option value="revoke">冲销/撤销</option></select></label>';
     } else if (tab === "performance") {
       extra =
-        '<label>员工姓名<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
-        '<label>老师角色<select class="form-input" name="teacherRole"><option value="">主教/助教</option><option value="main">主教</option><option value="assistant">助教</option></select></label>' +
+        '<label>教练姓名<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
+        '<label>教练角色<select class="form-input" name="teacherRole"><option value="">主教/助教</option><option value="main">主教</option><option value="assistant">助教</option></select></label>' +
         '<label>在职类型<select class="form-input" name="employmentType"><option value="">全部</option><option value="active">全职/在职</option><option value="part_time">兼职</option><option value="dedicated">专职</option></select></label>' +
         '<label>班型<select class="form-input" name="teachingMode"><option value="">全部</option><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option></select></label>';
     } else {
       extra =
         '<label>课程名称<input class="form-input" name="courseKeyword" value="' + escapeHtml(filters.courseKeyword || '') + '" placeholder="选择/输入课程"></label>' +
         '<label>班级名称<input class="form-input" name="classKeyword" value="' + escapeHtml(filters.classKeyword || '') + '" placeholder="选择/输入班级"></label>' +
-        '<label>任课老师<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
-        '<label>默认教室<input class="form-input" name="roomKeyword" value="' + escapeHtml(filters.roomKeyword || '') + '" placeholder="教室/球台"></label>' +
+        '<label>任课教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
+        '<label>默认场地<input class="form-input" name="roomKeyword" value="' + escapeHtml(filters.roomKeyword || '') + '" placeholder="场地/球台"></label>' +
         '<label>班级范围<select class="form-input" name="includeGraduated"><option value="">未结业班级</option><option value="1">包含结业班级</option></select></label>';
     }
     return '<form class="edu-filter-panel" id="edu-report-filter-form">' +
       '<div class="edu-filter-grid">' +
         '<label>开始日期<input class="form-input" type="date" name="startDate" value="' + escapeHtml(filters.startDate || '') + '"></label>' +
         '<label>结束日期<input class="form-input" type="date" name="endDate" value="' + escapeHtml(filters.endDate || '') + '"></label>' +
-        '<label>所属校区<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
+        '<label>所属分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
         extra +
         '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="reports">重置</button><button class="club-action" type="button" data-edu-export="report-' + escapeHtml(eduState.reportTab || "fee") + '">导出</button></div>' +
       '</div>' +
@@ -1915,9 +2151,9 @@
       ];
     } else if (eduState.reportTab === "performance") {
       cells = [
-        ["老师数", rows.length],
+        ["教练数", rows.length],
         ["完成课次", rows.reduce(function (sum, row) { return sum + Number(row.completedCount || 0); }, 0)],
-        ["消课课时", lessonText(rows.reduce(function (sum, row) { return sum + Number(row.units10 || 0); }, 0))]
+        ["课消总量", lessonText(rows.reduce(function (sum, row) { return sum + Number(row.units10 || 0); }, 0))]
       ];
     } else {
       cells = [
@@ -1946,7 +2182,7 @@
   var renderEduReports = function () {
     var definition = reportDefinition(eduState.reportTab);
     eduPanelEl.innerHTML =
-      eduFrameStart("报表管理", "按收费、消课、业绩和班级维度统计教务经营数据。") +
+      eduFrameStart("报表管理", "按收费、课消、业绩和班级维度统计教务经营数据。") +
       reportTabsHtml() +
       '<div class="edu-page-path">当前位置：教务管理 / 报表管理 / ' + escapeHtml(definition.name) + '</div>' +
       reportFilterHtml() +
@@ -2139,8 +2375,8 @@
     var data = formData(form);
     var dates = data.dates ? (Array.isArray(data.dates) ? data.dates : [data.dates]) : [];
     if (!dates.length) return window.alert("请先选择可排日期。");
-    if (!data.teacherId) return window.alert("请选择老师。");
-    if (!data.branchId) return window.alert("请选择校区。");
+    if (!data.teacherId) return window.alert("请选择教练。");
+    if (!data.branchId) return window.alert("请选择分店。");
     if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
     if (data.startTime >= data.endTime) return window.alert("开始时间必须早于结束时间。");
     return withEduSaving(Promise.all(dates.map(function (date) {
@@ -2188,40 +2424,55 @@
     }));
   };
 
-  var loadAttendanceWallets = function (studentId) {
-    if (!studentId) {
-      eduState.attendanceStudentId = "";
-      eduState.attendanceWallets = [];
-      if (document.getElementById("edu-modal-root")) {
-        renderEduModal("点名划课", attendanceFormHtml());
-      } else {
-        renderEduAttendance();
-      }
-      return Promise.resolve();
-    }
-    eduState.attendanceStudentId = studentId;
-    return clubData.eduStudentWallets(selectedClubId, studentId, { status: "active" }).then(function (data) {
-      eduState.attendanceWallets = eduList(data);
-      if (document.getElementById("edu-modal-root")) {
-        renderEduModal("点名划课", attendanceFormHtml());
-        setSelectValue("studentId", studentId);
-      } else {
-        renderEduAttendance();
-      }
+  var openAttendanceModal = function (sessionId) {
+    eduState.attendanceSessionId = sessionId || eduState.attendanceSessionId || defaultAttendanceSessionId();
+    eduState.attendanceData = null;
+    renderEduModal("按课次点名", attendanceFormHtml());
+    if (eduState.attendanceSessionId) return loadAttendanceRoster(eduState.attendanceSessionId);
+  };
+
+  var loadAttendanceRoster = function (sessionId) {
+    eduState.attendanceSessionId = sessionId || "";
+    eduState.attendanceData = null;
+    renderEduModal("按课次点名", attendanceFormHtml());
+    if (!sessionId) return Promise.resolve();
+    return clubData.eduAttendance(selectedClubId, sessionId).then(function (data) {
+      eduState.attendanceData = data || {};
+      renderEduModal("按课次点名", attendanceFormHtml());
     }).catch(function (err) {
-      eduPanelEl.insertAdjacentHTML("afterbegin", eduErrorHtml(err));
+      eduState.attendanceData = { roster: [] };
+      renderEduModal("按课次点名", attendanceFormHtml());
+      window.alert((err && err.message) || "加载课次名单失败");
     });
   };
 
   var submitEduAttendance = function (form) {
-    var data = formData(form);
-    return withEduSaving(clubData.eduSubmitAttendance(selectedClubId, data.sessionId, [{
-      studentId: data.studentId,
-      walletId: data.walletId,
-      status: data.status || "attended",
-      deductUnits10: lessonInputUnits10(data.deductUnits10),
-      coachNote: data.coachNote
-    }]));
+    var sessionId = form.elements.sessionId && form.elements.sessionId.value;
+    if (!sessionId) return window.alert("请选择课次。");
+    var records = [];
+    var missingWallets = [];
+    form.querySelectorAll("[data-attendance-student]").forEach(function (row) {
+      if (row.getAttribute("data-attendance-done") === "1") return;
+      var studentId = row.getAttribute("data-attendance-student");
+      var status = (row.querySelector('[data-attendance-field="status"]') || {}).value || "attended";
+      var walletId = (row.querySelector('[data-attendance-field="walletId"]') || {}).value || "";
+      var deductInput = (row.querySelector('[data-attendance-field="deductUnits10"]') || {}).value || "1";
+      var note = (row.querySelector('[data-attendance-field="coachNote"]') || {}).value || "";
+      if (status === "attended" && !walletId) {
+        missingWallets.push(studentName(studentId));
+        return;
+      }
+      records.push({
+        studentId: studentId,
+        walletId: walletId,
+        status: status,
+        deductUnits10: status === "attended" ? lessonInputUnits10(deductInput) : 0,
+        coachNote: note
+      });
+    });
+    if (missingWallets.length) return window.alert("以下学员缺少可用课包，无法出勤扣课：" + missingWallets.join("、"));
+    if (!records.length) return window.alert("没有可提交的点名记录。");
+    return withEduSaving(clubData.eduSubmitAttendance(selectedClubId, sessionId, records));
   };
 
   var csvCell = function (value) {
@@ -2258,10 +2509,10 @@
         columns: [
           { label: "课程", value: function (row) { return row.name; } },
           { label: "单价", value: function (row) { return moneyText(row.standardPriceCents); } },
-          { label: "类型", value: function (row) { return row.typeName || row.courseLevelCode || ""; } },
-          { label: "班型", value: function (row) { return row.classTypeName || row.classTypeCode || ""; } },
+          { label: "类型", value: function (row) { return courseLevelLabel(row.typeName, row.courseLevelCode); } },
+          { label: "班型", value: function (row) { return classTypeLabel(row.classTypeName, row.classTypeCode); } },
           { label: "课程类型", value: function (row) { return teachingModeLabel(row.teachingMode); } },
-          { label: "状态", value: function (row) { return row.status || ""; } }
+          { label: "状态", value: function (row) { return courseStatusLabel(row.status || "active"); } }
         ]
       },
       packageTemplates: {
@@ -2283,7 +2534,7 @@
           { label: "分店", value: function (row) { return branchName(row.branchId); } },
           { label: "手机号", value: function (row) { return row.phone || ""; } },
           { label: "剩余课时", value: function (row) { return lessonText(studentWalletSummary(idOf(row)).remainingUnits10); } },
-          { label: "状态", value: function (row) { return row.status || ""; } }
+          { label: "状态", value: function (row) { return studentStatusLabel(row.status || "active"); } }
         ]
       },
       wallets: {
@@ -2298,10 +2549,10 @@
         ]
       },
       teachers: {
-        name: "老师管理",
+        name: "教练管理",
         rows: eduState.staff,
         columns: [
-          { label: "老师", value: function (row) { return row.name; } },
+          { label: "教练", value: function (row) { return row.name; } },
           { label: "分店", value: function (row) { return branchName(row.branchId); } },
           { label: "手机号", value: function (row) { return row.phone || ""; } },
           { label: "角色", value: function (row) { return staffRolesText(row.roles); } },
@@ -2315,8 +2566,8 @@
           { label: "班级", value: function (row) { return row.className; } },
           { label: "分店", value: function (row) { return branchName(row.branchId); } },
           { label: "课程", value: function (row) { return row.courseNameSnapshot || courseName(row.courseProductId); } },
-          { label: "老师", value: function (row) { return row.teacherName || teacherName(row.teacherId); } },
-          { label: "状态", value: function (row) { return row.status || ""; } }
+          { label: "教练", value: function (row) { return row.teacherName || teacherName(row.teacherId); } },
+          { label: "状态", value: function (row) { return classStatusLabel(row.status || "active"); } }
         ]
       },
       resources: {
@@ -2325,7 +2576,7 @@
         columns: [
           { label: "资源", value: function (row) { return row.name; } },
           { label: "分店", value: function (row) { return branchName(row.branchId); } },
-          { label: "类型", value: function (row) { return row.type || ""; } },
+          { label: "类型", value: function (row) { return resourceTypeLabel(row.type); } },
           { label: "编号", value: function (row) { return row.tableNo || row.roomId || ""; } }
         ]
       },
@@ -2336,15 +2587,15 @@
           { label: "开始", value: function (row) { return formatCST(row.startAt); } },
           { label: "结束", value: function (row) { return formatCST(row.endAt); } },
           { label: "班级/课程", value: function (row) { return row.classNameSnapshot || className(row.classId) || row.courseNameSnapshot || courseName(row.courseProductId); } },
-          { label: "老师", value: function (row) { return row.teacherName || teacherName(row.teacherId); } },
+          { label: "教练", value: function (row) { return row.teacherName || teacherName(row.teacherId); } },
           { label: "状态", value: function (row) { return sessionStatusLabel(row.status); } }
         ]
       },
       availability: {
-        name: "老师可排时间",
+        name: "教练可排时间",
         rows: eduState.availability,
         columns: [
-          { label: "老师", value: function (row) { return teacherName(row.teacherId); } },
+          { label: "教练", value: function (row) { return teacherName(row.teacherId); } },
           { label: "分店", value: function (row) { return branchName(row.branchId); } },
           { label: "日期/星期", value: function (row) { return row.date || (row.weekday ? '周' + '一二三四五六日'.charAt(Number(row.weekday) - 1) : ''); } },
           { label: "开始", value: function (row) { return row.startTime || ""; } },
@@ -2361,6 +2612,7 @@
           { label: "时间", value: function (row) { return formatCST(row.createdAt); } },
           { label: "类型", value: function (row) { return ledgerTypeLabel(row.type); } },
           { label: "学员", value: function (row) { return studentName(row.studentId); } },
+          { label: "课包", value: function (row) { return walletName(row.walletId); } },
           { label: "变动", value: function (row) { return lessonText(row.unitsDelta10); } },
           { label: "余额", value: function (row) { return lessonText(row.balanceAfter10); } },
           { label: "原因", value: function (row) { return row.reason || ""; } }
@@ -2518,7 +2770,7 @@
         if (type === "resources") return renderEduModal("新增教学资源", resourceFormHtml());
         if (type === "sessions") return renderEduModal("新增课次", sessionFormHtml({}));
         if (type === "availability") return renderEduModal("新增可排时间", availabilityFormHtml());
-        if (type === "attendance") return renderEduModal("点名划课", attendanceFormHtml());
+        if (type === "attendance") return openAttendanceModal();
       });
     });
     eduPanelEl.querySelectorAll("[data-edu-delete]").forEach(function (button) {
@@ -2563,7 +2815,7 @@
     });
     eduPanelEl.querySelectorAll("[data-edu-room-free]").forEach(function (button) {
       button.addEventListener("click", function () {
-        renderEduModal("教室/球台资源", resourceListHtml());
+        renderEduModal("场地/球台资源", resourceListHtml());
       });
     });
     eduPanelEl.querySelectorAll("[data-edu-schedule-tool]").forEach(function (button) {
@@ -2573,8 +2825,8 @@
         if (type === "progress") return renderEduModal("查看排课进度", scheduleProgressHtml());
         if (type === "copy") return openCopyMoveModal();
         if (type === "batch") return openBatchSessionModal();
-        if (type === "teacher-free") return renderEduModal("查看老师空闲时间", teacherFreeHtml());
-        if (type === "room-free") return renderEduModal("查看教室空闲时间", roomFreeHtml());
+        if (type === "teacher-free") return renderEduModal("查看教练空闲时间", teacherFreeHtml());
+        if (type === "room-free") return renderEduModal("查看场地空闲时间", roomFreeHtml());
       });
     });
     eduPanelEl.querySelectorAll("[data-edit-course]").forEach(function (button) {
@@ -2607,6 +2859,11 @@
         renderEduModal("编辑课次", sessionFormHtml(findById(eduState.sessions, button.getAttribute("data-edit-session")) || {}));
       });
     });
+    eduPanelEl.querySelectorAll("[data-attendance-session]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        openAttendanceModal(button.getAttribute("data-attendance-session"));
+      });
+    });
     eduPanelEl.querySelectorAll("[data-approve-availability]").forEach(function (button) {
       button.addEventListener("click", function () {
         withEduSaving(clubData.eduApproveAvailability(selectedClubId, button.getAttribute("data-approve-availability"), true));
@@ -2623,14 +2880,10 @@
         withEduSaving(clubData.eduCancelSession(selectedClubId, button.getAttribute("data-cancel-session"), "Web 管理端取消"));
       });
     });
-    var loadWalletButton = document.getElementById("edu-load-attendance-wallets");
-    var attendanceStudent = document.getElementById("edu-attendance-student");
-    if (loadWalletButton && attendanceStudent) {
-      loadWalletButton.addEventListener("click", function () {
-        loadAttendanceWallets(attendanceStudent.value);
-      });
-      attendanceStudent.addEventListener("change", function () {
-        loadAttendanceWallets(attendanceStudent.value);
+    var attendanceSession = document.getElementById("edu-attendance-session");
+    if (attendanceSession) {
+      attendanceSession.addEventListener("change", function () {
+        loadAttendanceRoster(attendanceSession.value);
       });
     }
     eduPanelEl.querySelectorAll("[data-revoke-attendance]").forEach(function (button) {

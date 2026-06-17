@@ -762,6 +762,10 @@ a {
   grid-column: span 2;
 }
 
+.edu-form .full {
+  grid-column: 1 / -1;
+}
+
 .edu-form label {
   display: grid;
   gap: 4px;
