@@ -200,7 +200,7 @@ Response: { code: 0 }
 POST /api/video-shares
 说明: 登录用户主动从个人视频库创建公开视频分享短码。原视频仍为私有资产，公开页只读展示分享快照。
 认证: Bearer token
-Body: { videoId: string, title?: string, coverImage?: string, currentClipIndex?: number, source?: "poster" }
+Body: { videoId: string, title?: string, coverImage?: string, currentClipIndex?: number, envVersion?: "develop"|"trial"|"release", source?: "poster" }
 Response: { code: 0, data: { shareId, code, title, summary, coverImage, sharePath, qrUrl, expiresAt } }
 
 GET /api/video-shares/detail?code=short-code
@@ -219,6 +219,8 @@ Response: {
   }
 }
 ```
+
+`/api/share-qrcode` 支持 `env_version=develop|trial|release`，默认 `release`。体验版分享海报必须由前端传当前小程序 `envVersion=trial`，否则小程序码会打开正式版。
 
 ### 3.8 对手管理
 

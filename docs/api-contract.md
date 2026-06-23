@@ -336,7 +336,7 @@ POST /api/videos/delete
 POST /api/video-shares
 请求头: Authorization: Bearer <token>
 说明: 用户主动从视频库/沉浸式播放器生成可公开查看的只读分享短码；原视频仍保持私有，只有持短码者可看分享快照。
-请求体: { videoId: string, title?: string, coverImage?: string, currentClipIndex?: number, source?: "poster" }
+请求体: { videoId: string, title?: string, coverImage?: string, currentClipIndex?: number, envVersion?: "develop"|"trial"|"release", source?: "poster" }
 响应: { code: 0, data: { shareId, code, title, summary, coverImage, sharePath, qrUrl, expiresAt } }
 
 GET /api/video-shares/detail?code=xxx
@@ -344,6 +344,9 @@ GET /api/video-shares/detail?code=xxx
 说明: 公开只读分享详情；若本机有过期 token，前端也不应携带 Authorization，避免公开页被旧登录态拦截。
 响应: { code: 0, data: { id, code, title, summary, coverImage, owner: { nickname, avatarUrl }, snapshot: { id, taskId, realTaskId, title, mode, thumbnailUrl, videoUrl, duration, clipCount, clips, scores, advice, angleData, matchRallies, initialClipIndex? }, createdAt, expiresAt } }
 错误: 400 缺少分享参数 / 404 分享不存在或已撤回 / 410 分享已过期或原视频已删除
+
+GET /api/share-qrcode?scene=vs%3Dxxx&page=pages%2Fvideo-share%2Fdetail&env_version=trial
+说明: 生成小程序码；`env_version` 可选 `develop/trial/release`，默认 `release`。体验版公开视频分享必须传 `trial`，否则扫码会打开正式版。
 
 ### 3.6 对手列表
 GET /api/opponents/list?page=1&pageSize=20&keyword=张
