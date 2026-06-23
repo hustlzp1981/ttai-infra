@@ -332,6 +332,19 @@ POST /api/videos/delete
 请求体: { id }
 响应: { code: 0, message: '删除成功' }
 
+### 3.5.1 视频公开分享
+POST /api/video-shares
+请求头: Authorization: Bearer <token>
+说明: 用户主动从视频库/沉浸式播放器生成可公开查看的只读分享短码；原视频仍保持私有，只有持短码者可看分享快照。
+请求体: { videoId: string, title?: string, coverImage?: string, currentClipIndex?: number, source?: "poster" }
+响应: { code: 0, data: { shareId, code, title, summary, coverImage, sharePath, qrUrl, expiresAt } }
+
+GET /api/video-shares/detail?code=xxx
+请求头: 无需 Authorization
+说明: 公开只读分享详情；若本机有过期 token，前端也不应携带 Authorization，避免公开页被旧登录态拦截。
+响应: { code: 0, data: { id, code, title, summary, coverImage, owner: { nickname, avatarUrl }, snapshot: { id, taskId, realTaskId, title, mode, thumbnailUrl, videoUrl, duration, clipCount, clips, scores, advice, angleData, matchRallies, initialClipIndex? }, createdAt, expiresAt } }
+错误: 400 缺少分享参数 / 404 分享不存在或已撤回 / 410 分享已过期或原视频已删除
+
 ### 3.6 对手列表
 GET /api/opponents/list?page=1&pageSize=20&keyword=张
 请求头: Authorization: Bearer <token>

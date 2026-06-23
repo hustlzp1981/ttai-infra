@@ -35,6 +35,8 @@
 | POST | /api/competitions/recommend | AI 智能推荐 | ✅ |
 | GET | /api/competitions/platforms | 赛事平台入口 | ✅ |
 | GET | /api/competitions/eightcups | 八大杯赛信息 | ✅ |
+| POST | /api/video-shares | 创建视频公开分享短码 | ✅ |
+| GET | /api/video-shares/detail?code= | 公开只读视频分享详情 | ✅ |
 
 ---
 
@@ -190,6 +192,32 @@ Response:
 POST /api/videos/{id}/tag
 Body: { tags: ["比赛", "反手"], opponent: "张三" }
 Response: { code: 0 }
+```
+
+### 3.7.1 视频公开分享 — ✅ 已完成 (2026-06-23 Codex)
+
+```
+POST /api/video-shares
+说明: 登录用户主动从个人视频库创建公开视频分享短码。原视频仍为私有资产，公开页只读展示分享快照。
+认证: Bearer token
+Body: { videoId: string, title?: string, coverImage?: string, currentClipIndex?: number, source?: "poster" }
+Response: { code: 0, data: { shareId, code, title, summary, coverImage, sharePath, qrUrl, expiresAt } }
+
+GET /api/video-shares/detail?code=short-code
+说明: 公开视频分享详情。无需登录，不携带 Authorization；短码本身为 bearer 凭据。
+Response: {
+  code: 0,
+  data: {
+    id, code, title, summary, coverImage,
+    owner: { nickname, avatarUrl },
+    snapshot: {
+      id, taskId, realTaskId, title, mode, thumbnailUrl, videoUrl,
+      duration, clipCount, clips, scores, advice, angleData,
+      matchRallies, initialClipIndex?
+    },
+    createdAt, expiresAt
+  }
+}
 ```
 
 ### 3.8 对手管理
