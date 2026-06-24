@@ -32,15 +32,19 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - FASTAPI_URL=${FASTAPI_URL}
       - MONGODB_URI=${MONGODB_URI}
+      - ADMIN_OPENIDS=${ADMIN_OPENIDS}
+      - OPENCODE_AGENT_TOKEN=${OPENCODE_AGENT_TOKEN}
       - MONGO_INITDB_ROOT_USERNAME=${MONGODB_ROOT_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_ROOT_PASSWORD}
       - TZ=Asia/Shanghai
       - REDIS_URL=redis://redis:6379/1
       - TZ=Asia/Shanghai
+      - EVENT_ASSET_DIR=/app/data/event-assets
     volumes:
       - ./wechat-backend:/app
       - ./data/uploads:/app/data/uploads
       - ./data/media:/app/data/media
+      - ./data/event-assets:/app/data/event-assets
       - ./logs/wechat:/var/log
       - /etc/localtime:/etc/localtime:ro
     depends_on:
