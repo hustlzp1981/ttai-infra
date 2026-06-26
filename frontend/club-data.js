@@ -66,6 +66,36 @@
     });
   };
 
+  var filenameFromDisposition = function (value) {
+    var text = String(value || "");
+    var match = text.match(/filename\*=UTF-8''([^;]+)/i);
+    if (match) return decodeURIComponent(match[1]);
+    match = text.match(/filename="?([^"]+)"?/i);
+    return match ? match[1] : "";
+  };
+
+  var fetchBlob = function (path, params, auth) {
+    var query = buildQuery(params || {});
+    return fetch(apiBase + path + (query ? "?" + query : ""), {
+      headers: auth ? authHeaders() : {}
+    }).then(function (response) {
+      if (!response.ok) {
+        return response.text().then(function (text) {
+          var payload = {};
+          try {
+            payload = text ? JSON.parse(text) : {};
+          } catch (err) {}
+          throw apiError(payload.message || payload.error || "文件下载失败", response.status, payload);
+        });
+      }
+      return response.blob().then(function (blob) {
+        return { blob: blob, filename: filenameFromDisposition(response.headers.get("Content-Disposition")) };
+      });
+    }).catch(function (err) {
+      throw normalizeError(err);
+    });
+  };
+
   var apiGet = function (path, params, auth) {
     var query = buildQuery(params || {});
     return fetchJson(apiBase + path + (query ? "?" + query : ""), {
@@ -201,6 +231,11 @@
     eduDeleteStudent: function (clubId, id) {
       return apiDelete("/club-admin/edu/students/" + encodeURIComponent(id), { clubId: clubId }, true);
     },
+    eduStudentBindQrcode: function (clubId, studentId, payload) {
+      return apiPost("/club-admin/edu/students/" + encodeURIComponent(studentId) + "/bind-qrcode", Object.assign({
+        clubId: clubId
+      }, payload || {}), true);
+    },
     eduPackageTemplates: function (clubId, params) {
       return apiGet("/club-admin/edu/package-templates", Object.assign({ clubId: clubId, page: 1, pageSize: 80 }, params || {}), true);
     },
@@ -335,6 +370,24 @@
         clubId: clubId,
         reason: reason || ""
       }, true);
+    },
+    eduDownloadScheduleExport: function (clubId, params) {
+      return fetchBlob("/club-admin/edu/schedule-export.xlsx", Object.assign({ clubId: clubId }, params || {}), true);
+    },
+    eduGenerateScheduleExport: function (clubId, payload) {
+      return apiPost("/club-admin/edu/schedule-exports/generate", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
+    eduScheduleExports: function (clubId, params) {
+      return apiGet("/club-admin/edu/schedule-exports", Object.assign({ clubId: clubId, page: 1, pageSize: 20 }, params || {}), true);
+    },
+    eduDownloadSavedScheduleExport: function (clubId, id) {
+      return fetchBlob("/club-admin/edu/schedule-exports/" + encodeURIComponent(id || "") + "/download", { clubId: clubId }, true);
+    },
+    eduScheduleExportSettings: function (clubId, branchId) {
+      return apiGet("/club-admin/edu/schedule-export-settings", { clubId: clubId, branchId: branchId || "" }, true);
+    },
+    eduSaveScheduleExportSettings: function (clubId, payload) {
+      return apiPut("/club-admin/edu/schedule-export-settings", Object.assign({ clubId: clubId }, payload || {}), true);
     }
   };
 })();

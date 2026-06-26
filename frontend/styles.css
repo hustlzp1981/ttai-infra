@@ -658,7 +658,7 @@ a {
 
 .admin-table th,
 .admin-table td {
-  padding: 8px 10px;
+  padding: 5px 6px;
   border-bottom: 1px solid var(--color-border);
   text-align: left;
   vertical-align: top;
@@ -669,6 +669,7 @@ a {
   font-size: 12px;
   font-weight: 600;
   background: rgba(16, 67, 89, 0.04);
+  text-align: center;
 }
 
 .admin-table tr:last-child td {
@@ -688,20 +689,14 @@ a {
 }
 
 .admin-table-wrap.wide .admin-table {
-  min-width: 2200px;
+  min-width: 1000px;
 }
 
 .admin-table-wrap.wide .admin-table th,
 .admin-table-wrap.wide .admin-table td {
-  white-space: nowrap;
 }
 
-.admin-table-wrap.wide .admin-table td:nth-child(15),
-.admin-table-wrap.wide .admin-table td:nth-child(19),
-.admin-table-wrap.wide .admin-table td:nth-child(21) {
-  white-space: normal;
-  min-width: 120px;
-}
+
 
 .detail-panel {
   margin-top: var(--space-md);
@@ -1275,6 +1270,57 @@ a {
   color: #805400;
   padding: 10px 12px;
   font-size: 13px;
+}
+
+.edu-student-bind {
+  display: grid;
+  gap: 14px;
+}
+
+.edu-student-bind-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.edu-student-bind-card strong {
+  color: var(--color-text);
+  font-size: 18px;
+}
+
+.edu-student-bind-card span,
+.edu-student-bind-env span {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.edu-student-bind-env {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.edu-student-bind-qr {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.edu-student-bind-qr img {
+  width: 240px;
+  height: 240px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
 }
 
 .inline-form {

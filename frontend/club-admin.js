@@ -51,6 +51,9 @@
     sessions: [],
     scheduleView: "list",
     scheduleFilters: {},
+    scheduleExports: [],
+    scheduleExportSettings: { enabled: false, timeOfDay: "22:00", range: "day" },
+    scheduleExportForm: { date: "", range: "day" },
     availabilityFilters: {},
     reportTab: "fee",
     reportFilters: {}
@@ -204,6 +207,11 @@
       inactive: "停用",
       archived: "归档"
     }, value);
+  };
+
+  var studentWechatBindHtml = function (student) {
+    var bound = !!(student && (student.openid || student.wechatOpenid || student.boundOpenid));
+    return badgeHtml(bound ? "已绑定" : "未绑定", bound ? "ok" : "none");
   };
 
   var classStatusLabel = function (value) {
@@ -661,7 +669,9 @@
         clubData.eduStaff(selectedClubId, params),
         clubData.eduAvailability(selectedClubId, params),
         clubData.eduResources(selectedClubId, params),
-        clubData.eduSessions(selectedClubId, params)
+        clubData.eduSessions(selectedClubId, params),
+        clubData.eduScheduleExports ? clubData.eduScheduleExports(selectedClubId, params).catch(function () { return { items: [] }; }) : Promise.resolve({ items: [] }),
+        clubData.eduScheduleExportSettings ? clubData.eduScheduleExportSettings(selectedClubId, branchId).catch(function () { return { enabled: false, timeOfDay: "22:00", range: "day" }; }) : Promise.resolve({ enabled: false, timeOfDay: "22:00", range: "day" })
       ]);
     }).then(function (parts) {
       eduState.courses = eduList(parts[0]);
@@ -674,6 +684,8 @@
       eduState.availability = eduList(parts[7]);
       eduState.resources = eduList(parts[8]);
       eduState.sessions = eduList(parts[9]);
+      eduState.scheduleExports = eduList(parts[10]);
+      eduState.scheduleExportSettings = parts[11] || { enabled: false, timeOfDay: "22:00", range: "day" };
       renderEduPanel();
     }).catch(function (err) {
       eduPanelEl.innerHTML = eduErrorHtml(err);
@@ -886,8 +898,7 @@
           '<label>班级状态<select class="form-input" name="classStatus"><option value="">全部</option><option value="active">未结业班级的排课</option><option value="graduated">已结业班级的排课</option></select></label>' +
           '<label>所属分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
           '<label>任课教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
-          '<label>助教<input class="form-input" name="assistant" value="' + escapeHtml(filters.assistant || '') + '" placeholder="暂按备注检索"></label>' +
-          '<label>班主任<input class="form-input" name="headTeacher" value="' + escapeHtml(filters.headTeacher || '') + '" placeholder="暂按备注检索"></label>' +
+                    '<label>班主任<input class="form-input" name="headTeacher" value="' + escapeHtml(filters.headTeacher || '') + '" placeholder="暂按备注检索"></label>' +
           '<label>上课场地<input class="form-input" name="roomId" value="' + escapeHtml(filters.roomId || '') + '" placeholder="场地/球台"></label>' +
           '<label>课程属性<select class="form-input" name="teachingMode"><option value="">全部</option><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option><option value="trial">体验课</option></select></label>' +
           '<label>班级标签<input class="form-input" name="classTag" value="' + escapeHtml(filters.classTag || '') + '" placeholder="标签"></label>' +
@@ -907,9 +918,61 @@
         '<button class="club-action" type="button" data-edu-schedule-tool="room-free">查看场地空闲时间</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="progress">查看排课进度</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="batch">批量操作</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tool="columns">选择列</button>' +
+        '' +
       '</div>' +
     '</div>';
+  };
+
+  var todayDateValue = function () {
+    var d = new Date();
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  };
+
+  var downloadBlobFile = function (result, fallbackName) {
+    var url = URL.createObjectURL(result.blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = result.filename || fallbackName || "约课表.xlsx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  var scheduleExportPanelHtml = function () {
+    var form = Object.assign({ date: todayDateValue(), range: "day" }, eduState.scheduleExportForm || {});
+    var settings = Object.assign({ enabled: false, timeOfDay: "22:00", range: "day" }, eduState.scheduleExportSettings || {});
+    var exports = eduState.scheduleExports || [];
+    var rows = exports.length ? exports.slice(0, 6).map(function (item) {
+      return '<tr>' +
+        '<td>' + escapeHtml(item.date || '-') + '</td>' +
+        '<td>' + escapeHtml(item.range === 'week' ? '本周' : '当天') + '</td>' +
+        '<td>' + escapeHtml(item.status === 'failed' ? '失败' : '成功') + '</td>' +
+        '<td>' + escapeHtml(formatCST(item.generatedAt)) + '</td>' +
+        '<td>' + escapeHtml(item.rowsCount || 0) + '</td>' +
+        '<td><button class="club-action" type="button" data-schedule-export-saved-download="' + escapeHtml(idOf(item)) + '">下载</button></td>' +
+      '</tr>';
+    }).join("") : '<tr><td colspan="6">暂无保存记录</td></tr>';
+    return '<section class="edu-export-panel">' +
+      '<div class="section-title"><h4>照片风格 Excel 课表</h4><p>按日期、时间和教练生成彩色约课表，默认手动下载。</p></div>' +
+      '<form class="edu-filter-panel compact" id="schedule-export-form">' +
+        '<div class="edu-filter-grid">' +
+          '<label>导出日期<input class="form-input" name="date" type="date" value="' + escapeHtml(form.date || todayDateValue()) + '"></label>' +
+          '<label>范围<select class="form-input" name="range"><option value="day">当天</option><option value="week">本周</option></select></label>' +
+          '<div class="edu-filter-actions"><button class="club-action primary" type="button" data-schedule-export-download="1">下载 Excel</button><button class="club-action" type="button" data-schedule-export-save="1">保存到导出记录</button></div>' +
+        '</div>' +
+      '</form>' +
+      '<form class="edu-filter-panel compact" id="schedule-export-settings-form">' +
+        '<div class="edu-filter-grid">' +
+          '<label>定时保存<select class="form-input" name="enabled"><option value="false">关闭</option><option value="true">开启</option></select></label>' +
+          '<label>保存时间<input class="form-input" name="timeOfDay" type="time" value="' + escapeHtml(settings.timeOfDay || '22:00') + '"></label>' +
+          '<label>保存范围<select class="form-input" name="range"><option value="day">当天</option><option value="week">本周</option></select></label>' +
+          '<div class="edu-filter-actions"><button class="club-action" type="submit">保存定时设置</button></div>' +
+        '</div>' +
+      '</form>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>日期</th><th>范围</th><th>状态</th><th>生成时间</th><th>人数</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '</section>';
   };
 
   var scheduleViewSwitchHtml = function () {
@@ -1100,7 +1163,7 @@
 
   var scheduleRowsHtml = function () {
     var rows = filteredSessions();
-    if (!rows.length) return '<tr><td colspan="25">暂无课表记录</td></tr>';
+    if (!rows.length) return '<tr><td colspan="13">暂无课表记录</td></tr>';
     return rows.map(function (session) {
       var id = idOf(session);
       var klass = sessionClass(session);
@@ -1112,27 +1175,20 @@
       return '<tr>' +
         '<td>' + rowCheck('sessions', id) + ' <strong>' + escapeHtml(classTitle) + '</strong></td>' +
         '<td>' + escapeHtml(courseTitle) + '</td>' +
-        '<td>' + escapeHtml(termLabel(course.termName, course.termCode)) + '</td>' +
-        '<td>' + escapeHtml(gradeLabel(course.gradeName, course.gradeCode)) + '</td>' +
-        '<td>' + escapeHtml(subjectLabel(course.subjectName, course.subjectCode)) + '</td>' +
-        '<td>' + escapeHtml(courseLevelLabel(course.typeName, course.courseLevelCode)) + '</td>' +
-        '<td>' + escapeHtml(classTypeLabel(course.classTypeName, course.classTypeCode)) + '</td>' +
+        
+                '<td>' + escapeHtml(classTypeLabel(course.classTypeName, course.classTypeCode)) + '</td>' +
         '<td>' + escapeHtml(branchName(session.branchId)) + '</td>' +
         '<td>' + escapeHtml(session.teacherName || teacherName(session.teacherId)) + '</td>' +
-        '<td>' + escapeHtml(session.assistantName || '-') + '</td>' +
-        '<td>' + escapeHtml(session.headTeacherName || '-') + '</td>' +
-        '<td>' + escapeHtml(employmentStatusLabel((findById(eduState.staff, session.teacherId) || {}).employmentStatus)) + '</td>' +
+                
         '<td>' + escapeHtml(place) + '</td>' +
-        '<td>' + escapeHtml(session.chapterTitle || '-') + '</td>' +
-        '<td>' + escapeHtml(session.content || session.lessonContent || '-') + '</td>' +
-        '<td><strong>' + escapeHtml(formatCST(session.startAt)) + '</strong><br><span class="muted">' + escapeHtml(dayPartText(session.startAt)) + ' · ' + escapeHtml(timeOnlyText(session.startAt)) + '-' + escapeHtml(timeOnlyText(session.endAt)) + '</span></td>' +
+                '<td><strong>' + escapeHtml(formatCST(session.startAt)) + '</strong><br><span class="muted">' + escapeHtml(dayPartText(session.startAt)) + ' · ' + escapeHtml(timeOnlyText(session.startAt)) + '-' + escapeHtml(timeOnlyText(session.endAt)) + '</span></td>' +
         '<td>' + escapeHtml(durationText(session.startAt, session.endAt)) + '</td>' +
         '<td>' + badgeHtml(sessionStatusLabel(session.status), session.status) + '</td>' +
         '<td>' + escapeHtml(session.remark || '-') + '</td>' +
-        '<td>' + escapeHtml((session.attendedCount != null ? session.attendedCount : '-') + '/' + (session.expectedCount || klass.capacity || '-')) + '</td>' +
+        
         '<td>' + escapeHtml(session.studentNames || '-') + '</td>' +
-        '<td>' + escapeHtml(session.checkinCount != null ? session.checkinCount : '-') + '</td>' +
-        '<td>' + escapeHtml(session.billingCount != null ? session.billingCount : '-') + '</td>' +
+        
+        
         '<td>' + escapeHtml(billed) + '</td>' +
         '<td><button class="club-action" data-edit-session="' + escapeHtml(id) + '">编辑</button>' + (canAttendanceSession(session) ? '<button class="club-action primary" data-attendance-session="' + escapeHtml(id) + '">点名</button>' : '') + '<button class="club-action" data-cancel-session="' + escapeHtml(id) + '">取消</button></td>' +
       '</tr>';
@@ -1496,6 +1552,50 @@
     setSelectValue("status", item && item.status || "active");
   };
 
+  var studentBindQrHtml = function (student, state) {
+    state = state || {};
+    var apiStudent = state.student || {};
+    var displayName = apiStudent.name || student.name || "-";
+    var phone = apiStudent.phoneMasked || student.phoneMasked || student.phone || "";
+    var boundText = apiStudent.boundLabel || (student.openid ? "已绑定微信" : "未绑定微信");
+    var body = "";
+    if (state.loading) {
+      body = '<div class="empty-state compact">正在生成绑定二维码...</div>';
+    } else if (state.error) {
+      body = '<div class="edu-warning">' + escapeHtml(state.error) + '</div>';
+    } else if (state.qrcodeUrl) {
+      body = '<div class="edu-student-bind-qr">' +
+        '<img src="' + escapeHtml(state.qrcodeUrl) + '" alt="学员微信绑定二维码">' +
+        '<div class="club-actions">' +
+          '<a class="club-action" href="' + escapeHtml(state.qrcodeUrl) + '" target="_blank" rel="noreferrer">打开二维码图片</a>' +
+        '</div>' +
+      '</div>';
+    }
+    return '<div class="edu-student-bind">' +
+      '<div class="edu-student-bind-card">' +
+        '<strong>' + escapeHtml(displayName) + '</strong>' +
+        '<span>' + escapeHtml(phone || '-') + ' · ' + escapeHtml(boundText) + '</span>' +
+      '</div>' +
+      '<div class="edu-student-bind-env"><span>正式版小程序绑定二维码</span></div>' +
+      body +
+      '<p class="edu-note">二维码 7 天内有效。二维码只包含短 token，不直接写入学员姓名或手机号；家长扫码后在小程序填写昵称和手机号，完成 TT AI 注册并绑定学员。</p>' +
+    '</div>';
+  };
+
+  var openStudentBindQr = function (student) {
+    if (!student || !idOf(student)) return;
+    renderEduModal("学员微信绑定二维码", studentBindQrHtml(student, { loading: true }));
+    clubData.eduStudentBindQrcode(selectedClubId, idOf(student), {
+      envVersion: "release"
+    }).then(function (data) {
+      renderEduModal("学员微信绑定二维码", studentBindQrHtml(student, data || {}));
+    }).catch(function (err) {
+      renderEduModal("学员微信绑定二维码", studentBindQrHtml(student, {
+        error: clubData.errorMessage ? clubData.errorMessage(err) : ((err && err.message) || "二维码生成失败")
+      }));
+    });
+  };
+
   var walletFormHtml = function () {
     return '<form class="edu-form" id="edu-wallet-form">' +
       '<label>学员<select class="form-input" name="studentId" required>' + studentOptions() + '</select></label>' +
@@ -1512,12 +1612,12 @@
     eduPanelEl.innerHTML =
       eduFrameStart("学员管理", "维护学员档案、剩余课时、报读开课和已购课程明细。") +
       eduActionBar("students", "新增学员", '<div class="club-actions"><button class="club-action primary" type="button" data-edu-create="wallets">报读/开课入账</button></div>') +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>分店</th><th>手机号</th><th>家长</th><th>水平</th><th>剩余课时</th><th>最近到期</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>分店</th><th>手机号</th><th>家长</th><th>水平</th><th>剩余课时</th><th>最近到期</th><th>微信绑定</th><th>状态</th><th>操作</th></tr></thead><tbody>' +
         (eduState.students.length ? eduState.students.map(function (student) {
           var summary = studentWalletSummary(idOf(student));
           var balanceType = summary.remainingUnits10 > 10 ? "ok" : (summary.remainingUnits10 > 0 ? "pending" : "none");
-          return '<tr><td>' + rowCheck('students', idOf(student)) + ' <strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + escapeHtml(student.parentName || '-') + '</td><td>' + escapeHtml(student.level || '-') + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + badgeHtml(studentStatusLabel(student.status || 'active'), student.status || 'active') + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button></td></tr>';
-        }).join("") : '<tr><td colspan="9">暂无学员</td></tr>') +
+          return '<tr><td>' + rowCheck('students', idOf(student)) + ' <strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + escapeHtml(student.parentName || '-') + '</td><td>' + escapeHtml(student.level || '-') + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + studentWechatBindHtml(student) + '</td><td>' + badgeHtml(studentStatusLabel(student.status || 'active'), student.status || 'active') + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button><button class="club-action primary" data-bind-student="' + escapeHtml(idOf(student)) + '">绑定微信</button></td></tr>';
+        }).join("") : '<tr><td colspan="10">暂无学员</td></tr>') +
       '</tbody></table></div>' +
       eduActionBar("wallets", "", "") +
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>学员</th><th>已购课程</th><th>课程</th><th>分店</th><th>总课时</th><th>剩余</th><th>有效期</th><th>状态</th></tr></thead><tbody>' +
@@ -1613,7 +1713,7 @@
     return availabilityBulkHtml() +
       availabilityFilterHtml() +
       '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div></div>' +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>教练</th><th>所属分店</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
+      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>教练</th><th>分店</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
         (filteredAvailability().length ? filteredAvailability().map(function (item) {
           var dateType = item.date ? "指定日期" : (item.weekday ? "每周重复" : "-");
           var actions = item.status === 'pending' ? '<button class="club-action primary" data-approve-availability="' + escapeHtml(idOf(item)) + '">通过</button><button class="club-action" data-reject-availability="' + escapeHtml(idOf(item)) + '">拒绝</button>' : '-';
@@ -1668,9 +1768,10 @@
       (active === "availability" ? renderEduAvailability() :
       scheduleFilterHtml() +
       scheduleToolbarHtml() +
+      scheduleExportPanelHtml() +
       scheduleViewSwitchHtml() +
       ((eduState.scheduleView || "list") === "list"
-        ? '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>班级名称</th><th>课程名称</th><th>课程所属期段</th><th>课程所属年级</th><th>课程所属科目</th><th>课程所属类型</th><th>课程所属班型</th><th>所属分店</th><th>任课教练</th><th>助教</th><th>班主任</th><th>任课教练在职类型</th><th>上课场地</th><th>章节内容</th><th>上课内容</th><th>上课时间</th><th>上课时长</th><th>状态</th><th>备注</th><th>实到/应到</th><th>上课学员</th><th>扫码/签到人数</th><th>计费人数</th><th>计费数量</th><th>操作</th></tr></thead><tbody>' +
+        ? '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>班级</th><th>课程</th><th>班型</th><th>分店</th><th>教练</th><th>场地</th><th>上课时间</th><th>时长</th><th>状态</th><th>备注</th><th>学员</th><th>计费数量</th><th>操作</th></tr></thead><tbody>' +
           scheduleRowsHtml() +
         '</tbody></table></div>'
         : scheduleVisualHtml()));
@@ -1680,6 +1781,11 @@
       setFormValue("edu-schedule-filter-form", "dayPart", sf.dayPart || "");
       setFormValue("edu-schedule-filter-form", "classStatus", sf.classStatus || "");
       setFormValue("edu-schedule-filter-form", "teachingMode", sf.teachingMode || "");
+      var exportForm = eduState.scheduleExportForm || {};
+      setFormValue("schedule-export-form", "range", exportForm.range || "day");
+      var exportSettings = eduState.scheduleExportSettings || {};
+      setFormValue("schedule-export-settings-form", "enabled", exportSettings.enabled ? "true" : "false");
+      setFormValue("schedule-export-settings-form", "range", exportSettings.range || "day");
     } else {
       var af = eduState.availabilityFilters || {};
       setFormValue("edu-availability-filter-form", "status", af.status || "");
@@ -2624,6 +2730,62 @@
     downloadCsv(item.name, item.rows || [], item.columns);
   };
 
+  var scheduleExportPayload = function () {
+    var form = document.getElementById("schedule-export-form");
+    var data = form ? formData(form) : {};
+    data.date = data.date || todayDateValue();
+    data.range = data.range === "week" ? "week" : "day";
+    data.branchId = eduState.branchId || "";
+    eduState.scheduleExportForm = { date: data.date, range: data.range };
+    return data;
+  };
+
+  var downloadScheduleExcel = function () {
+    var payload = scheduleExportPayload();
+    if (!clubData.eduDownloadScheduleExport) return window.alert("后端导出接口未上线。");
+    clubData.eduDownloadScheduleExport(selectedClubId, payload).then(function (result) {
+      downloadBlobFile(result, "约课表.xlsx");
+    }).catch(function (err) {
+      window.alert(clubData.errorMessage ? clubData.errorMessage(err) : (err.message || "下载失败"));
+    });
+  };
+
+  var saveScheduleExcel = function () {
+    var payload = scheduleExportPayload();
+    if (!clubData.eduGenerateScheduleExport) return window.alert("后端导出接口未上线。");
+    clubData.eduGenerateScheduleExport(selectedClubId, payload).then(function () {
+      return loadEduData();
+    }).then(function () {
+      window.alert("已保存到导出记录。");
+    }).catch(function (err) {
+      window.alert(clubData.errorMessage ? clubData.errorMessage(err) : (err.message || "保存失败"));
+    });
+  };
+
+  var saveScheduleExportSettings = function (form) {
+    var data = formData(form);
+    data.branchId = eduState.branchId || "";
+    data.enabled = data.enabled === "true";
+    data.range = data.range === "week" ? "week" : "day";
+    if (!clubData.eduSaveScheduleExportSettings) return window.alert("后端设置接口未上线。");
+    clubData.eduSaveScheduleExportSettings(selectedClubId, data).then(function (settings) {
+      eduState.scheduleExportSettings = settings || data;
+      renderEduSessions();
+      window.alert("定时保存设置已更新。");
+    }).catch(function (err) {
+      window.alert(clubData.errorMessage ? clubData.errorMessage(err) : (err.message || "保存失败"));
+    });
+  };
+
+  var downloadSavedScheduleExcel = function (id) {
+    if (!clubData.eduDownloadSavedScheduleExport) return window.alert("后端下载接口未上线。");
+    clubData.eduDownloadSavedScheduleExport(selectedClubId, id).then(function (result) {
+      downloadBlobFile(result, "约课表.xlsx");
+    }).catch(function (err) {
+      window.alert(clubData.errorMessage ? clubData.errorMessage(err) : (err.message || "下载失败"));
+    });
+  };
+
   var deleteEduSelection = function (type) {
     var ids = selectedEduIds(type);
     if (!ids.length) {
@@ -2719,6 +2881,8 @@
     var batchSessionForm = document.getElementById("edu-batch-session-form");
     var availabilityBulkForm = document.getElementById("edu-availability-bulk-form");
     var scheduleFilterForm = document.getElementById("edu-schedule-filter-form");
+    var scheduleExportForm = document.getElementById("schedule-export-form");
+    var scheduleExportSettingsForm = document.getElementById("schedule-export-settings-form");
     var availabilityFilterForm = document.getElementById("edu-availability-filter-form");
     var reportFilterForm = document.getElementById("edu-report-filter-form");
     if (courseForm) courseForm.addEventListener("submit", function (e) { e.preventDefault(); saveEduCourse(courseForm); });
@@ -2741,6 +2905,14 @@
       e.preventDefault();
       eduState.scheduleFilters = formData(scheduleFilterForm);
       renderEduSessions();
+    });
+    if (scheduleExportForm) scheduleExportForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      downloadScheduleExcel();
+    });
+    if (scheduleExportSettingsForm) scheduleExportSettingsForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      saveScheduleExportSettings(scheduleExportSettingsForm);
     });
     if (availabilityFilterForm) availabilityFilterForm.addEventListener("submit", function (e) {
       e.preventDefault();
@@ -2783,6 +2955,17 @@
         exportEduData(button.getAttribute("data-edu-export"));
       });
     });
+    eduPanelEl.querySelectorAll("[data-schedule-export-download]").forEach(function (button) {
+      button.addEventListener("click", downloadScheduleExcel);
+    });
+    eduPanelEl.querySelectorAll("[data-schedule-export-save]").forEach(function (button) {
+      button.addEventListener("click", saveScheduleExcel);
+    });
+    eduPanelEl.querySelectorAll("[data-schedule-export-saved-download]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        downloadSavedScheduleExcel(button.getAttribute("data-schedule-export-saved-download"));
+      });
+    });
     eduPanelEl.querySelectorAll("[data-edu-filter-reset]").forEach(function (button) {
       button.addEventListener("click", function () {
         var type = button.getAttribute("data-edu-filter-reset");
@@ -2821,7 +3004,7 @@
     eduPanelEl.querySelectorAll("[data-edu-schedule-tool]").forEach(function (button) {
       button.addEventListener("click", function () {
         var type = button.getAttribute("data-edu-schedule-tool");
-        if (type === "columns") return window.alert("已显示详细课表常用列。");
+        
         if (type === "progress") return renderEduModal("查看排课进度", scheduleProgressHtml());
         if (type === "copy") return openCopyMoveModal();
         if (type === "batch") return openBatchSessionModal();
@@ -2842,6 +3025,11 @@
     eduPanelEl.querySelectorAll("[data-edit-student]").forEach(function (button) {
       button.addEventListener("click", function () {
         openStudentModal(findById(eduState.students, button.getAttribute("data-edit-student")) || {});
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-bind-student]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        openStudentBindQr(findById(eduState.students, button.getAttribute("data-bind-student")) || {});
       });
     });
     eduPanelEl.querySelectorAll("[data-edit-staff]").forEach(function (button) {
