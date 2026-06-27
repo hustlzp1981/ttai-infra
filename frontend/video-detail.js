@@ -16,10 +16,43 @@
   const downloadBtn = document.getElementById("btn-download");
   const editBtn = document.getElementById("btn-edit");
   const deleteBtn = document.getElementById("btn-delete");
+  const immersiveBtn = document.getElementById("btn-immersive");
+  const immersivePlayer = document.getElementById("immersive-player");
+  const immersiveClose = document.getElementById("immersive-close");
+  const immersiveTitle = document.getElementById("immersive-title");
+  const immersiveSubtitle = document.getElementById("immersive-subtitle");
+  const immersiveListToggle = document.getElementById("immersive-list-toggle");
+  const immersiveCurrentTitle = document.getElementById("immersive-current-title");
+  const immersiveCurrentSubtitle = document.getElementById("immersive-current-subtitle");
+  const immersiveStats = document.getElementById("immersive-stats");
+  const immersiveVideo = document.getElementById("immersive-video");
+  const immersiveActions = document.getElementById("immersive-actions");
+  const immersiveRecordPanel = document.getElementById("immersive-record-panel");
+  const immersiveRecordTitle = document.getElementById("immersive-record-title");
+  const immersiveClipList = document.getElementById("immersive-clip-list");
+  const immersiveFavorite = document.getElementById("immersive-favorite");
+  const immersiveSpeed = document.getElementById("immersive-speed");
+  const immersiveSpeedLabel = document.getElementById("immersive-speed-label");
+  const immersiveDownload = document.getElementById("immersive-download");
+  const immersiveShare = document.getElementById("immersive-share");
+  const immersiveFullscreen = document.getElementById("immersive-fullscreen");
+  const immersiveShareStatus = document.getElementById("immersive-share-status");
+  const immersiveSortButtons = document.querySelectorAll("[data-player-sort]");
 
   let currentData = null;
   let overlayUrls = {};
   let currentVideoUrl = "";
+  const speedRates = [0.5, 1, 1.5, 2];
+  let playerState = {
+    open: false,
+    view: "play",
+    clips: [],
+    sort: "all",
+    currentClipId: "",
+    currentUrl: "",
+    speedIndex: 1,
+    favorite: false
+  };
 
   const ensureLogin = () => {
     if (!token) {
@@ -41,6 +74,271 @@
     if (value.startsWith("http")) return value;
     if (value.startsWith("/")) return baseUrl + value;
     return baseUrl + "/" + value;
+  };
+
+  const escapeHtml = (value) => String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+  const formatDuration = (seconds) => {
+    const value = Number(seconds);
+    if (!value || value <= 0) return "--";
+    return value >= 10 ? `${Math.round(value)}秒` : `${value.toFixed(1)}秒`;
+  };
+
+  const formatClock = (seconds) => {
+    const value = Math.max(0, Math.floor(Number(seconds) || 0));
+    const mm = String(Math.floor(value / 60)).padStart(2, "0");
+    const ss = String(value % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  };
+
+  const resolveVideoMediaBasePath = (video) => {
+    if (!video) return "";
+    const realId = video.realTaskId || video.taskId || video.task_id || "";
+    if (realId) return `${apiBase}/download-media/${encodeURIComponent(realId)}/`;
+    const url = video.videoUrl || video.downloadLink || video.mergedUrl || video.mergedVideoUrl || "";
+    return url.lastIndexOf("/") >= 0 ? url.substring(0, url.lastIndexOf("/") + 1) : "";
+  };
+
+  const resolveMediaUrl = (value, basePath) => {
+    if (!value) return "";
+    if (String(value).startsWith("http") || String(value).startsWith("/")) return resolveUrl(String(value));
+    if (basePath) return resolveUrl(basePath + String(value));
+    return resolveUrl(String(value));
+  };
+
+  const favoriteKey = () => {
+    const clipKey = playerState.currentClipId || "full";
+    return `ttai-web-video-favorite:${videoId}:${clipKey}`;
+  };
+
+  const readFavorite = () => {
+    try {
+      return localStorage.getItem(favoriteKey()) === "1";
+    } catch (err) {
+      return false;
+    }
+  };
+
+  const writeFavorite = (value) => {
+    try {
+      if (value) localStorage.setItem(favoriteKey(), "1");
+      else localStorage.removeItem(favoriteKey());
+    } catch (err) {}
+  };
+
+  const buildMatchClipItems = (video) => {
+    const clipsData = Array.isArray(video && video.clips) ? video.clips : [];
+    const basePath = resolveVideoMediaBasePath(video);
+    if (clipsData.length > 0) {
+      return clipsData.map((clip, index) => {
+        const start = parseFloat(clip.start) || 0;
+        const end = parseFloat(clip.end) || 0;
+        const duration = parseFloat(clip.duration) || Math.max(0, end - start);
+        const rating = clip.rating || clip.score || clip.overall || "";
+        return {
+          id: `clip_${index + 1}`,
+          index,
+          rallyNo: clip.index || index + 1,
+          downloadLink: resolveMediaUrl(clip.videoUrl || clip.downloadLink || clip.url || clip.video || "", basePath),
+          thumbnailUrl: resolveMediaUrl(clip.thumbnailUrl || clip.thumbnail || clip.thumb || "", basePath),
+          timeLabel: start ? formatClock(start) : "时间未知",
+          durationLabel: formatDuration(duration),
+          shotCount: clip.shots || clip.shotCount || "",
+          speedLabel: clip.peakSpeed || clip.speed ? `${clip.peakSpeed || clip.speed}m/s` : "",
+          rating,
+          displayName: start || end ? `${start.toFixed(1)}s ~ ${end.toFixed(1)}s` : ""
+        };
+      });
+    }
+
+    const totalClips = Number(video && video.clipCount) || 0;
+    if (!totalClips || !basePath) return [];
+    return Array.from({ length: totalClips }, (_, index) => ({
+      id: `clip_${index + 1}`,
+      index,
+      rallyNo: index + 1,
+      downloadLink: resolveMediaUrl(`clip_${index + 1}.mp4`, basePath),
+      thumbnailUrl: resolveMediaUrl(`clip_${index + 1}_thumb.jpg`, basePath),
+      timeLabel: "时间未知",
+      durationLabel: "--",
+      shotCount: "",
+      speedLabel: "",
+      rating: "",
+      displayName: ""
+    }));
+  };
+
+  const buildPlayerCurrent = (clip, video) => {
+    if (!clip) {
+      const clipCount = video && (video.clipCount || (Array.isArray(video.clips) ? video.clips.length : 0));
+      return {
+        title: video && video.mode === "match_clip" ? "完整比赛" : "完整视频",
+        subtitle: video && video.mode === "match_clip" ? "全部有效回合" : "当前分析视频",
+        stats: [
+          { label: "回合", value: clipCount ? String(clipCount) : "--" },
+          { label: "时长", value: video && video.duration ? formatDuration(video.duration) : "--" },
+          { label: "大小", value: video && video.size ? `${(video.size / 1024 / 1024).toFixed(1)}MB` : "--" },
+          { label: "评分", value: video && video.scores && video.scores.overall ? String(video.scores.overall) : "无评级" }
+        ]
+      };
+    }
+    return {
+      title: `回合 ${clip.rallyNo}`,
+      subtitle: clip.timeLabel || "时间未知",
+      stats: [
+        { label: "时长", value: clip.durationLabel || "--" },
+        { label: "拍数", value: clip.shotCount ? String(clip.shotCount) : "--" },
+        { label: "球速", value: clip.speedLabel || "--" },
+        { label: "评分", value: clip.rating ? String(clip.rating) : "无评级" }
+      ]
+    };
+  };
+
+  const sortedClips = () => {
+    const list = playerState.clips.slice();
+    if (playerState.sort === "score") {
+      list.sort((a, b) => (Number(b.rating) || -1) - (Number(a.rating) || -1));
+    }
+    return list;
+  };
+
+  const setShareStatus = (text) => {
+    if (!immersiveShareStatus) return;
+    immersiveShareStatus.textContent = text || "";
+    if (text) {
+      setTimeout(() => {
+        if (immersiveShareStatus.textContent === text) immersiveShareStatus.textContent = "";
+      }, 2600);
+    }
+  };
+
+  const renderPlayerCurrent = (clip) => {
+    const current = buildPlayerCurrent(clip || null, currentData || {});
+    if (immersiveCurrentTitle) immersiveCurrentTitle.textContent = current.title;
+    if (immersiveCurrentSubtitle) immersiveCurrentSubtitle.textContent = current.subtitle;
+    if (immersiveStats) {
+      immersiveStats.innerHTML = current.stats.map((item) => `
+        <div class="immersive-stat">
+          <span>${escapeHtml(item.label)}</span>
+          <strong>${escapeHtml(item.value)}</strong>
+        </div>
+      `).join("");
+    }
+  };
+
+  const renderClipList = () => {
+    if (!immersiveClipList) return;
+    const list = sortedClips();
+    if (immersiveRecordTitle) immersiveRecordTitle.textContent = `共${list.length}条记录`;
+    immersiveClipList.innerHTML = "";
+    if (!list.length) {
+      immersiveClipList.innerHTML = "<div class=\"immersive-empty\">暂无回合记录</div>";
+      return;
+    }
+    list.forEach((clip) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "immersive-record-card" + (playerState.currentClipId === clip.id ? " active" : "") + (!clip.downloadLink ? " disabled" : "");
+      item.innerHTML = `
+        ${clip.thumbnailUrl ? `<img class="immersive-record-thumb" src="${escapeHtml(clip.thumbnailUrl)}" alt="">` : "<div class=\"immersive-record-thumb empty\">回合</div>"}
+        <span class="immersive-record-info">
+          <strong>回合${escapeHtml(clip.rallyNo)}</strong>
+          <span>${escapeHtml(clip.timeLabel || "时间未知")} · ${escapeHtml(clip.durationLabel || "--")}</span>
+          <span>${clip.rating ? escapeHtml(clip.rating + "分") : "无评级"}</span>
+        </span>
+        <span class="immersive-record-state">${clip.downloadLink ? "播放" : "准备中"}</span>
+      `;
+      item.addEventListener("click", () => selectClip(clip));
+      immersiveClipList.appendChild(item);
+    });
+  };
+
+  const renderImmersive = () => {
+    if (!playerState.clips.length && playerState.view === "list") playerState.view = "play";
+    const isList = playerState.view === "list";
+    if (immersiveListToggle) {
+      immersiveListToggle.textContent = isList ? "返回播放" : "记录列表";
+      immersiveListToggle.hidden = playerState.clips.length === 0;
+    }
+    if (immersiveRecordPanel) immersiveRecordPanel.hidden = !isList;
+    if (immersiveActions) immersiveActions.hidden = isList;
+    if (immersiveFavorite) {
+      const icon = immersiveFavorite.querySelector(".immersive-action-icon");
+      if (icon) icon.textContent = playerState.favorite ? "★" : "☆";
+    }
+    if (immersiveSpeedLabel) immersiveSpeedLabel.textContent = `${speedRates[playerState.speedIndex]}倍`;
+    immersiveSortButtons.forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.playerSort === playerState.sort);
+    });
+    renderClipList();
+  };
+
+  const setImmersiveSource = (url) => {
+    playerState.currentUrl = url || "";
+    if (!immersiveVideo || !url) return;
+    immersiveVideo.src = url;
+    immersiveVideo.playbackRate = speedRates[playerState.speedIndex];
+    immersiveVideo.play().catch(() => {});
+  };
+
+  const openImmersivePlayer = () => {
+    if (!currentData) return;
+    const clips = buildMatchClipItems(currentData);
+    const url = currentVideoUrl || resolveMediaUrl(currentData.videoUrl || currentData.downloadLink || "", "") || (clips[0] && clips[0].downloadLink) || "";
+    if (!url) {
+      alert("视频暂未就绪");
+      return;
+    }
+    playerState = {
+      open: true,
+      view: "play",
+      clips,
+      sort: "all",
+      currentClipId: "",
+      currentUrl: url,
+      speedIndex: 1,
+      favorite: false
+    };
+    playerState.favorite = readFavorite();
+    if (immersiveTitle) immersiveTitle.textContent = currentData.title || (currentData.mode === "match_clip" ? "比赛回放" : "训练分析");
+    if (immersiveSubtitle) {
+      const clipText = currentData.mode === "match_clip" ? `已剪出 ${clips.length || currentData.clipCount || 0} 个有效回合` : "训练分析视频";
+      immersiveSubtitle.textContent = currentData.date || currentData.createdAt || clipText;
+    }
+    renderPlayerCurrent(null);
+    if (immersivePlayer) immersivePlayer.hidden = false;
+    document.body.classList.add("modal-open");
+    setImmersiveSource(url);
+    renderImmersive();
+  };
+
+  const closeImmersivePlayer = () => {
+    if (immersiveVideo) {
+      immersiveVideo.pause();
+      immersiveVideo.removeAttribute("src");
+      immersiveVideo.load();
+    }
+    if (immersivePlayer) immersivePlayer.hidden = true;
+    document.body.classList.remove("modal-open");
+    playerState.open = false;
+  };
+
+  const selectClip = (clip) => {
+    if (!clip || !clip.downloadLink) {
+      setShareStatus("片段准备中");
+      return;
+    }
+    playerState.currentClipId = clip.id;
+    playerState.view = "play";
+    playerState.favorite = readFavorite();
+    renderPlayerCurrent(clip);
+    setImmersiveSource(clip.downloadLink);
+    renderImmersive();
   };
 
   const setActiveOverlay = (type) => {
@@ -180,7 +478,7 @@
     });
   }
 
-  if (deleteBtn) {
+    if (deleteBtn) {
     deleteBtn.addEventListener("click", async () => {
       if (!currentData) return;
       if (!confirm("确认删除该视频？")) return;
@@ -195,8 +493,108 @@
       if (response.ok) {
         window.location.href = "videos.html";
       }
+      });
+  }
+
+  if (immersiveBtn) {
+    immersiveBtn.addEventListener("click", openImmersivePlayer);
+  }
+
+  if (immersiveClose) {
+    immersiveClose.addEventListener("click", closeImmersivePlayer);
+  }
+
+  if (immersiveListToggle) {
+    immersiveListToggle.addEventListener("click", () => {
+      playerState.view = playerState.view === "list" ? "play" : "list";
+      renderImmersive();
     });
   }
+
+  immersiveSortButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      playerState.sort = btn.dataset.playerSort || "all";
+      renderImmersive();
+    });
+  });
+
+  if (immersiveFavorite) {
+    immersiveFavorite.addEventListener("click", () => {
+      playerState.favorite = !playerState.favorite;
+      writeFavorite(playerState.favorite);
+      setShareStatus(playerState.favorite ? "已收藏" : "已取消收藏");
+      renderImmersive();
+    });
+  }
+
+  if (immersiveSpeed) {
+    immersiveSpeed.addEventListener("click", () => {
+      playerState.speedIndex = (playerState.speedIndex + 1) % speedRates.length;
+      if (immersiveVideo) immersiveVideo.playbackRate = speedRates[playerState.speedIndex];
+      renderImmersive();
+    });
+  }
+
+  const downloadCurrentImmersiveVideo = () => {
+    if (!playerState.currentUrl) return;
+    const link = document.createElement("a");
+    link.href = playerState.currentUrl;
+    link.download = playerState.currentClipId ? `${playerState.currentClipId}.mp4` : "video.mp4";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  if (immersiveDownload) {
+    immersiveDownload.addEventListener("click", downloadCurrentImmersiveVideo);
+  }
+
+  const shareCurrentImmersiveVideo = async () => {
+    const shareUrl = playerState.currentUrl || window.location.href;
+    const title = currentData && currentData.title ? currentData.title : "TT AI 视频";
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url: shareUrl });
+        return;
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareStatus("已复制播放链接");
+        return;
+      }
+      setShareStatus("当前浏览器不支持分享");
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      setShareStatus("分享失败，请稍后重试");
+    }
+  };
+
+  if (immersiveShare) {
+    immersiveShare.addEventListener("click", shareCurrentImmersiveVideo);
+  }
+
+  if (immersiveFullscreen) {
+    immersiveFullscreen.addEventListener("click", () => {
+      const target = immersiveVideo || immersivePlayer;
+      if (target && target.requestFullscreen) {
+        target.requestFullscreen().catch(() => setShareStatus("当前浏览器不支持全屏"));
+      } else {
+        setShareStatus("当前浏览器不支持全屏");
+      }
+    });
+  }
+
+  if (immersiveVideo) {
+    immersiveVideo.addEventListener("ended", () => {
+      if (!playerState.currentClipId) return;
+      immersiveVideo.currentTime = 0;
+      immersiveVideo.play().catch(() => {});
+    });
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && playerState.open) closeImmersivePlayer();
+  });
 
   overlayButtons.forEach((btn) => {
     btn.addEventListener("click", () => {

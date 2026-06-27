@@ -39,6 +39,9 @@
             <video controls width="100%" poster="images/main.png" id="video-player">
               <source src="" type="video/mp4">
             </video>
+            <div class="upload-actions detail-video-actions">
+              <button class="btn btn-primary" type="button" id="btn-immersive">沉浸播放</button>
+            </div>
           </section>
 
           <section class="section">
@@ -72,6 +75,67 @@
           </section>
         </div>
       </main>
+
+      <div class="immersive-player" id="immersive-player" hidden>
+        <div class="immersive-shell">
+          <div class="immersive-top">
+            <button class="immersive-close" type="button" id="immersive-close" aria-label="关闭">‹</button>
+            <div class="immersive-titlebox">
+              <strong id="immersive-title">比赛回放</strong>
+              <span id="immersive-subtitle">比赛视频分析</span>
+            </div>
+            <button class="immersive-pill" type="button" id="immersive-list-toggle">记录列表</button>
+          </div>
+
+          <div class="immersive-current">
+            <div>
+              <strong id="immersive-current-title">完整比赛</strong>
+              <span id="immersive-current-subtitle">全部有效回合</span>
+            </div>
+            <div class="immersive-stats" id="immersive-stats"></div>
+          </div>
+
+          <div class="immersive-video-wrap">
+            <video id="immersive-video" controls playsinline></video>
+          </div>
+
+          <div class="immersive-actions" id="immersive-actions">
+            <button class="immersive-action" type="button" id="immersive-favorite">
+              <span class="immersive-action-icon">☆</span>
+              <span>收藏</span>
+            </button>
+            <button class="immersive-action" type="button" id="immersive-speed">
+              <span class="immersive-action-icon" id="immersive-speed-label">1倍</span>
+              <span>倍速</span>
+            </button>
+            <button class="immersive-action" type="button" id="immersive-download">
+              <span class="immersive-action-icon">↓</span>
+              <span>下载</span>
+            </button>
+            <button class="immersive-action" type="button" id="immersive-share">
+              <span class="immersive-action-icon">↗</span>
+              <span>分享</span>
+            </button>
+            <button class="immersive-action" type="button" id="immersive-fullscreen">
+              <span class="immersive-action-icon">⛶</span>
+              <span>全屏</span>
+            </button>
+          </div>
+
+          <div class="immersive-record-panel" id="immersive-record-panel" hidden>
+            <div class="immersive-record-head">
+              <strong id="immersive-record-title">共0条记录</strong>
+              <div class="immersive-record-filters">
+                <button class="immersive-record-filter active" type="button" data-player-sort="all">全部</button>
+                <button class="immersive-record-filter" type="button" data-player-sort="score">按评分</button>
+              </div>
+            </div>
+            <div class="immersive-record-list" id="immersive-clip-list"></div>
+          </div>
+
+          <div class="immersive-share-status" id="immersive-share-status"></div>
+        </div>
+      </div>
 
       <footer>
         <p>&copy; <span id="year"></span> TTAI. All rights reserved.</p>
