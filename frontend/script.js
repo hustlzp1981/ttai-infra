@@ -221,8 +221,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 emptyState.textContent = '请先登录，登录后这里会显示最近分析结果。';
                 emptyState.style.display = 'block';
             }
-            setText('home-video-total', '--');
-            setText('home-latest-mode', '--');
             return;
         }
 
@@ -237,9 +235,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (videoList) videoList.innerHTML = '';
             items.forEach(renderVideoItem);
 
-            const total = Number(data && data.total) || items.length;
-            setText('home-video-total', total ? String(total) : '0');
-            setText('home-latest-mode', items[0] ? modeLabelOf(items[0].mode) : '--');
             if (emptyState) {
                 emptyState.textContent = items.length ? '' : '暂无视频记录，上传第一个视频即可在这里看到分析结果。';
                 emptyState.style.display = items.length ? 'none' : 'block';
@@ -261,14 +256,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!logs.length) {
             if (empty) empty.style.display = 'block';
-            setText('home-log-total', '0');
-            setText('home-latest-log', '--');
             return;
         }
 
         if (empty) empty.style.display = 'none';
-        setText('home-log-total', String(logs.length));
-        setText('home-latest-log', formatDate(logs[0].date || logs[0].createdAt) || '--');
         logs.slice(0, 5).forEach((entry) => {
             const tags = Array.isArray(entry.tags) ? entry.tags.slice(0, 3) : [];
             const card = document.createElement('div');
@@ -309,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const entries = (payload && payload.data && payload.data.entries) || (payload && payload.data) || [];
             const logs = (entries || []).sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
             renderTrainingLogs(logs);
-            setText('home-summary-note', logs.length ? '最近视频和训练日志已同步。' : '最近视频已同步，还没有训练日志。');
         } catch (err) {
             console.warn('loadRecentTrainingLogs failed', err);
             if (empty) {
@@ -319,9 +309,88 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const authHeaders = () => {
+        const token = getAuthToken();
+        return token ? { 'Authorization': 'Bearer ' + token } : {};
+    };
+
+    const fetchApiData = async (url) => {
+        const response = await fetch(url, { headers: authHeaders() });
+        if (!response.ok) throw new Error('request failed: ' + response.status);
+        const payload = await safeJsonParse(response);
+        if (payload && payload.code && payload.code !== 0) {
+            throw new Error(payload.message || 'request failed');
+        }
+        return payload && payload.data ? payload.data : payload;
+    };
+
+    const loadTrainingStatsSummary = async () => {
+        if (!getAuthToken()) {
+            setText('home-summary-note', '登录后自动加载训练统计、最近视频和训练记录。');
+            return;
+        }
+        try {
+            const stats = await fetchApiData(`${API_BASE}/stats?days=30`);
+            const training = stats.training || {};
+            const ai = stats.ai || stats || {};
+            const thisMonth = training.thisMonth || {};
+            const thisWeek = training.thisWeek || {};
+            const weakPoints = ai.weakPoints || stats.weakPoints || [];
+            setText('home-video-total', `${Number(thisMonth.days || 0)} 天`);
+            setText('home-log-total', ai.avgScore ? String(ai.avgScore) : '--');
+            setText('home-latest-mode', `${Number(thisWeek.days || 0)} 天`);
+            setText('home-latest-log', weakPoints.length ? weakPoints.slice(0, 2).join('、') : '稳定');
+            setText('home-summary-note', '训练统计、最近视频和训练记录已同步。');
+        } catch (err) {
+            console.warn('loadTrainingStatsSummary failed', err);
+            setText('home-summary-note', '训练统计加载失败，最近视频和训练日志仍可查看。');
+        }
+    };
+
+    const clubIdOf = (club) => club && (club.id || club._id || club.clubId || club.slug || '');
+
+    const loadClubHomeSummary = async () => {
+        const section = document.getElementById('club-home-summary');
+        if (!section || !getAuthToken()) return;
+        try {
+            const profile = await fetchApiData(`${API_BASE}/club-admin/profile`);
+            const info = (profile && profile.clubAdmin) || {};
+            const clubs = Array.isArray(info.clubs)
+                ? info.clubs
+                : (Array.isArray(profile && profile.clubs) ? profile.clubs : []);
+            const isAdmin = info.isAdmin === true || profile.isClubAdmin === true || profile.isAdmin === true || clubs.length > 0;
+            if (!isAdmin || !clubs.length) return;
+
+            const defaultClubId = info.defaultClubId || profile.defaultClubId || clubIdOf(clubs[0]);
+            const club = clubs.find((item) => clubIdOf(item) === defaultClubId) || clubs[0];
+            const clubId = clubIdOf(club);
+            if (!clubId) return;
+
+            const [overviewResult, pendingResult] = await Promise.all([
+                fetchApiData(`${API_BASE}/club-admin/overview?clubId=${encodeURIComponent(clubId)}`).catch(() => ({})),
+                fetchApiData(`${API_BASE}/club-admin/edu/pending-counts?clubId=${encodeURIComponent(clubId)}`).catch(() => ({}))
+            ]);
+            const overview = overviewResult.overview || overviewResult || {};
+            const counts = pendingResult.counts || pendingResult || {};
+            const clubName = club.name || club.clubName || overview.clubName || '俱乐部';
+
+            setText('club-summary-title', `${clubName} 管理摘要`);
+            setText('club-summary-subtitle', '复用现有俱乐部管理接口，仅管理员可见。');
+            setText('club-pending-bookings', String(Number(counts.pendingBookings || overview.pendingBookings || 0)));
+            setText('club-pending-attendance', String(Number(counts.pendingAttendance || overview.pendingAttendance || overview.pendingSessions || 0)));
+            setText('club-new-leads', String(Number(counts.newLeads || overview.newLeads || 0)));
+            setText('club-pending-expiry', String(Number(counts.pendingExpiry || overview.pendingExpiry || 0)));
+            section.hidden = false;
+        } catch (err) {
+            if (section) section.hidden = true;
+        }
+    };
+
     const loadHomeDashboard = () => {
+        loadTrainingStatsSummary();
         loadRecentVideos();
         loadRecentTrainingLogs();
+        loadClubHomeSummary();
     };
 
     const sliceFile = (file) => {

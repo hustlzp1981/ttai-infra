@@ -8,6 +8,7 @@
   const filterButtons = document.querySelectorAll("[data-mode]");
   const loadMoreBtn = document.getElementById("load-more");
   const searchInput = document.getElementById("video-search");
+  const opponentSelect = document.getElementById("video-opponent");
   const manageToggle = document.getElementById("manage-toggle");
   const batchActions = document.getElementById("batch-actions");
   const selectAllBtn = document.getElementById("select-all");
@@ -23,6 +24,7 @@
   let totalCount = 0;
   let isLoading = false;
   let manageMode = false;
+  let searchTimer = null;
   let allItems = [];
   let visibleItems = [];
   const selectedIds = new Set();
@@ -73,26 +75,18 @@
     return "视频";
   };
 
-  const itemSearchText = (item) => {
-    return [
-      item.title,
-      item.filename,
-      modeLabel(item.mode),
-      item.opponentName,
-      formatDate(item.date || item.createdAt)
-    ].join(" ").toLowerCase();
-  };
-
   const updateSummary = () => {
     if (totalEl) totalEl.textContent = totalCount ? String(totalCount) : (allItems.length ? String(allItems.length) : "--");
     if (loadedEl) loadedEl.textContent = String(allItems.length || 0);
     if (visibleEl) visibleEl.textContent = String(visibleItems.length || 0);
     if (listNote) {
       const search = searchInput ? searchInput.value.trim() : "";
+      const opponent = opponentSelect && opponentSelect.value
+        ? opponentSelect.options[opponentSelect.selectedIndex].text
+        : "";
       const mode = currentMode ? modeLabel(currentMode) : "全部";
-      listNote.textContent = search
-        ? `${mode} · 已加载记录内搜索“${search}”`
-        : `${mode} · 展示最近加载的视频记录`;
+      const filters = [mode, search ? `搜索“${search}”` : "", opponent ? `对手 ${opponent}` : ""].filter(Boolean);
+      listNote.textContent = filters.join(" · ") + " · 服务端筛选结果";
     }
   };
 
@@ -104,10 +98,7 @@
   };
 
   const applyClientFilter = () => {
-    const search = searchInput ? searchInput.value.trim().toLowerCase() : "";
-    visibleItems = search
-      ? allItems.filter((item) => itemSearchText(item).includes(search))
-      : allItems.slice();
+    visibleItems = allItems.slice();
     renderList();
     updateSummary();
     updateBatchState();
@@ -198,6 +189,10 @@
 
     const params = new URLSearchParams({ page: String(currentPage), pageSize: String(pageSize) });
     if (currentMode) params.set("mode", currentMode);
+    const keyword = searchInput ? searchInput.value.trim() : "";
+    const opponentId = opponentSelect ? opponentSelect.value : "";
+    if (keyword) params.set("keyword", keyword);
+    if (opponentId) params.set("opponentId", opponentId);
 
     try {
       const response = await fetch(`${apiBase}/videos/list?${params.toString()}`, {
@@ -224,6 +219,38 @@
       isLoading = false;
       updateSummary();
       updateBatchState();
+    }
+  };
+
+  const resetAndFetch = () => {
+    currentPage = 1;
+    totalCount = 0;
+    allItems = [];
+    visibleItems = [];
+    selectedIds.clear();
+    fetchList(false);
+  };
+
+  const loadOpponents = async () => {
+    if (!opponentSelect || !token) return;
+    try {
+      const response = await fetch(`${apiBase}/opponents/list?page=1&pageSize=100`, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const data = payload && payload.data ? payload.data : payload;
+      const items = data.items || [];
+      items.forEach((item) => {
+        const id = item.id || item._id || "";
+        if (!id) return;
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = item.name || "未命名对手";
+        opponentSelect.appendChild(option);
+      });
+    } catch (err) {
+      console.warn("load opponents failed", err);
     }
   };
 
@@ -271,13 +298,20 @@
       allItems = [];
       visibleItems = [];
       selectedIds.clear();
-      if (searchInput) searchInput.value = "";
       fetchList(false);
     });
   });
 
   if (searchInput) {
-    searchInput.addEventListener("input", applyClientFilter);
+    searchInput.addEventListener("input", () => {
+      if (searchTimer) clearTimeout(searchTimer);
+      searchTimer = setTimeout(resetAndFetch, 350);
+    });
+    searchInput.addEventListener("search", resetAndFetch);
+  }
+
+  if (opponentSelect) {
+    opponentSelect.addEventListener("change", resetAndFetch);
   }
 
   if (manageToggle) {
@@ -313,5 +347,6 @@
 
   updateSummary();
   updateBatchState();
+  loadOpponents();
   fetchList(false);
 })();

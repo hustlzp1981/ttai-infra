@@ -51,23 +51,23 @@
                 <h3 class="card-title">训练工作台</h3>
                 <div class="stat-grid">
                   <div class="stat-card">
-                    <h4>视频记录</h4>
+                    <h4>30日训练</h4>
                     <p id="home-video-total">--</p>
                   </div>
                   <div class="stat-card">
-                    <h4>训练日志</h4>
+                    <h4>平均评分</h4>
                     <p id="home-log-total">--</p>
                   </div>
                   <div class="stat-card">
-                    <h4>最近分析</h4>
+                    <h4>本周训练</h4>
                     <p id="home-latest-mode">--</p>
                   </div>
                   <div class="stat-card">
-                    <h4>最近训练</h4>
+                    <h4>薄弱环节</h4>
                     <p id="home-latest-log">--</p>
                   </div>
                 </div>
-                <p class="muted" id="home-summary-note">登录后自动加载你的最近视频和训练记录。</p>
+                <p class="muted" id="home-summary-note">登录后自动加载训练统计、最近视频和训练记录。</p>
               </div>
             </div>
           </section>
@@ -158,6 +158,34 @@
             </div>
             <div class="recent-log-list" id="recent-training-list"></div>
             <div class="empty-state compact" id="recent-training-empty">暂无训练日志，去日常训练记录第一次训练。</div>
+          </section>
+
+          <section class="section club-home-summary" id="club-home-summary" hidden>
+            <div class="section-header">
+              <div>
+                <h2 class="card-title" id="club-summary-title">俱乐部管理摘要</h2>
+                <p class="muted" id="club-summary-subtitle">仅俱乐部管理员可见。</p>
+              </div>
+              <a class="btn btn-secondary" href="club-admin.html">进入俱乐部管理</a>
+            </div>
+            <div class="club-summary-grid">
+              <div class="stat-card">
+                <h4>待确认约课</h4>
+                <p id="club-pending-bookings">--</p>
+              </div>
+              <div class="stat-card">
+                <h4>待点名课次</h4>
+                <p id="club-pending-attendance">--</p>
+              </div>
+              <div class="stat-card">
+                <h4>新线索</h4>
+                <p id="club-new-leads">--</p>
+              </div>
+              <div class="stat-card">
+                <h4>低课时/到期</h4>
+                <p id="club-pending-expiry">--</p>
+              </div>
+            </div>
           </section>
         </div>
       </main>

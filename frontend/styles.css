@@ -334,6 +334,12 @@ a {
   font-size: 12px;
 }
 
+.club-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
 .profile-summary {
   display: flex;
   align-items: center;
@@ -1700,7 +1706,8 @@ footer {
   flex: 1 1 240px;
 }
 
-.video-search-box input {
+.video-search-box input,
+.video-opponent-select {
   width: 100%;
   height: 42px;
   border: 1px solid rgba(16, 67, 89, 0.18);
@@ -1711,7 +1718,13 @@ footer {
   outline: none;
 }
 
-.video-search-box input:focus {
+.video-opponent-select {
+  flex: 0 1 180px;
+  color: var(--color-text);
+}
+
+.video-search-box input:focus,
+.video-opponent-select:focus {
   border-color: rgba(16, 67, 89, 0.5);
   box-shadow: 0 0 0 3px rgba(16, 67, 89, 0.08);
 }
@@ -1890,6 +1903,7 @@ footer {
   }
 
   .quick-entry-grid,
+  .club-summary-grid,
   .video-library-summary,
   #video-list {
     grid-template-columns: 1fr;
@@ -1901,6 +1915,7 @@ footer {
 
   .video-library-toolbar .upload-actions,
   .video-search-box,
+  .video-opponent-select,
   .video-library-toolbar > .btn {
     width: 100%;
   }
