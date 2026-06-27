@@ -43,6 +43,7 @@
   let overlayUrls = {};
   let currentVideoUrl = "";
   const speedRates = [0.5, 1, 1.5, 2];
+  let immersiveSourceToken = 0;
   let playerState = {
     open: false,
     view: "play",
@@ -279,12 +280,32 @@
     renderClipList();
   };
 
-  const setImmersiveSource = (url) => {
+  const setImmersiveSource = (url, posterUrl) => {
     playerState.currentUrl = url || "";
     if (!immersiveVideo || !url) return;
+    const sourceToken = ++immersiveSourceToken;
+    let playStarted = false;
+
+    const playWhenReady = () => {
+      if (sourceToken !== immersiveSourceToken || playStarted) return;
+      playStarted = true;
+      immersiveVideo.playbackRate = speedRates[playerState.speedIndex];
+      immersiveVideo.play().catch(() => {});
+    };
+
+    immersiveVideo.pause();
+    immersiveVideo.removeAttribute("src");
+    immersiveVideo.load();
+    if (posterUrl) immersiveVideo.poster = posterUrl;
+    else immersiveVideo.removeAttribute("poster");
     immersiveVideo.src = url;
     immersiveVideo.playbackRate = speedRates[playerState.speedIndex];
-    immersiveVideo.play().catch(() => {});
+    try {
+      immersiveVideo.currentTime = 0;
+    } catch (err) {}
+    immersiveVideo.addEventListener("loadeddata", playWhenReady, { once: true });
+    immersiveVideo.addEventListener("canplay", playWhenReady, { once: true });
+    immersiveVideo.load();
   };
 
   const openImmersivePlayer = () => {
@@ -319,6 +340,7 @@
   };
 
   const closeImmersivePlayer = () => {
+    immersiveSourceToken += 1;
     if (immersiveVideo) {
       immersiveVideo.pause();
       immersiveVideo.removeAttribute("src");
@@ -338,7 +360,7 @@
     playerState.view = "play";
     playerState.favorite = readFavorite();
     renderPlayerCurrent(clip);
-    setImmersiveSource(clip.downloadLink);
+    setImmersiveSource(clip.downloadLink, clip.thumbnailUrl);
     renderImmersive();
   };
 
