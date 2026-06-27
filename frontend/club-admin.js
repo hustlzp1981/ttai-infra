@@ -895,10 +895,8 @@
           '<label>班级名称<input class="form-input" name="keyword" value="' + escapeHtml(filters.keyword || '') + '" placeholder="班级/课程"></label>' +
           '<label>上课时间<select class="form-input" name="range"><option value="all">不限</option><option value="today">今天</option><option value="thisWeek">本周</option><option value="lastWeek">上周</option><option value="nextWeek">下周</option><option value="thisMonth">本月</option><option value="lastMonth">上月</option></select></label>' +
           '<label>日段<select class="form-input" name="dayPart"><option value="">全部</option><option value="上午">上午</option><option value="下午">下午</option><option value="晚上">晚上</option></select></label>' +
-          '<label>班级状态<select class="form-input" name="classStatus"><option value="">全部</option><option value="active">未结业班级的排课</option><option value="graduated">已结业班级的排课</option></select></label>' +
           '<label>所属分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
           '<label>任课教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
-                    '<label>班主任<input class="form-input" name="headTeacher" value="' + escapeHtml(filters.headTeacher || '') + '" placeholder="暂按备注检索"></label>' +
           '<label>上课场地<input class="form-input" name="roomId" value="' + escapeHtml(filters.roomId || '') + '" placeholder="场地/球台"></label>' +
           '<label>课程属性<select class="form-input" name="teachingMode"><option value="">全部</option><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option><option value="trial">体验课</option></select></label>' +
           '<label>班级标签<input class="form-input" name="classTag" value="' + escapeHtml(filters.classTag || '') + '" placeholder="标签"></label>' +
@@ -1010,8 +1008,6 @@
       if (filters.teacherId && String(session.teacherId) !== String(filters.teacherId)) return false;
       if (filters.range && !dateRangeMatch(session.startAt, filters.range)) return false;
       if (filters.dayPart && dayPartText(session.startAt) !== filters.dayPart) return false;
-      if (filters.classStatus === "active" && String(klass.graduationStatus || "active") === "graduated") return false;
-      if (filters.classStatus === "graduated" && String(klass.graduationStatus || "") !== "graduated") return false;
       if (filters.roomId && text.indexOf(String(filters.roomId).toLowerCase()) < 0) return false;
       if (filters.teachingMode && String(course.teachingMode || "") !== String(filters.teachingMode)) return false;
       return true;
@@ -1779,7 +1775,6 @@
       var sf = eduState.scheduleFilters || {};
       setFormValue("edu-schedule-filter-form", "range", sf.range || "all");
       setFormValue("edu-schedule-filter-form", "dayPart", sf.dayPart || "");
-      setFormValue("edu-schedule-filter-form", "classStatus", sf.classStatus || "");
       setFormValue("edu-schedule-filter-form", "teachingMode", sf.teachingMode || "");
       var exportForm = eduState.scheduleExportForm || {};
       setFormValue("schedule-export-form", "range", exportForm.range || "day");
