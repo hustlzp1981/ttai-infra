@@ -86,7 +86,7 @@
         : "";
       const mode = currentMode ? modeLabel(currentMode) : "全部";
       const filters = [mode, search ? `搜索“${search}”` : "", opponent ? `对手 ${opponent}` : ""].filter(Boolean);
-      listNote.textContent = filters.join(" · ") + " · 服务端筛选结果";
+      listNote.textContent = filters.join(" · ") + " · 当前筛选结果";
     }
   };
 

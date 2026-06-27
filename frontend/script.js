@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const clubName = club.name || club.clubName || overview.clubName || '俱乐部';
 
             setText('club-summary-title', `${clubName} 管理摘要`);
-            setText('club-summary-subtitle', '复用现有俱乐部管理接口，仅管理员可见。');
+            setText('club-summary-subtitle', '查看待处理事项，快速进入俱乐部管理。');
             setText('club-pending-bookings', String(Number(counts.pendingBookings || overview.pendingBookings || 0)));
             setText('club-pending-attendance', String(Number(counts.pendingAttendance || overview.pendingAttendance || overview.pendingSessions || 0)));
             setText('club-new-leads', String(Number(counts.newLeads || overview.newLeads || 0)));
