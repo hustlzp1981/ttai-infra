@@ -261,6 +261,7 @@
   const renderImmersive = () => {
     if (!playerState.clips.length && playerState.view === "list") playerState.view = "play";
     const isList = playerState.view === "list";
+    if (immersivePlayer) immersivePlayer.classList.toggle("list-mode", isList);
     if (immersiveListToggle) {
       immersiveListToggle.textContent = isList ? "返回播放" : "记录列表";
       immersiveListToggle.hidden = playerState.clips.length === 0;
@@ -508,6 +509,9 @@
     immersiveListToggle.addEventListener("click", () => {
       playerState.view = playerState.view === "list" ? "play" : "list";
       renderImmersive();
+      if (playerState.view === "list" && immersiveRecordPanel) {
+        setTimeout(() => immersiveRecordPanel.scrollIntoView({ block: "nearest" }), 0);
+      }
     });
   }
 

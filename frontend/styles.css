@@ -1792,13 +1792,14 @@ body.modal-open {
 }
 
 .immersive-shell {
-  min-height: 100vh;
+  height: 100vh;
   padding: 28px;
   background: #080b10;
   display: flex;
   flex-direction: column;
   gap: 18px;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .immersive-top {
@@ -1858,6 +1859,11 @@ body.modal-open {
 
 .immersive-pill[hidden] {
   display: none;
+}
+
+.immersive-actions[hidden],
+.immersive-record-panel[hidden] {
+  display: none !important;
 }
 
 .immersive-current {
@@ -1924,6 +1930,11 @@ body.modal-open {
   overflow: hidden;
   background: #000000;
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.42);
+}
+
+.immersive-player.list-mode .immersive-video-wrap {
+  height: min(42vh, 420px);
+  aspect-ratio: auto;
 }
 
 .immersive-video-wrap video {
@@ -2283,6 +2294,10 @@ body.modal-open {
   .immersive-record-thumb {
     width: 72px;
     height: 48px;
+  }
+
+  .immersive-player.list-mode .immersive-video-wrap {
+    height: 32vh;
   }
 }
 .admin-thumb-wrap {
