@@ -47,28 +47,60 @@
               </div>
             </div>
             <div>
-              <div class="card">
-                <h3 class="card-title">训练收益一览</h3>
+              <div class="card home-summary-card">
+                <h3 class="card-title">训练工作台</h3>
                 <div class="stat-grid">
                   <div class="stat-card">
-                    <h4>本月训练</h4>
-                    <p>12 天</p>
+                    <h4>视频记录</h4>
+                    <p id="home-video-total">--</p>
                   </div>
                   <div class="stat-card">
-                    <h4>平均评分</h4>
-                    <p>82</p>
+                    <h4>训练日志</h4>
+                    <p id="home-log-total">--</p>
                   </div>
                   <div class="stat-card">
-                    <h4>本周趋势</h4>
-                    <p>↑ 3</p>
+                    <h4>最近分析</h4>
+                    <p id="home-latest-mode">--</p>
                   </div>
                   <div class="stat-card">
-                    <h4>薄弱环节</h4>
-                    <p>反手拧拉</p>
+                    <h4>最近训练</h4>
+                    <p id="home-latest-log">--</p>
                   </div>
                 </div>
-                <p class="muted">真实数据加载后自动替换。</p>
+                <p class="muted" id="home-summary-note">登录后自动加载你的最近视频和训练记录。</p>
               </div>
+            </div>
+          </section>
+
+          <section class="section quick-entry-section">
+            <div class="section-header">
+              <div>
+                <h2 class="card-title">常用功能</h2>
+                <p class="muted">Web 端保留桌面工作台结构，入口和小程序核心能力保持一致。</p>
+              </div>
+              <a class="btn btn-secondary" href="videos.html">查看视频库</a>
+            </div>
+            <div class="quick-entry-grid">
+              <a class="quick-entry-card" href="videos.html">
+                <span class="quick-entry-icon">▶</span>
+                <strong>视频库</strong>
+                <span>查看比赛剪辑、训练分析和覆盖层视频</span>
+              </a>
+              <a class="quick-entry-card" href="tech.html">
+                <span class="quick-entry-icon">AI</span>
+                <strong>日常训练</strong>
+                <span>记录训练、整理周报、咨询 AI 教练</span>
+              </a>
+              <a class="quick-entry-card" href="stats.html">
+                <span class="quick-entry-icon">↗</span>
+                <strong>训练统计</strong>
+                <span>查看评分趋势和训练沉淀</span>
+              </a>
+              <a class="quick-entry-card" href="training-enroll.html">
+                <span class="quick-entry-icon">🏓</span>
+                <strong>俱乐部</strong>
+                <span>查看公开招生、预约体验和合作信息</span>
+              </a>
             </div>
           </section>
 
@@ -114,6 +146,18 @@
                 <div class="pill">重点提示 · 训练建议 · 比赛回放</div>
               </div>
             </div>
+          </section>
+
+          <section class="section" id="recent-training">
+            <div class="section-header">
+              <div>
+                <h2 class="card-title">最近训练</h2>
+                <p class="muted">同步日常训练日志，方便从首页继续记录和复盘。</p>
+              </div>
+              <a class="btn btn-secondary" href="tech.html">进入日常训练</a>
+            </div>
+            <div class="recent-log-list" id="recent-training-list"></div>
+            <div class="empty-state compact" id="recent-training-empty">暂无训练日志，去日常训练记录第一次训练。</div>
           </section>
         </div>
       </main>

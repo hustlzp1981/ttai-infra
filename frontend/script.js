@@ -134,6 +134,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return resolveUrl(`/download/${encodeFilePath(value)}`);
     };
 
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+
+    const formatDate = (value) => {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+        return date.toISOString().slice(0, 10);
+    };
+
+    const modeLabelOf = (mode) => mode === 'match_clip' ? '比赛剪辑' : '训练分析';
+
+    const escapeHtml = (value) => String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
     const renderVideoItem = (item) => {
         const videoList = document.getElementById('video-list');
         if (!videoList || !item) return;
@@ -151,18 +172,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const size = item.size ? `${(item.size / 1024 / 1024).toFixed(2)}MB` : '';
         const clipCount = item.clipCount || (Array.isArray(item.clips) ? item.clips.length : (typeof item.clips === 'number' ? item.clips : 0));
         const clips = clipCount ? `${clipCount} 片段` : '';
-        const modeLabel = item.mode === 'match_clip' ? '比赛剪辑' : '训练分析';
-        const title = item.title || (item.mode === 'match_clip' ? '比赛剪辑' : '训练分析');
+        const modeLabel = modeLabelOf(item.mode);
+        const title = item.title || modeLabel;
         const videoId = item.id || item._id || '';
+        const score = item.scores && item.scores.overall ? ` · ${item.scores.overall}分` : '';
+        const date = formatDate(item.date || item.createdAt);
 
         li.innerHTML = `
             <div class="thumbnail-container">
                 <img src="${thumb}" alt="Thumbnail" class="thumbnail">
                 <div>
-                    <a href="video-detail.html?id=${encodeURIComponent(videoId)}" class="download-link" title="${title}">${title}</a>
+                    <a href="video-detail.html?id=${encodeURIComponent(videoId)}" class="download-link" title="${escapeHtml(title)}">${escapeHtml(title)}</a>
                     <span class="video-duration">${duration}</span>
                     <span class="video-size">${size}</span>
-                    <span class="video-clips">${modeLabel}${clips ? ' · ' + clips : ''}</span>
+                    <span class="video-clips">${modeLabel}${date ? ' · ' + date : ''}${clips ? ' · ' + clips : ''}${score}</span>
                 </div>
             </div>
         `;
@@ -187,6 +210,118 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('fetchLatestVideo failed', err);
             return null;
         }
+    };
+
+    const loadRecentVideos = async () => {
+        const token = getAuthToken();
+        const videoList = document.getElementById('video-list');
+        const emptyState = document.querySelector('#my-videos .empty-state');
+        if (!token) {
+            if (emptyState) {
+                emptyState.textContent = '请先登录，登录后这里会显示最近分析结果。';
+                emptyState.style.display = 'block';
+            }
+            setText('home-video-total', '--');
+            setText('home-latest-mode', '--');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_BASE}/videos/list?page=1&pageSize=4`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (!response.ok) throw new Error('videos fetch failed');
+            const payload = await safeJsonParse(response);
+            const data = payload && payload.data ? payload.data : payload;
+            const items = data && Array.isArray(data.items) ? data.items : [];
+            if (videoList) videoList.innerHTML = '';
+            items.forEach(renderVideoItem);
+
+            const total = Number(data && data.total) || items.length;
+            setText('home-video-total', total ? String(total) : '0');
+            setText('home-latest-mode', items[0] ? modeLabelOf(items[0].mode) : '--');
+            if (emptyState) {
+                emptyState.textContent = items.length ? '' : '暂无视频记录，上传第一个视频即可在这里看到分析结果。';
+                emptyState.style.display = items.length ? 'none' : 'block';
+            }
+        } catch (err) {
+            console.warn('loadRecentVideos failed', err);
+            if (emptyState) {
+                emptyState.textContent = '最近视频加载失败，请稍后刷新。';
+                emptyState.style.display = 'block';
+            }
+        }
+    };
+
+    const renderTrainingLogs = (logs) => {
+        const list = document.getElementById('recent-training-list');
+        const empty = document.getElementById('recent-training-empty');
+        if (!list) return;
+        list.innerHTML = '';
+
+        if (!logs.length) {
+            if (empty) empty.style.display = 'block';
+            setText('home-log-total', '0');
+            setText('home-latest-log', '--');
+            return;
+        }
+
+        if (empty) empty.style.display = 'none';
+        setText('home-log-total', String(logs.length));
+        setText('home-latest-log', formatDate(logs[0].date || logs[0].createdAt) || '--');
+        logs.slice(0, 5).forEach((entry) => {
+            const tags = Array.isArray(entry.tags) ? entry.tags.slice(0, 3) : [];
+            const card = document.createElement('div');
+            card.className = 'recent-log-card';
+            card.innerHTML = `
+                <div class="recent-log-meta">
+                    <span>${escapeHtml(formatDate(entry.date || entry.createdAt) || '未记录日期')}</span>
+                    <span>${Number(entry.duration || 0) || '--'} 分钟</span>
+                </div>
+                <strong>${escapeHtml(entry.summary || entry.rawInput || '训练记录')}</strong>
+                <div class="recent-log-tags">${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('')}</div>
+            `;
+            list.appendChild(card);
+        });
+    };
+
+    const loadRecentTrainingLogs = async () => {
+        const token = getAuthToken();
+        const empty = document.getElementById('recent-training-empty');
+        if (!token) {
+            if (empty) {
+                empty.textContent = '请先登录，登录后这里会显示最近训练日志。';
+                empty.style.display = 'block';
+            }
+            setText('home-log-total', '--');
+            setText('home-latest-log', '--');
+            return;
+        }
+
+        try {
+            const userId = await getOpenId();
+            if (!userId) throw new Error('missing user');
+            const response = await fetch(`${API_BASE}/chat/training-log?userId=${encodeURIComponent(userId)}`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (!response.ok) throw new Error('training log fetch failed');
+            const payload = await safeJsonParse(response);
+            const entries = (payload && payload.data && payload.data.entries) || (payload && payload.data) || [];
+            const logs = (entries || []).sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
+            renderTrainingLogs(logs);
+            setText('home-summary-note', logs.length ? '最近视频和训练日志已同步。' : '最近视频已同步，还没有训练日志。');
+        } catch (err) {
+            console.warn('loadRecentTrainingLogs failed', err);
+            if (empty) {
+                empty.textContent = '最近训练加载失败，请稍后刷新。';
+                empty.style.display = 'block';
+            }
+        }
+    };
+
+    const loadHomeDashboard = () => {
+        loadRecentVideos();
+        loadRecentTrainingLogs();
     };
 
     const sliceFile = (file) => {
@@ -727,4 +862,6 @@ document.addEventListener('DOMContentLoaded', () => {
             startUpload('training_analysis', trainingAnalysisButton);
         });
     }
+
+    loadHomeDashboard();
 });

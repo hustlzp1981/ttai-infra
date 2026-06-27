@@ -185,6 +185,83 @@
         .log-toolbar .toolbar-actions {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .training-overview {
+            margin: 16px;
+            padding: 16px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(16, 67, 89, 0.96), rgba(18, 117, 88, 0.9));
+            color: #ffffff;
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+            gap: 16px;
+            align-items: center;
+        }
+
+        .training-overview .pill {
+            display: inline-flex;
+            width: fit-content;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.14);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+        }
+
+        .training-overview-main {
+            display: grid;
+            gap: 6px;
+        }
+
+        .training-overview-main strong {
+            font-size: 20px;
+            line-height: 1.35;
+        }
+
+        .training-overview-main span:last-child {
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 13px;
+        }
+
+        .training-metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .training-metric {
+            min-height: 78px;
+            border-radius: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            display: grid;
+            align-content: center;
+            gap: 6px;
+        }
+
+        .training-metric span {
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 12px;
+        }
+
+        .training-metric strong {
+            font-size: 16px;
+            line-height: 1.3;
+        }
+
+        .training-overview-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .training-overview-actions .btn {
+            background: rgba(255, 255, 255, 0.92);
+            color: var(--color-primary);
         }
 
         .log-list {
@@ -480,6 +557,14 @@
             .tabs {
                 position: static;
             }
+
+            .training-overview {
+                grid-template-columns: 1fr;
+            }
+
+            .training-metric-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -512,30 +597,56 @@
             <div class="container">
                 <section class="section">
                     <h2 class="card-title">日常训练助手</h2>
-                    <p class="muted">技术库用于快速查阅，训练日志用于记录与 AI 指导，技术交流用于即时问答。</p>
+                    <p class="muted">以训练日志为核心，沉淀每次训练、生成周报，并随时向 AI 教练提问。</p>
                     <div class="page">
                         <div class="tabs">
-                            <div class="tab active" data-tab="qa">技术库</div>
-                            <div class="tab" data-tab="chat">训练日志</div>
+                            <div class="tab active" data-tab="chat">训练日志</div>
                             <div class="tab" data-tab="exchange">技术交流</div>
+                            <div class="tab" data-tab="qa">技术库</div>
                             <div class="tab" data-tab="enroll">培训招生</div>
                         </div>
 
                         <div class="content-area">
-                            <div class="qa-container active" id="qa-container">
+                            <div class="qa-container" id="qa-container">
                                 <div class="qa-header" id="qa-header">基于当前账号显示技术库内容。</div>
                                 <div id="qa-list"></div>
                             </div>
 
-                            <div class="chat-container" id="chat-container">
+                            <div class="chat-container active" id="chat-container">
                                 <div class="log-toolbar">
                                     <div>
-                                        <h3>训练日志</h3>
-                                        <p>同步小程序训练日志，支持 AI 整理。</p>
+                                        <h3>训练工作台</h3>
+                                        <p>同步小程序训练日志，支持 AI 整理和周报草稿。</p>
                                     </div>
                                     <div class="toolbar-actions">
                                         <button class="btn btn-secondary" id="log-refresh">刷新</button>
+                                        <button class="btn btn-secondary" id="log-week-report">生成周报</button>
                                         <button class="btn btn-primary" id="log-add">新增日志</button>
+                                    </div>
+                                </div>
+                                <div class="training-overview" id="training-overview">
+                                    <div class="training-overview-main">
+                                        <span class="pill">本周概览</span>
+                                        <strong id="training-overview-title">暂无训练记录</strong>
+                                        <span id="training-overview-sub">记录训练后会自动汇总本周数据。</span>
+                                    </div>
+                                    <div class="training-metric-grid">
+                                        <div class="training-metric">
+                                            <span>本周训练</span>
+                                            <strong id="training-days">0 天</strong>
+                                        </div>
+                                        <div class="training-metric">
+                                            <span>总时长</span>
+                                            <strong id="training-duration">0 分钟</strong>
+                                        </div>
+                                        <div class="training-metric">
+                                            <span>重点标签</span>
+                                            <strong id="training-tags">--</strong>
+                                        </div>
+                                    </div>
+                                    <div class="training-overview-actions">
+                                        <a class="btn btn-secondary" href="index.html#upload-video">上传训练视频</a>
+                                        <a class="btn btn-secondary" href="stats.html">查看训练统计</a>
                                     </div>
                                 </div>
                                 <div class="chat-empty" id="chat-empty">
@@ -659,7 +770,7 @@
             this.baseUrl = window.ttaiGetBaseUrl ? window.ttaiGetBaseUrl() : '';
             this.apiBase = window.ttaiGetApiBase ? window.ttaiGetApiBase() : '/api';
             this.wsUrl = window.ttaiGetWsUrl ? window.ttaiGetWsUrl() : 'wss://www.ttcut.com/ws';
-                this.currentTab = 'qa';
+                this.currentTab = 'chat';
                 this.inputText = '';
                 this.logMessages = [];
                 this.exchangeMessages = [];
@@ -830,6 +941,7 @@
                 this.logAddButton = document.getElementById('log-add');
                 this.logAddEmptyButton = document.getElementById('log-add-empty');
                 this.logRefreshButton = document.getElementById('log-refresh');
+                this.logWeekReportButton = document.getElementById('log-week-report');
                 this.logEditorOverlay = document.getElementById('log-editor-overlay');
                 this.logDateInput = document.getElementById('log-date');
                 this.logDurationInput = document.getElementById('log-duration');
@@ -841,6 +953,11 @@
                 this.logSaveButton = document.getElementById('log-save');
                 this.logCancelButton = document.getElementById('log-cancel');
                 this.tagPicker = document.getElementById('tag-picker');
+                this.trainingOverviewTitle = document.getElementById('training-overview-title');
+                this.trainingOverviewSub = document.getElementById('training-overview-sub');
+                this.trainingDaysEl = document.getElementById('training-days');
+                this.trainingDurationEl = document.getElementById('training-duration');
+                this.trainingTagsEl = document.getElementById('training-tags');
             }
 
             bindEvents() {
@@ -908,6 +1025,10 @@
 
                 if (this.logRefreshButton) {
                     this.logRefreshButton.addEventListener('click', () => this.loadTrainingLogs());
+                }
+
+                if (this.logWeekReportButton) {
+                    this.logWeekReportButton.addEventListener('click', () => this.generateWeekReport());
                 }
 
                 if (this.logCancelButton) {
@@ -1263,6 +1384,104 @@
                     });
                     this.logList.appendChild(card);
                 });
+                this.renderTrainingOverview();
+            }
+
+            renderTrainingOverview() {
+                const now = new Date();
+                const start = new Date(now);
+                const day = start.getDay() || 7;
+                start.setDate(start.getDate() - day + 1);
+                start.setHours(0, 0, 0, 0);
+
+                const weekLogs = this.trainingLogs.filter((entry) => {
+                    const date = new Date(entry.date || entry.createdAt || entry.updatedAt || '');
+                    return !Number.isNaN(date.getTime()) && date >= start;
+                });
+                const daySet = new Set(weekLogs.map((entry) => String(entry.date || entry.createdAt || '').slice(0, 10)).filter(Boolean));
+                const duration = weekLogs.reduce((sum, entry) => sum + (Number(entry.duration) || 0), 0);
+                const tagCount = new Map();
+                weekLogs.forEach((entry) => {
+                    (Array.isArray(entry.tags) ? entry.tags : []).forEach((tag) => {
+                        tagCount.set(tag, (tagCount.get(tag) || 0) + 1);
+                    });
+                });
+                const topTags = Array.from(tagCount.entries())
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([tag]) => tag);
+                const latest = this.trainingLogs[0];
+
+                if (this.trainingDaysEl) this.trainingDaysEl.textContent = `${daySet.size} 天`;
+                if (this.trainingDurationEl) this.trainingDurationEl.textContent = duration ? `${duration} 分钟` : '0 分钟';
+                if (this.trainingTagsEl) this.trainingTagsEl.textContent = topTags.length ? topTags.join(' / ') : '--';
+                if (this.trainingOverviewTitle) {
+                    this.trainingOverviewTitle.textContent = latest
+                        ? (latest.summary || latest.rawInput || '最近训练已同步')
+                        : '暂无训练记录';
+                }
+                if (this.trainingOverviewSub) {
+                    this.trainingOverviewSub.textContent = weekLogs.length
+                        ? `本周 ${daySet.size} 天 · 共 ${duration || 0} 分钟`
+                        : '记录训练后会自动汇总本周数据。';
+                }
+            }
+
+            async generateWeekReport() {
+                if (!this.trainingLogs.length) {
+                    alert('暂无训练日志，先记录一次训练。');
+                    return;
+                }
+
+                const recentLogs = this.trainingLogs.slice(0, 7).map((entry) => {
+                    return [
+                        entry.date || '',
+                        `${entry.duration || 0}分钟`,
+                        entry.summary || entry.rawInput || '',
+                        Array.isArray(entry.tags) ? entry.tags.join('/') : ''
+                    ].filter(Boolean).join(' · ');
+                }).join('\n');
+
+                if (this.logWeekReportButton) {
+                    this.logWeekReportButton.disabled = true;
+                    this.logWeekReportButton.textContent = '生成中...';
+                }
+
+                try {
+                    const response = await fetch(this.apiBase + '/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Request-ID': Date.now().toString() },
+                        body: JSON.stringify({
+                            messages: [
+                                { role: 'system', content: '你是专业乒乓球训练教练。请根据训练日志生成一份简洁周报，包含本周重点、进步、待改进和下周建议。控制在400字内。' },
+                                { role: 'user', content: recentLogs }
+                            ],
+                            context: { recentTrainingLogs: recentLogs },
+                            followUpCount: 0
+                        })
+                    });
+                    if (!response.ok) throw new Error('AI 请求失败');
+                    const data = await this.safeJsonParse(response);
+                    const firstChoice = data && Array.isArray(data.choices) ? data.choices[0] : null;
+                    const content = data && data.data
+                        ? data.data.content
+                        : (firstChoice && firstChoice.message ? firstChoice.message.content : '');
+                    this.openLogEditor({
+                        date: new Date().toISOString().slice(0, 10),
+                        duration: 0,
+                        rawInput: `本周训练周报\n${recentLogs}`,
+                        summary: content || '',
+                        tags: ['周报']
+                    });
+                } catch (err) {
+                    console.error('week report failed', err);
+                    alert('周报生成失败，请稍后重试。');
+                } finally {
+                    if (this.logWeekReportButton) {
+                        this.logWeekReportButton.disabled = false;
+                        this.logWeekReportButton.textContent = '生成周报';
+                    }
+                }
             }
 
             openLogEditor(entry = {}) {

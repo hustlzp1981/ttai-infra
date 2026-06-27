@@ -34,17 +34,52 @@
       <main class="main">
         <div class="container">
           <section class="section">
-            <h2 class="card-title">视频库</h2>
-            <p class="muted">按模式筛选你的比赛剪辑与训练分析。</p>
-            <div class="upload-actions">
-              <button class="btn btn-secondary btn-primary" type="button" data-mode="">全部</button>
-              <button class="btn btn-secondary" type="button" data-mode="match_clip">比赛剪辑</button>
-              <button class="btn btn-secondary" type="button" data-mode="training_analysis">训练分析</button>
+            <div class="section-header">
+              <div>
+                <h2 class="card-title">视频库</h2>
+                <p class="muted">按模式筛选比赛剪辑与训练分析，支持前端搜索和批量管理。</p>
+              </div>
+              <a class="btn btn-primary" href="index.html#upload-video">上传分析</a>
+            </div>
+            <div class="video-library-summary">
+              <div class="stat-card">
+                <h4>全部视频</h4>
+                <p id="video-total">--</p>
+              </div>
+              <div class="stat-card">
+                <h4>已加载</h4>
+                <p id="video-loaded">--</p>
+              </div>
+              <div class="stat-card">
+                <h4>当前筛选</h4>
+                <p id="video-visible">--</p>
+              </div>
+            </div>
+            <div class="video-library-toolbar">
+              <div class="upload-actions">
+                <button class="btn btn-secondary btn-primary" type="button" data-mode="">全部</button>
+                <button class="btn btn-secondary" type="button" data-mode="match_clip">比赛剪辑</button>
+                <button class="btn btn-secondary" type="button" data-mode="training_analysis">训练分析</button>
+              </div>
+              <div class="video-search-box">
+                <input type="search" id="video-search" placeholder="搜索标题、模式、日期">
+              </div>
+              <button class="btn btn-secondary" type="button" id="manage-toggle">管理</button>
             </div>
           </section>
 
           <section class="section">
-            <h3 class="card-title">视频列表</h3>
+            <div class="section-header compact">
+              <div>
+                <h3 class="card-title">视频列表</h3>
+                <p class="muted" id="video-list-note">展示最近加载的视频记录。</p>
+              </div>
+              <div class="batch-actions" id="batch-actions" hidden>
+                <span id="selected-count">已选 0 个</span>
+                <button class="btn btn-secondary" type="button" id="select-all">全选当前</button>
+                <button class="btn btn-primary" type="button" id="delete-selected">删除所选</button>
+              </div>
+            </div>
             <ul id="video-list"></ul>
             <div class="empty-state" id="video-empty">暂无更多视频记录。</div>
             <div class="upload-actions" style="justify-content:center; margin-top: 16px;">
