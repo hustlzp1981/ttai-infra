@@ -942,16 +942,46 @@ a {
   color: var(--color-text);
 }
 
-.admin-overview-drawer summary span {
+.admin-overview-summary-main {
+  display: grid;
+  gap: 2px;
+}
+
+.admin-overview-summary-main span {
   font-family: "Space Grotesk", sans-serif;
   font-size: 18px;
   font-weight: 700;
 }
 
-.admin-overview-drawer summary small {
+.admin-overview-summary-main small {
   color: var(--color-muted);
   font-size: 12px;
   font-weight: 600;
+}
+
+.admin-overview-toggle {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-primary);
+  background: #fff;
+  min-width: 54px;
+  min-height: 28px;
+  padding: 5px 10px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-overview-toggle .when-open {
+  display: none;
+}
+
+.admin-overview-drawer[open] .admin-overview-toggle .when-closed {
+  display: none;
+}
+
+.admin-overview-drawer[open] .admin-overview-toggle .when-open {
+  display: inline;
 }
 
 .admin-overview-drawer[open] summary {
