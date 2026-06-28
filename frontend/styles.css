@@ -940,7 +940,12 @@ a {
   cursor: pointer;
   padding: 16px 18px;
   color: var(--color-text);
-  font-weight: 800;
+}
+
+.admin-overview-drawer summary span {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .admin-overview-drawer summary small {
@@ -955,8 +960,26 @@ a {
 
 .admin-overview-body {
   display: grid;
-  gap: 18px;
   padding: 18px;
+}
+
+.admin-overview-body > * {
+  border-top: 1px solid var(--color-border);
+  padding-top: 18px;
+  margin-top: 18px;
+}
+
+.admin-overview-body > *:first-child {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.admin-overview-body .grid-2 > div {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
 }
 
 .edu-subtabs {
