@@ -928,6 +928,37 @@ a {
   margin: 10px 12px 12px;
 }
 
+.admin-overview-drawer {
+  padding: 0;
+}
+
+.admin-overview-drawer summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  padding: 16px 18px;
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.admin-overview-drawer summary small {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-overview-drawer[open] summary {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.admin-overview-body {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
 .edu-subtabs {
   display: inline-flex;
   align-items: center;

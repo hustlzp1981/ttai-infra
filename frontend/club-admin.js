@@ -977,7 +977,7 @@
 
   var scheduleFilterHtml = function () {
     var filters = eduState.scheduleFilters || {};
-    return '<div class="edu-page-path">当前位置：教务管理 / 排课管理 / 详细课表</div>' +
+    return '<div class="edu-page-path">当前位置：管理功能 / 排课管理 / 详细课表</div>' +
       '<form class="edu-filter-panel" id="edu-schedule-filter-form">' +
         '<div class="edu-filter-grid">' +
           '<label>班级名称<input class="form-input" name="keyword" value="' + escapeHtml(filters.keyword || '') + '" placeholder="班级/课程"></label>' +
@@ -1529,7 +1529,7 @@
 
   var availabilityFilterHtml = function () {
     var filters = eduState.availabilityFilters || {};
-    return '<div class="edu-page-path">当前位置：教务管理 / 排课管理 / 放号排课</div>' +
+    return '<div class="edu-page-path">当前位置：管理功能 / 排课管理 / 放号排课</div>' +
       '<form class="edu-filter-panel" id="edu-availability-filter-form">' +
         '<div class="edu-filter-grid compact">' +
           '<label>矩阵范围<select class="form-input" name="matrixRange"><option value="week">按周</option><option value="day">按日</option></select></label>' +
@@ -2977,7 +2977,7 @@
     eduPanelEl.innerHTML =
       eduFrameStart("报表管理", "按收费、课消、业绩和班级维度统计教务经营数据。") +
       reportTabsHtml() +
-      '<div class="edu-page-path">当前位置：教务管理 / 报表管理 / ' + escapeHtml(definition.name) + '</div>' +
+      '<div class="edu-page-path">当前位置：管理功能 / 报表管理 / ' + escapeHtml(definition.name) + '</div>' +
       reportFilterHtml() +
       reportSummaryHtml(definition) +
       reportTableHtml(definition);

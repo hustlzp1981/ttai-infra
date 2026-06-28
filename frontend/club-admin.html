@@ -54,14 +54,12 @@
                   <a class="btn btn-secondary" href="training-enroll.html">返回俱乐部入口</a>
                 </div>
               </div>
-              <div class="stat-grid" id="admin-overview"></div>
             </section>
 
             <section class="section" id="edu-admin-section">
               <div class="detail-header">
                 <div>
-                  <h3 class="card-title">教务管理</h3>
-                  <p class="muted" id="edu-admin-meta">课程、学员、教练、班级、排课、点名、课时账本和报表。</p>
+                  <h3 class="card-title">管理功能</h3>
                 </div>
                 <div class="club-actions">
                   <select class="filter-select" id="edu-branch-filter"></select>
@@ -82,84 +80,90 @@
               </div>
             </section>
 
-            <section class="section">
-              <div class="grid-2">
-                <div>
-                  <h3 class="card-title">招生线索漏斗</h3>
-                  <div class="stack-list" id="lead-funnel"></div>
-                </div>
-                <div>
-                  <h3 class="card-title">常见训练弱项</h3>
-                  <div class="stack-list" id="weakness-list"></div>
-                </div>
-              </div>
-            </section>
+            <details class="section admin-overview-drawer">
+              <summary>
+                <span>运营概览</span>
+                <small>KPI、会员训练、招生线索和训练动态</small>
+              </summary>
+              <div class="admin-overview-body">
+                <div class="stat-grid" id="admin-overview"></div>
 
-            <section class="section">
-              <div class="detail-header">
-                <div>
-                  <h3 class="card-title">会员训练概览</h3>
-                  <p class="muted">只展示已授权会员的训练摘要；视频原文件权限待后端确认。</p>
-                </div>
-              </div>
-              <div class="admin-table-wrap">
-                <table class="admin-table">
-                  <thead>
-                    <tr>
-                      <th>会员</th>
-                      <th>分组</th>
-                      <th>最近训练</th>
-                      <th>AI 分析</th>
-                      <th>主要弱项</th>
-                      <th>授权</th>
-                      <th>评分</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody id="member-table"></tbody>
-                </table>
-              </div>
-              <div class="detail-panel" id="member-detail" style="display: none;"></div>
-            </section>
-
-            <section class="section" id="branch-qrcode-section">
-              <div class="detail-header">
-                <div>
-                  <h3 class="card-title">分店二维码</h3>
-                  <p class="muted">生成各分店体验二维码，打印贴在墙上，客户扫码即可预约体验。</p>
-                </div>
-              </div>
-              <div id="branch-qr-list"></div>
-              <div id="branch-qr-preview" class="qr-preview-overlay" style="display: none;">
-                <div class="qr-preview-card">
-                  <div class="qr-preview-header">
-                    <strong id="qr-preview-title">分店二维码</strong>
-                    <button type="button" class="qr-preview-close" id="qr-preview-close">&times;</button>
+                <div class="grid-2">
+                  <div>
+                    <h3 class="card-title">招生线索漏斗</h3>
+                    <div class="stack-list" id="lead-funnel"></div>
                   </div>
-                  <div class="qr-preview-body">
-                    <img id="qr-preview-img" alt="QR Code" style="max-width: 260px; display: block; margin: 0 auto;" />
-                    <p id="qr-preview-addr" class="muted" style="margin-top: 12px; text-align: center;"></p>
-                  </div>
-                  <div class="qr-preview-actions">
-                    <button type="button" class="btn btn-secondary" id="qr-preview-download">下载海报</button>
-                    <button type="button" class="btn btn-secondary" id="qr-preview-close-btn">关闭</button>
+                  <div>
+                    <h3 class="card-title">常见训练弱项</h3>
+                    <div class="stack-list" id="weakness-list"></div>
                   </div>
                 </div>
-              </div>
-            </section>
 
-            <section class="section">
-              <div class="grid-2">
                 <div>
-                  <h3 class="card-title">最新线索</h3>
-                  <div class="stack-list" id="lead-list"></div>
+                  <div class="detail-header">
+                    <div>
+                      <h3 class="card-title">会员训练概览</h3>
+                      <p class="muted">只展示已授权会员的训练摘要；视频原文件权限待后端确认。</p>
+                    </div>
+                  </div>
+                  <div class="admin-table-wrap">
+                    <table class="admin-table">
+                      <thead>
+                        <tr>
+                          <th>会员</th>
+                          <th>分组</th>
+                          <th>最近训练</th>
+                          <th>AI 分析</th>
+                          <th>主要弱项</th>
+                          <th>授权</th>
+                          <th>评分</th>
+                          <th>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody id="member-table"></tbody>
+                    </table>
+                  </div>
+                  <div class="detail-panel" id="member-detail" style="display: none;"></div>
                 </div>
-                <div>
-                  <h3 class="card-title">训练动态</h3>
-                  <div class="stack-list" id="activity-list"></div>
+
+                <div id="branch-qrcode-section">
+                  <div class="detail-header">
+                    <div>
+                      <h3 class="card-title">分店二维码</h3>
+                      <p class="muted">生成各分店体验二维码，打印贴在墙上，客户扫码即可预约体验。</p>
+                    </div>
+                  </div>
+                  <div id="branch-qr-list"></div>
+                  <div id="branch-qr-preview" class="qr-preview-overlay" style="display: none;">
+                    <div class="qr-preview-card">
+                      <div class="qr-preview-header">
+                        <strong id="qr-preview-title">分店二维码</strong>
+                        <button type="button" class="qr-preview-close" id="qr-preview-close">&times;</button>
+                      </div>
+                      <div class="qr-preview-body">
+                        <img id="qr-preview-img" alt="QR Code" style="max-width: 260px; display: block; margin: 0 auto;" />
+                        <p id="qr-preview-addr" class="muted" style="margin-top: 12px; text-align: center;"></p>
+                      </div>
+                      <div class="qr-preview-actions">
+                        <button type="button" class="btn btn-secondary" id="qr-preview-download">下载海报</button>
+                        <button type="button" class="btn btn-secondary" id="qr-preview-close-btn">关闭</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid-2">
+                  <div>
+                    <h3 class="card-title">最新线索</h3>
+                    <div class="stack-list" id="lead-list"></div>
+                  </div>
+                  <div>
+                    <h3 class="card-title">训练动态</h3>
+                    <div class="stack-list" id="activity-list"></div>
+                  </div>
                 </div>
               </div>
-            </section>
+            </details>
           </div>
         </div>
       </main>
