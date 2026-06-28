@@ -1021,6 +1021,31 @@ a {
   background: rgba(16, 67, 89, 0.08);
 }
 
+.edu-view-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.edu-view-controls label {
+  display: grid;
+  gap: 4px;
+  min-width: 170px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.edu-view-controls .edu-filter-actions {
+  align-self: flex-end;
+}
+
 .edu-visual-board {
   border: 1px solid var(--color-border);
   border-radius: 8px;

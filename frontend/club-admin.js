@@ -996,10 +996,7 @@
       '<div class="club-actions">' +
         '<button class="club-action primary" type="button" data-edu-create="sessions">集体班排课</button>' +
         '<button class="club-action" type="button" data-edu-create="sessions">一对一排课</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-view="week">可视化排课</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="copy">复制/移动排课</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tool="teacher-free">查看教练空闲时间</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tool="room-free">查看场地空闲时间</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="progress">查看排课进度</button>' +
         '<button class="club-action" type="button" data-edu-schedule-tool="batch">批量操作</button>' +
         '' +
@@ -1011,6 +1008,12 @@
     var d = new Date();
     var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
     return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  };
+
+  var monthInputValue = function (date) {
+    var d = new Date(date || Date.now());
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1);
   };
 
   var downloadBlobFile = function (result, fallbackName) {
@@ -1065,13 +1068,36 @@
       return '<button class="' + (view === key ? 'active' : '') + '" type="button" data-edu-schedule-view="' + escapeHtml(key) + '">' + escapeHtml(label) + '</button>';
     };
     return '<div class="edu-view-switch">' +
-      button("list", "按列表显示") +
-      button("month", "按月显示") +
-      button("week", "按周显示") +
-      button("teacher", "按周+教练显示") +
-      button("room", "按周+场地显示") +
-      button("day", "按天显示") +
+      button("list", "列表") +
+      button("day", "按天") +
+      button("week", "按周") +
+      button("month", "按月") +
+      button("teacher-free", "教练空闲") +
+      button("room-free", "场地空闲") +
     '</div>';
+  };
+
+  var scheduleViewControlsHtml = function () {
+    var view = eduState.scheduleView || "list";
+    var filters = eduState.scheduleFilters || {};
+    var teacher = '<label>教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>';
+    var content = "";
+    if (view === "day") {
+      content = '<label>日期<input class="form-input" name="dayDate" type="date" value="' + escapeHtml(filters.dayDate || todayDateValue()) + '"></label>' + teacher;
+    } else if (view === "week") {
+      content = '<label>周次<input class="form-input" name="weekValue" type="week" value="' + escapeHtml(filters.weekValue || weekInputValue(new Date())) + '"></label>' + teacher;
+    } else if (view === "month") {
+      content = '<label>月份<input class="form-input" name="monthValue" type="month" value="' + escapeHtml(filters.monthValue || monthInputValue(new Date())) + '"></label>' + teacher;
+    } else if (view === "teacher-free") {
+      content = '<label>周次<input class="form-input" name="weekValue" type="week" value="' + escapeHtml(filters.weekValue || weekInputValue(new Date())) + '"></label>' + teacher;
+    } else if (view === "room-free") {
+      content = '<label>周次<input class="form-input" name="weekValue" type="week" value="' + escapeHtml(filters.weekValue || weekInputValue(new Date())) + '"></label>';
+    }
+    if (!content) return "";
+    return '<form class="edu-view-controls" id="edu-schedule-view-filter-form">' +
+      content +
+      '<div class="edu-filter-actions"><button class="club-action primary" type="submit">应用</button></div>' +
+    '</form>';
   };
 
   var filteredSessions = function () {
@@ -1119,11 +1145,77 @@
     return d;
   };
 
-  var scheduleWeekDays = function () {
-    var base = startOfWeek(Date.now());
+  var pad2 = function (n) {
+    return n < 10 ? "0" + n : "" + n;
+  };
+
+  var weekInputValue = function (date) {
+    var d = new Date(date || Date.now());
+    var utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var day = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - day);
+    var yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    var week = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+    return utc.getUTCFullYear() + "-W" + pad2(week);
+  };
+
+  var parseWeekInputValue = function (value) {
+    var match = String(value || "").match(/^(\d{4})-W(\d{2})$/);
+    if (!match) return startOfWeek(Date.now());
+    var year = Number(match[1]);
+    var week = Number(match[2]);
+    var simple = new Date(year, 0, 1 + (week - 1) * 7);
+    var day = simple.getDay() || 7;
+    simple.setDate(simple.getDate() + (day <= 4 ? 1 - day : 8 - day));
+    simple.setHours(0, 0, 0, 0);
+    return simple;
+  };
+
+  var parseMonthInputValue = function (value) {
+    var match = String(value || "").match(/^(\d{4})-(\d{2})$/);
+    if (!match) {
+      var today = new Date();
+      return new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+    return new Date(Number(match[1]), Number(match[2]) - 1, 1);
+  };
+
+  var scheduleWeekDays = function (baseDate) {
+    var base = startOfWeek(baseDate || Date.now());
     return [0, 1, 2, 3, 4, 5, 6].map(function (offset) {
       return addDays(base, offset);
     });
+  };
+
+  var scheduleMonthDays = function (monthDate) {
+    var start = parseMonthInputValue(monthDate || monthInputValue(new Date()));
+    var end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    var days = [];
+    for (var d = new Date(start); d < end; d = addDays(d, 1)) {
+      days.push(new Date(d));
+    }
+    return days;
+  };
+
+  var scheduleViewRange = function (view) {
+    var filters = eduState.scheduleFilters || {};
+    if (view === "day") {
+      var day = new Date((filters.dayDate || todayDateValue()) + "T00:00:00");
+      if (Number.isNaN(day.getTime())) day = new Date(todayDateValue() + "T00:00:00");
+      return { start: day, end: addDays(day, 1), dayKey: dateOnlyText(day) };
+    }
+    if (view === "month") {
+      var monthStart = parseMonthInputValue(filters.monthValue || monthInputValue(new Date()));
+      return { start: monthStart, end: new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1), monthValue: monthInputValue(monthStart) };
+    }
+    var weekStart = parseWeekInputValue(filters.weekValue || weekInputValue(new Date()));
+    return { start: weekStart, end: addDays(weekStart, 7), weekValue: weekInputValue(weekStart) };
+  };
+
+  var inScheduleViewRange = function (session, range) {
+    var d = new Date(session && session.startAt);
+    if (Number.isNaN(d.getTime())) return false;
+    return d >= range.start && d < range.end;
   };
 
   var sessionDateKey = function (session) {
@@ -1244,7 +1336,7 @@
     '</div>';
   };
 
-  var scheduleDayPreviewHtml = function (rows) {
+  var scheduleDayPreviewHtml = function (rows, dayKey) {
     var byDate = {};
     rows.forEach(function (session) {
       var key = sessionDateKey(session);
@@ -1253,17 +1345,17 @@
       byDate[key].push(session);
     });
     var keys = Object.keys(byDate).sort();
-    if (!keys.length) return '<div class="edu-visual-board day"><div class="empty-state compact">暂无课次</div></div>';
-
-    var todayKey = dateOnlyText(new Date());
-    var dayKey = byDate[todayKey] ? todayKey : keys[0];
-    var dayRows = byDate[dayKey].slice().sort(function (a, b) {
+    var selectedDayKey = dayKey || dateOnlyText(new Date());
+    var dayRows = (byDate[selectedDayKey] || []).slice().sort(function (a, b) {
       return new Date(a.startAt).getTime() - new Date(b.startAt).getTime();
     });
     var groups = scheduleDayTeacherGroups(dayRows);
     var slotKeys = Array.from(new Set(dayRows.map(scheduleDaySlotKey))).sort();
-    var dayDate = new Date(dayKey + "T12:00:00");
-    var dayTitle = dayKey + " " + weekdayText(dayDate.getDay() || 7);
+    var dayDate = new Date(selectedDayKey + "T12:00:00");
+    var dayTitle = selectedDayKey + " " + weekdayText(dayDate.getDay() || 7);
+    if (!keys.length || !dayRows.length) {
+      return '<div class="edu-visual-board day"><div class="edu-day-summary"><strong>' + escapeHtml(dayTitle) + '</strong><span>0 节课</span></div><div class="empty-state compact">当天暂无课次</div></div>';
+    }
     var gridColumns = '92px 118px repeat(' + Math.max(groups.length, 1) + ', minmax(190px, 1fr))';
     var minWidth = 210 + Math.max(groups.length, 1) * 190;
 
@@ -1289,8 +1381,12 @@
 
   var scheduleVisualHtml = function () {
     var view = eduState.scheduleView || "list";
-    var rows = filteredSessions();
-    var days = scheduleWeekDays();
+    var baseRows = filteredSessions();
+    var range = scheduleViewRange(view);
+    var rows = ["day", "week", "month", "teacher-free", "room-free"].indexOf(view) >= 0
+      ? baseRows.filter(function (session) { return inScheduleViewRange(session, range); })
+      : baseRows;
+    var days = view === "month" ? scheduleMonthDays(range.monthValue) : scheduleWeekDays(range.start);
     if (view === "month") {
       var byDate = {};
       rows.forEach(function (session) {
@@ -1298,33 +1394,20 @@
         if (!byDate[key]) byDate[key] = [];
         byDate[key].push(session);
       });
-      var keys = Object.keys(byDate).sort();
-      return '<div class="edu-visual-board month">' + (keys.length ? keys.map(function (key) {
-        return '<div class="edu-visual-day"><div class="edu-visual-head">' + escapeHtml(key) + '</div>' + byDate[key].map(function (session) { return sessionCardHtml(session, true); }).join("") + '</div>';
-      }).join("") : '<div class="empty-state compact">暂无课次</div>') + '</div>';
+      return '<div class="edu-visual-board month">' + days.map(function (day) {
+        var key = dateOnlyText(day);
+        var dayRows = (byDate[key] || []).sort(function (a, b) { return new Date(a.startAt).getTime() - new Date(b.startAt).getTime(); });
+        return '<div class="edu-visual-day"><div class="edu-visual-head">' + escapeHtml(weekdayText(day.getDay() || 7) + ' ' + key) + '</div>' + (dayRows.length ? dayRows.map(function (session) { return sessionCardHtml(session, true); }).join("") : '<div class="muted">无课</div>') + '</div>';
+      }).join("") + '</div>';
     }
-    if (view === "teacher" || view === "room") {
-      var groups = view === "teacher"
-        ? (eduState.staff || []).filter(function (item) { return (item.roles || []).indexOf("teacher") >= 0 || (item.roles || []).indexOf("coach") >= 0 || !(item.roles || []).length; }).map(function (item) { return { id: idOf(item), name: item.name }; })
-        : (eduState.resources || []).map(function (item) { return { id: item.roomId || item.tableNo || item.name, name: item.name || item.tableNo || item.roomId }; });
-      return '<div class="edu-visual-board resource"><div class="edu-visual-grid">' +
-        '<div class="edu-visual-axis"></div>' + days.map(function (day) { return '<div class="edu-visual-head">' + escapeHtml(weekdayText(day.getDay() || 7) + ' ' + dateOnlyText(day)) + '</div>'; }).join("") +
-        groups.map(function (group) {
-          return '<div class="edu-visual-axis"><strong>' + escapeHtml(group.name || "-") + '</strong></div>' + days.map(function (day) {
-            var dayKey = dateOnlyText(day);
-            var dayRows = rows.filter(function (session) {
-              var sameDay = sessionDateKey(session) === dayKey;
-              if (!sameDay) return false;
-              if (view === "teacher") return String(session.teacherId) === String(group.id);
-              return String(session.roomId || "") === String(group.id) || (session.tableNos || []).map(String).indexOf(String(group.id)) >= 0;
-            });
-            return '<div class="edu-visual-cell">' + (dayRows.length ? dayRows.map(function (session) { return sessionCardHtml(session, true); }).join("") : '<span class="muted">空闲</span>') + '</div>';
-          }).join("");
-        }).join("") +
-      '</div></div>';
+    if (view === "teacher-free") {
+      return teacherFreeHtml(days);
+    }
+    if (view === "room-free") {
+      return roomFreeHtml(days);
     }
     if (view === "day") {
-      return scheduleDayPreviewHtml(rows);
+      return scheduleDayPreviewHtml(rows, range.dayKey);
     }
     return '<div class="edu-visual-board week">' + days.map(function (day) {
       var key = dateOnlyText(day);
@@ -1712,10 +1795,12 @@
     return applyCopyMoveSessions(form);
   };
 
-  var teacherFreeHtml = function () {
-    var days = scheduleWeekDays();
+  var teacherFreeHtml = function (days) {
+    days = days || scheduleWeekDays();
+    var filters = eduState.scheduleFilters || {};
     var teachers = (eduState.staff || []).filter(function (item) {
       var roles = item.roles || [];
+      if (filters.teacherId && String(idOf(item)) !== String(filters.teacherId)) return false;
       return roles.indexOf("teacher") >= 0 || roles.indexOf("coach") >= 0 || !roles.length;
     });
     return '<div class="edu-free-board"><div class="edu-visual-grid">' +
@@ -1727,7 +1812,7 @@
             var key = dateOnlyText(day);
             var weekday = day.getDay() || 7;
             var free = (eduState.availability || []).filter(function (item) {
-              return String(item.teacherId) === String(teacherId) && item.status === "approved" && (String(item.date || "") === key || (!item.date && String(item.weekday || "") === String(weekday)));
+              return String(item.teacherId) === String(teacherId) && ["approved", "published"].indexOf(String(item.status || "")) >= 0 && (String(item.date || "") === key || (!item.date && String(item.weekday || "") === String(weekday)));
             });
             var busy = (eduState.sessions || []).filter(function (session) {
               return String(session.teacherId) === String(teacherId) && sessionDateKey(session) === key && session.status !== "cancelled";
@@ -1741,8 +1826,8 @@
     '</div></div>';
   };
 
-  var roomFreeHtml = function () {
-    var days = scheduleWeekDays();
+  var roomFreeHtml = function (days) {
+    days = days || scheduleWeekDays();
     var resources = eduState.resources || [];
     return '<div class="edu-free-board"><div class="edu-visual-grid">' +
       '<div class="edu-visual-axis"></div>' + days.map(function (day) { return '<div class="edu-visual-head">' + escapeHtml(weekdayText(day.getDay() || 7) + ' ' + dateOnlyText(day)) + '</div>'; }).join("") +
@@ -2254,6 +2339,7 @@
       scheduleToolbarHtml() +
       scheduleExportPanelHtml() +
       scheduleViewSwitchHtml() +
+      scheduleViewControlsHtml() +
       ((eduState.scheduleView || "list") === "list"
         ? '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>班级</th><th>课程</th><th>班型</th><th>分店</th><th>教练</th><th>场地</th><th>上课时间</th><th>时长</th><th>状态</th><th>备注</th><th>学员</th><th>计费数量</th><th>操作</th></tr></thead><tbody>' +
           scheduleRowsHtml() +
@@ -2264,6 +2350,10 @@
       setFormValue("edu-schedule-filter-form", "range", sf.range || "all");
       setFormValue("edu-schedule-filter-form", "dayPart", sf.dayPart || "");
       setFormValue("edu-schedule-filter-form", "teachingMode", sf.teachingMode || "");
+      setFormValue("edu-schedule-view-filter-form", "teacherId", sf.teacherId || "");
+      setFormValue("edu-schedule-view-filter-form", "dayDate", sf.dayDate || todayDateValue());
+      setFormValue("edu-schedule-view-filter-form", "weekValue", sf.weekValue || weekInputValue(new Date()));
+      setFormValue("edu-schedule-view-filter-form", "monthValue", sf.monthValue || monthInputValue(new Date()));
       var exportForm = eduState.scheduleExportForm || {};
       setFormValue("schedule-export-form", "range", exportForm.range || "day");
       var exportSettings = eduState.scheduleExportSettings || {};
@@ -3520,6 +3610,7 @@
     var batchSessionForm = document.getElementById("edu-batch-session-form");
     var availabilityBulkForm = document.getElementById("edu-availability-bulk-form");
     var scheduleFilterForm = document.getElementById("edu-schedule-filter-form");
+    var scheduleViewFilterForm = document.getElementById("edu-schedule-view-filter-form");
     var scheduleExportForm = document.getElementById("schedule-export-form");
     var scheduleExportSettingsForm = document.getElementById("schedule-export-settings-form");
     var availabilityFilterForm = document.getElementById("edu-availability-filter-form");
@@ -3542,7 +3633,12 @@
     if (batchSessionForm) batchSessionForm.addEventListener("submit", function (e) { e.preventDefault(); applyBatchSessions(batchSessionForm); });
     if (scheduleFilterForm) scheduleFilterForm.addEventListener("submit", function (e) {
       e.preventDefault();
-      eduState.scheduleFilters = formData(scheduleFilterForm);
+      eduState.scheduleFilters = Object.assign({}, eduState.scheduleFilters || {}, formData(scheduleFilterForm));
+      renderEduSessions();
+    });
+    if (scheduleViewFilterForm) scheduleViewFilterForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      eduState.scheduleFilters = Object.assign({}, eduState.scheduleFilters || {}, formData(scheduleViewFilterForm));
       renderEduSessions();
     });
     if (scheduleExportForm) scheduleExportForm.addEventListener("submit", function (e) {
