@@ -110,6 +110,57 @@
     return teacherId ? "已删除教练" : "-";
   };
 
+  var isLikelyOpenid = function (value) {
+    return /^o[A-Za-z0-9_-]{20,}$/.test(String(value || ""));
+  };
+
+  var putOperatorAlias = function (map, key, label) {
+    key = String(key || "").trim();
+    label = String(label || "").trim();
+    if (key && label && label !== key) map[key] = label;
+  };
+
+  var operatorAliasMap = function () {
+    var map = {};
+    var admin = (profile && profile.admin) || (profile && profile.user) || {};
+    var adminName = admin.nickname || admin.name || "俱乐部管理员";
+    putOperatorAlias(map, admin.openid, adminName);
+    putOperatorAlias(map, admin.id, adminName);
+    (eduState.staff || []).forEach(function (item) {
+      var label = item.name || item.nickname || "";
+      putOperatorAlias(map, item.openid || item.wechatOpenid, label);
+      putOperatorAlias(map, idOf(item), label);
+    });
+    (dashboard.members || []).forEach(function (item) {
+      var label = item.name || item.nickname || "";
+      putOperatorAlias(map, item.openid || item.id, label);
+    });
+    return map;
+  };
+
+  var operatorName = function (value, explicitName) {
+    var text = String(value || "").trim();
+    if (explicitName) return explicitName;
+    if (!text) return "-";
+    var alias = operatorAliasMap()[text];
+    if (alias) return alias;
+    return isLikelyOpenid(text) ? "微信用户" : text;
+  };
+
+  var availabilitySubmitterName = function (item) {
+    return operatorName(
+      item.submittedBy || item.createdBy,
+      item.submittedByName || item.createdByName || item.creatorName
+    );
+  };
+
+  var availabilityReviewerName = function (item) {
+    return operatorName(
+      item.approvedBy || item.rejectedBy || item.publishedBy,
+      item.approvedByName || item.rejectedByName || item.publishedByName || item.reviewerName
+    );
+  };
+
   var courseName = function (courseId) {
     var course = findById(eduState.courses, courseId);
     if (course) return course.name;
@@ -2152,7 +2203,7 @@
           var actions = item.status === 'pending' ? '<button class="club-action primary" data-approve-availability="' + escapeHtml(idOf(item)) + '">通过</button><button class="club-action" data-reject-availability="' + escapeHtml(idOf(item)) + '">拒绝</button>' : '-';
           var day = item.date ? weekdayText(new Date(item.date + 'T00:00:00').getDay() || 7) : weekdayText(item.weekday);
           var dateTextValue = item.date ? (item.date + ' · ' + day) : (dateType + ' · ' + day);
-          return '<tr><td>' + rowCheck('availability', idOf(item)) + ' <strong>' + escapeHtml(teacherName(item.teacherId)) + '</strong></td><td>' + escapeHtml(branchName(item.branchId)) + '</td><td>' + escapeHtml(dateTextValue) + '</td><td>' + escapeHtml(item.startTime || '-') + '</td><td>' + escapeHtml(item.endTime || '-') + '</td><td>' + badgeHtml(availabilityStatusLabel(item.status), item.status) + '</td><td>' + escapeHtml(item.submittedBy || item.createdBy || '-') + '</td><td>' + escapeHtml(item.approvedBy || item.rejectedBy || '-') + '</td><td>' + actions + '</td><td>-</td></tr>';
+          return '<tr><td>' + rowCheck('availability', idOf(item)) + ' <strong>' + escapeHtml(teacherName(item.teacherId)) + '</strong></td><td>' + escapeHtml(branchName(item.branchId)) + '</td><td>' + escapeHtml(dateTextValue) + '</td><td>' + escapeHtml(item.startTime || '-') + '</td><td>' + escapeHtml(item.endTime || '-') + '</td><td>' + badgeHtml(availabilityStatusLabel(item.status), item.status) + '</td><td>' + escapeHtml(availabilitySubmitterName(item)) + '</td><td>' + escapeHtml(availabilityReviewerName(item)) + '</td><td>' + actions + '</td><td>-</td></tr>';
         }).join("") : '<tr><td colspan="10">暂无可排时间</td></tr>') +
       '</tbody></table></div>';
   };
@@ -3295,8 +3346,8 @@
           { label: "开始", value: function (row) { return row.startTime || ""; } },
           { label: "结束", value: function (row) { return row.endTime || ""; } },
           { label: "状态", value: function (row) { return availabilityStatusLabel(row.status); } },
-          { label: "提交人", value: function (row) { return row.submittedBy || row.createdBy || ""; } },
-          { label: "审核人", value: function (row) { return row.approvedBy || row.rejectedBy || ""; } }
+          { label: "提交人", value: availabilitySubmitterName },
+          { label: "审核人", value: availabilityReviewerName }
         ]
       },
       ledgers: {
