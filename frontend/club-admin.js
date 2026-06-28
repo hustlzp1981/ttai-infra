@@ -1042,12 +1042,11 @@
       '</tr>';
     }).join("") : '<tr><td colspan="6">暂无保存记录</td></tr>';
     return '<section class="edu-export-panel">' +
-      '<div class="section-title"><h4>照片风格 Excel 课表</h4><p>按日期、时间和教练生成彩色约课表，默认手动下载。</p></div>' +
       '<form class="edu-filter-panel compact" id="schedule-export-form">' +
         '<div class="edu-filter-grid">' +
           '<label>导出日期<input class="form-input" name="date" type="date" value="' + escapeHtml(form.date || todayDateValue()) + '"></label>' +
           '<label>范围<select class="form-input" name="range"><option value="day">当天</option><option value="week">本周</option></select></label>' +
-          '<div class="edu-filter-actions"><button class="club-action primary" type="button" data-schedule-export-download="1">下载 Excel</button><button class="club-action" type="button" data-schedule-export-save="1">保存到导出记录</button></div>' +
+          '<div class="edu-filter-actions"><button class="club-action primary" type="button" data-schedule-export-download="1" title="按日期、时间和教练生成彩色约课表">下载 Excel</button><button class="club-action" type="button" data-schedule-export-save="1">保存到导出记录</button></div>' +
         '</div>' +
       '</form>' +
       '<form class="edu-filter-panel compact" id="schedule-export-settings-form">' +
