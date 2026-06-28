@@ -415,6 +415,11 @@
     },
     eduSaveScheduleExportSettings: function (clubId, payload) {
       return apiPut("/club-admin/edu/schedule-export-settings", Object.assign({ clubId: clubId }, payload || {}), true);
-    }
+    },
+    listCities: function () {
+      return apiGet('/clubs/cities', {}, false).then(function (data) {
+        return (data.items || []).map(function (item) { return item.city }).filter(Boolean)
+      })
+    },
   };
 })();

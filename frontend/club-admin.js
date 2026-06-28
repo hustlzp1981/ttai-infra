@@ -1001,6 +1001,30 @@
     return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
   };
 
+  var monthStartDateValue = function (date) {
+    var d = new Date(date || Date.now());
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-01";
+  };
+
+  var monthEndDateValue = function (date) {
+    var d = new Date(date || Date.now());
+    d = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  };
+
+  var defaultReportFilters = function () {
+    return {
+      startDate: monthStartDateValue(),
+      endDate: monthEndDateValue()
+    };
+  };
+
+  var currentReportFilters = function () {
+    return Object.assign(defaultReportFilters(), eduState.reportFilters || {});
+  };
+
   var monthInputValue = function (date) {
     var d = new Date(date || Date.now());
     var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
@@ -2514,7 +2538,7 @@
   };
 
   var feeReportRows = function () {
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     var groupBy = filters.groupBy || "branch";
     var groups = {};
     (eduState.wallets || []).filter(function (wallet) {
@@ -2558,7 +2582,7 @@
   };
 
   var consumeReportRows = function () {
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     return (eduState.ledgers || []).filter(function (ledger) {
       var student = findById(eduState.students, ledger.studentId) || {};
       var studentText = [studentName(ledger.studentId), student.studentNo, student.no, student.phone, ledger.reason, ledger.walletId].join(" ").toLowerCase();
@@ -2594,7 +2618,7 @@
   };
 
   var performanceReportRows = function () {
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     return (eduState.staff || []).filter(function (teacher) {
       var roles = teacher.roles || [];
       return (roles.indexOf("teacher") >= 0 || roles.indexOf("coach") >= 0 || !roles.length) &&
@@ -2633,7 +2657,7 @@
   };
 
   var classReportRows = function () {
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     return (eduState.classes || []).filter(function (klass) {
       var course = findById(eduState.courses, klass.courseProductId) || {};
       var text = [klass.className, klass.courseNameSnapshot, course.name, klass.defaultRoomId, (klass.defaultTableNos || []).join(",")].join(" ").toLowerCase();
@@ -2769,7 +2793,7 @@
   };
 
   var reportFilterHtml = function () {
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     var tab = eduState.reportTab || "fee";
     var extra = "";
     if (tab === "fee") {
@@ -2802,7 +2826,7 @@
         '<label>结束日期<input class="form-input" type="date" name="endDate" value="' + escapeHtml(filters.endDate || '') + '"></label>' +
         '<label>所属分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
         extra +
-        '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="reports">重置</button><button class="club-action" type="button" data-edu-export="report-' + escapeHtml(eduState.reportTab || "fee") + '">导出</button></div>' +
+        '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="reports">重置</button><button class="club-action" type="button" data-edu-export="report-' + escapeHtml(eduState.reportTab || "fee") + '">导出为 Excel</button></div>' +
       '</div>' +
     '</form>';
   };
@@ -2861,7 +2885,7 @@
       reportFilterHtml() +
       reportSummaryHtml(definition) +
       reportTableHtml(definition);
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     setFormValue("edu-report-filter-form", "groupBy", filters.groupBy || "branch");
     setFormValue("edu-report-filter-form", "consumeType", filters.consumeType || "");
     setFormValue("edu-report-filter-form", "teacherRole", filters.teacherRole || "");
@@ -2892,7 +2916,7 @@
   };
 
   var dateInReportRange = function (value) {
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     if (!value || (!filters.startDate && !filters.endDate)) return true;
     var d = new Date(value);
     if (Number.isNaN(d.getTime())) return false;
@@ -2910,12 +2934,12 @@
   };
 
   var branchInReportScope = function (branchId) {
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     return !filters.branchId || String(branchId || "") === String(filters.branchId);
   };
 
   var teacherInReportScope = function (teacherId) {
-    var filters = eduState.reportFilters || {};
+    var filters = currentReportFilters();
     return !filters.teacherId || String(teacherId || "") === String(filters.teacherId);
   };
 
@@ -3324,10 +3348,52 @@
     URL.revokeObjectURL(url);
   };
 
+  var reportDateRangeText = function () {
+    var filters = currentReportFilters();
+    if (filters.startDate && filters.endDate) return filters.startDate + " 至 " + filters.endDate;
+    if (filters.startDate) return filters.startDate + " 起";
+    if (filters.endDate) return filters.endDate + " 止";
+    return "全部日期";
+  };
+
+  var downloadReportExcel = function (name, rows, columns) {
+    rows = rows || [];
+    columns = columns || [];
+    var colCount = Math.max(columns.length, 1);
+    var generatedAt = formatCST(new Date().toISOString());
+    var tableRows = rows.length ? rows.map(function (row, rowIndex) {
+      return '<tr>' + columns.map(function (col) {
+        return '<td style="border:1px solid #d7e2de;padding:8px 10px;color:#19302b;mso-number-format:\\@;background:' + (rowIndex % 2 ? '#f7fbf9' : '#ffffff') + ';">' + escapeHtml(col.value(row)) + '</td>';
+      }).join("") + '</tr>';
+    }).join("") : '<tr><td colspan="' + colCount + '" style="border:1px solid #d7e2de;padding:14px 10px;text-align:center;color:#66736f;">暂无报表数据</td></tr>';
+    var html = '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
+      '<table style="border-collapse:collapse;font-family:Arial,Microsoft YaHei,sans-serif;font-size:13px;min-width:960px;">' +
+        '<tr><td colspan="' + colCount + '" style="background:#173f35;color:#ffffff;font-size:20px;font-weight:700;padding:16px 14px;">教务-' + escapeHtml(name) + '</td></tr>' +
+        '<tr><td colspan="' + colCount + '" style="background:#eaf4ef;color:#2b4d45;padding:10px 14px;border:1px solid #c9ddd4;">日期范围：' + escapeHtml(reportDateRangeText()) + '　生成时间：' + escapeHtml(generatedAt) + '</td></tr>' +
+        '<tr>' + columns.map(function (col) {
+          return '<th style="border:1px solid #bfd7ce;background:#2f7d68;color:#ffffff;padding:9px 10px;text-align:left;font-weight:700;">' + escapeHtml(col.label) + '</th>';
+        }).join("") + '</tr>' +
+        tableRows +
+      '</table>' +
+    '</body></html>';
+    var blob = new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    var today = todayDateValue().replace(/-/g, "");
+    a.href = url;
+    a.download = "教务-" + name + "-" + today + ".xls";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   var exportEduData = function (type) {
     if (String(type || "").indexOf("report-") === 0) {
+      var reportForm = document.getElementById("edu-report-filter-form");
+      if (reportForm) eduState.reportFilters = formData(reportForm);
       var report = reportDefinition(String(type).replace("report-", ""));
-      return downloadCsv(report.name, report.rows || [], report.columns || []);
+      return downloadReportExcel(report.name, report.rows || [], report.columns || []);
     }
     var exporters = {
       courses: {
@@ -3699,7 +3765,7 @@
         if (type === "schedule") eduState.scheduleFilters = {};
         if (type === "availability") eduState.availabilityFilters = {};
         if (type === "reports") {
-          eduState.reportFilters = {};
+          eduState.reportFilters = defaultReportFilters();
           return renderEduReports();
         }
         renderEduSessions();

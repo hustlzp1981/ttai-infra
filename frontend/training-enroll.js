@@ -60,9 +60,9 @@
 
       var photosrc = (club.photos && club.photos[0]) || "";
       var photo = resolveUrl((photosrc && photosrc.indexOf("default") === -1) ? photosrc.replace(/(\.png|\.jpg)$/, "-list$1") : "images/clubs/club-default.jpg");
-      var imgStyle = (photosrc && /(vc-ttc|cfty-ttc|xs-ttc)/.test(photosrc)) ? ' style="object-fit:contain;background:#e0e0e0"' : '';
+      var imgStyle = (photosrc && /(vc-ttc|cfty-ttc|xs-ttc)/.test(photosrc)) ? ' style="object-fit:contain;background:#e0e0e0"' : "";
       var tagsHtml = (club.tags || []).slice(0, 5).map(function (tag) {
-        return '<span class="club-tag">' + tag + '</span>';
+        return '<span class="club-tag">' + tag + "</span>";
       }).join("");
 
       var actions = "";
@@ -75,17 +75,17 @@
       actions += '<a class="club-action primary" href="training-enroll-detail.html?id=' + encodeURIComponent(club.id) + '">查看详情</a>';
 
       card.innerHTML =
-        '<img class="club-photo" src="' + photo + '" alt="' + (club.name || "俱乐部") + '"' + imgStyle + '>' +
+        '<img class="club-photo" src="' + photo + '" alt="' + (club.name || "俱乐部") + '"' + imgStyle + ">" +
         '<div class="club-info">' +
           '<div class="club-header">' +
-            '<div class="club-name">' + (club.name || "俱乐部") + '</div>' +
+            '<div class="club-name">' + (club.name || "俱乐部") + "</div>" +
             (club.isPartner ? '<span class="partner-badge">合作俱乐部</span>' : '<span class="partner-badge muted-badge">入驻俱乐部</span>') +
-          '</div>' +
-          '<div class="club-address">' + (club.district || "") + " · " + (club.address || "") + '</div>' +
-          '<div class="club-phone">' + (club.summary || "") + '</div>' +
-          '<div class="club-tags">' + tagsHtml + '</div>' +
-          '<div class="club-actions">' + actions + '</div>' +
-        '</div>';
+          "</div>" +
+          '<div class="club-address">' + (club.district || "") + " · " + (club.address || "") + "</div>" +
+          '<div class="club-phone">' + (club.summary || "") + "</div>" +
+          '<div class="club-tags">' + tagsHtml + "</div>" +
+          '<div class="club-actions">' + actions + "</div>" +
+        "</div>";
 
       clubsList.appendChild(card);
     });
@@ -95,6 +95,26 @@
         copyWechat(button);
       });
     });
+  };
+
+  var loadCities = function () {
+    if (clubData.listCities) {
+      clubData.listCities().then(function (cities) {
+        if (!citySelect) return;
+        citySelect.innerHTML = "";
+        cities.forEach(function (city) {
+          var option = document.createElement("option");
+          option.value = city;
+          option.textContent = city;
+          citySelect.appendChild(option);
+        });
+        loadClubs();
+      }).catch(function () {
+        loadClubs();
+      });
+    } else {
+      loadClubs();
+    }
   };
 
   var getFilters = function () {
@@ -140,5 +160,5 @@
   }
 
   renderDistricts();
-  loadClubs();
+  loadCities();
 })();
