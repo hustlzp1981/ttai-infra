@@ -984,10 +984,8 @@
           '<label>上课时间<select class="form-input" name="range"><option value="all">不限</option><option value="today">今天</option><option value="thisWeek">本周</option><option value="lastWeek">上周</option><option value="nextWeek">下周</option><option value="thisMonth">本月</option><option value="lastMonth">上月</option></select></label>' +
           '<label>日段<select class="form-input" name="dayPart"><option value="">全部</option><option value="上午">上午</option><option value="下午">下午</option><option value="晚上">晚上</option></select></label>' +
           '<label>所属分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
-          '<label>任课教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
           '<label>上课场地<input class="form-input" name="roomId" value="' + escapeHtml(filters.roomId || '') + '" placeholder="场地/球台"></label>' +
           '<label>课程属性<select class="form-input" name="teachingMode"><option value="">全部</option><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option><option value="trial">体验课</option></select></label>' +
-          '<label>班级标签<input class="form-input" name="classTag" value="' + escapeHtml(filters.classTag || '') + '" placeholder="标签"></label>' +
           '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="schedule">重置</button></div>' +
         '</div>' +
       '</form>';
@@ -1108,9 +1106,12 @@
       content = '<label>周次<input class="form-input" name="weekValue" type="week" value="' + escapeHtml(filters.weekValue || weekInputValue(new Date())) + '"></label>';
     }
     if (!content) return "";
+    var exportButton = (view === "day" || view === "week")
+      ? '<button class="club-action" type="button" data-schedule-view-export="1">导出 Excel</button>'
+      : '';
     return '<form class="edu-view-controls" id="edu-schedule-view-filter-form">' +
       content +
-      '<div class="edu-filter-actions"><button class="club-action primary" type="submit">应用</button></div>' +
+      '<div class="edu-filter-actions"><button class="club-action primary" type="submit">应用</button>' + exportButton + '</div>' +
     '</form>';
   };
 
@@ -3642,14 +3643,41 @@
     return data;
   };
 
-  var downloadScheduleExcel = function () {
-    var payload = scheduleExportPayload();
+  var scheduleViewExportPayload = function () {
+    var form = document.getElementById("edu-schedule-view-filter-form");
+    var filters = Object.assign({}, eduState.scheduleFilters || {}, form ? formData(form) : {});
+    var view = eduState.scheduleView || "day";
+    var payload = {
+      date: filters.dayDate || todayDateValue(),
+      range: "day",
+      branchId: eduState.branchId || ""
+    };
+    if (view === "week") {
+      payload.date = dateOnlyText(parseWeekInputValue(filters.weekValue || weekInputValue(new Date())));
+      payload.range = "week";
+    }
+    if (filters.teacherId) payload.teacherId = filters.teacherId;
+    eduState.scheduleFilters = filters;
+    return payload;
+  };
+
+  var downloadScheduleExcelWithPayload = function (payload) {
     if (!clubData.eduDownloadScheduleExport) return window.alert("后端导出接口未上线。");
     clubData.eduDownloadScheduleExport(selectedClubId, payload).then(function (result) {
       downloadBlobFile(result, "约课表.xlsx");
     }).catch(function (err) {
       window.alert(clubData.errorMessage ? clubData.errorMessage(err) : (err.message || "下载失败"));
     });
+  };
+
+  var downloadScheduleExcel = function () {
+    return downloadScheduleExcelWithPayload(scheduleExportPayload());
+  };
+
+  var downloadCurrentScheduleViewExcel = function () {
+    var view = eduState.scheduleView || "day";
+    if (view !== "day" && view !== "week") return window.alert("当前视图暂不支持导出 Excel。");
+    return downloadScheduleExcelWithPayload(scheduleViewExportPayload());
   };
 
   var saveScheduleExcel = function () {
@@ -3865,6 +3893,9 @@
     });
     eduPanelEl.querySelectorAll("[data-schedule-export-download]").forEach(function (button) {
       button.addEventListener("click", downloadScheduleExcel);
+    });
+    eduPanelEl.querySelectorAll("[data-schedule-view-export]").forEach(function (button) {
+      button.addEventListener("click", downloadCurrentScheduleViewExcel);
     });
     eduPanelEl.querySelectorAll("[data-schedule-export-save]").forEach(function (button) {
       button.addEventListener("click", saveScheduleExcel);
