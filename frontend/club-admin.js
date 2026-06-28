@@ -47,6 +47,8 @@
     classes: [],
     staff: [],
     availability: [],
+    bookingAvailability: [],
+    bookings: [],
     resources: [],
     sessions: [],
     scheduleView: "list",
@@ -368,7 +370,21 @@
       pending: "待审核",
       approved: "已通过",
       rejected: "已拒绝",
+      draft: "草稿",
+      published: "已发布",
+      paused: "已暂停",
       inactive: "停用"
+    }, value);
+  };
+
+  var bookingStatusLabel = function (value) {
+    return labelOf({
+      requested: "待确认",
+      confirmed: "已确认",
+      alternative_proposed: "改期中",
+      rejected: "已拒绝",
+      cancelled: "已取消",
+      expired: "已过期"
     }, value);
   };
 
@@ -382,9 +398,9 @@
   };
 
   var badgeClass = function (type) {
-    if (["active", "approved", "scheduled", "purchase", "ok", "none"].indexOf(type) >= 0) return "ok";
-    if (["pending", "pending_attendance", "attendance"].indexOf(type) >= 0) return "warn";
-    if (["cancelled", "inactive", "archived", "rejected", "revoked", "revoke"].indexOf(type) >= 0) return "muted";
+    if (["active", "approved", "published", "confirmed", "scheduled", "purchase", "ok", "none"].indexOf(type) >= 0) return "ok";
+    if (["pending", "draft", "requested", "alternative_proposed", "pending_attendance", "attendance"].indexOf(type) >= 0) return "warn";
+    if (["cancelled", "inactive", "archived", "paused", "rejected", "expired", "revoked", "revoke"].indexOf(type) >= 0) return "muted";
     if (["completed"].indexOf(type) >= 0) return "info";
     return "muted";
   };
@@ -668,8 +684,10 @@
         clubData.eduClasses(selectedClubId, params),
         clubData.eduStaff(selectedClubId, params),
         clubData.eduAvailability(selectedClubId, params),
+        clubData.eduBookingAvailability ? clubData.eduBookingAvailability(selectedClubId, params).catch(function () { return { items: [] }; }) : Promise.resolve({ items: [] }),
         clubData.eduResources(selectedClubId, params),
         clubData.eduSessions(selectedClubId, params),
+        clubData.eduBookings ? clubData.eduBookings(selectedClubId, Object.assign({ pageSize: 300 }, params)).catch(function () { return { items: [] }; }) : Promise.resolve({ items: [] }),
         clubData.eduScheduleExports ? clubData.eduScheduleExports(selectedClubId, params).catch(function () { return { items: [] }; }) : Promise.resolve({ items: [] }),
         clubData.eduScheduleExportSettings ? clubData.eduScheduleExportSettings(selectedClubId, branchId).catch(function () { return { enabled: false, timeOfDay: "22:00", range: "day" }; }) : Promise.resolve({ enabled: false, timeOfDay: "22:00", range: "day" })
       ]);
@@ -682,10 +700,12 @@
       eduState.classes = eduList(parts[5]);
       eduState.staff = eduList(parts[6]);
       eduState.availability = eduList(parts[7]);
-      eduState.resources = eduList(parts[8]);
-      eduState.sessions = eduList(parts[9]);
-      eduState.scheduleExports = eduList(parts[10]);
-      eduState.scheduleExportSettings = parts[11] || { enabled: false, timeOfDay: "22:00", range: "day" };
+      eduState.bookingAvailability = eduList(parts[8]);
+      eduState.resources = eduList(parts[9]);
+      eduState.sessions = eduList(parts[10]);
+      eduState.bookings = eduList(parts[11]);
+      eduState.scheduleExports = eduList(parts[12]);
+      eduState.scheduleExportSettings = parts[13] || { enabled: false, timeOfDay: "22:00", range: "day" };
       renderEduPanel();
     }).catch(function (err) {
       eduPanelEl.innerHTML = eduErrorHtml(err);
@@ -715,6 +735,21 @@
     return '<option value="">选择课程</option>' + (eduState.courses || []).map(function (item) {
       var id = idOf(item);
       return '<option value="' + escapeHtml(id) + '"' + (String(id) === String(selected || "") ? ' selected' : '') + '>' + escapeHtml(item.name || id) + '</option>';
+    }).join("");
+  };
+
+  var bookingCourseOptions = function (selected) {
+    return '<option value="">不限课程</option>' + (eduState.courses || []).map(function (item) {
+      var id = idOf(item);
+      return '<option value="' + escapeHtml(id) + '"' + (String(id) === String(selected || "") ? ' selected' : '') + '>' + escapeHtml(item.name || id) + '</option>';
+    }).join("");
+  };
+
+  var resourceOptions = function (selected) {
+    return '<option value="">不指定球台</option>' + (eduState.resources || []).map(function (item) {
+      var id = idOf(item);
+      var label = item.name || item.tableNo || item.roomId || id;
+      return '<option value="' + escapeHtml(id) + '"' + (String(id) === String(selected || "") ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
     }).join("");
   };
 
@@ -1329,9 +1364,13 @@
       '<div class="edu-filter-grid compact">' +
         '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions('') + '</select></label>' +
         '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(eduState.branchId) + '</select></label>' +
+        '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions('') + '</select></label>' +
+        '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option></select></label>' +
+        '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions('') + '</select></label>' +
         '<label>开始时间<input class="form-input text-center" type="time" name="startTime" value="08:00" required></label>' +
         '<label>结束时间<input class="form-input text-center" type="time" name="endTime" value="10:00" required></label>' +
-        '<label>保存状态<select class="form-input" name="status"><option value="approved">直接通过</option><option value="pending">待审核</option></select></label>' +
+        '<label>每格时长<input class="form-input text-center" type="number" min="15" step="15" name="slotDurationMinutes" value="60"></label>' +
+        '<label>保存状态<select class="form-input" name="status"><option value="draft">保存草稿</option><option value="published">直接发布</option></select></label>' +
       '</div>' +
       '<div class="edu-free-calendar-head"><span>已选<strong data-availability-selected-count>0</strong>天</span><span class="muted" data-availability-calendar-note>当前周期</span></div>' +
       '<div class="edu-free-weekdays">' + dayHeads + '</div>' +
@@ -1345,24 +1384,210 @@
     return '<div class="edu-page-path">当前位置：教务管理 / 排课管理 / 教练可排时间管理</div>' +
       '<form class="edu-filter-panel" id="edu-availability-filter-form">' +
         '<div class="edu-filter-grid compact">' +
+          '<label>矩阵范围<select class="form-input" name="matrixRange"><option value="week">按周</option><option value="day">按日</option></select></label>' +
+          '<label>查询日期<input class="form-input" type="date" name="matrixDate" value="' + escapeHtml(filters.matrixDate || todayDateValue()) + '"></label>' +
           '<label>教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
           '<label>分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
-          '<label>状态<select class="form-input" name="status"><option value="">全部</option><option value="pending">待审核</option><option value="approved">已通过</option><option value="rejected">已拒绝</option></select></label>' +
+          '<label>状态<select class="form-input" name="status"><option value="">全部</option><option value="draft">草稿</option><option value="published">已发布</option><option value="paused">已暂停</option><option value="requested">待确认</option><option value="confirmed">已确认</option><option value="alternative_proposed">改期中</option><option value="rejected">已拒绝</option><option value="cancelled">已取消</option><option value="pending">待审核</option><option value="approved">已通过</option></select></label>' +
           '<label>星期<select class="form-input" name="weekday"><option value="">全部</option><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="7">周日</option></select></label>' +
-          '<label>指定日期<input class="form-input" type="date" name="date" value="' + escapeHtml(filters.date || '') + '"></label>' +
           '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="availability">重置</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div>' +
         '</div>' +
       '</form>';
   };
 
+  var allAvailabilityRows = function () {
+    var map = {};
+    (eduState.availability || []).concat(eduState.bookingAvailability || []).forEach(function (item) {
+      var id = idOf(item) || [item.teacherId, item.branchId, item.date, item.startTime, item.endTime, item.status].join("|");
+      if (!id) return;
+      map[id] = Object.assign({}, map[id] || {}, item);
+    });
+    return Object.keys(map).map(function (key) { return map[key]; });
+  };
+
+  var parseDateKey = function (value) {
+    var raw = String(value || todayDateValue()).slice(0, 10);
+    var d = new Date(raw + "T00:00:00");
+    if (Number.isNaN(d.getTime())) d = new Date(todayDateValue() + "T00:00:00");
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  var availabilityMatrixRange = function () {
+    var filters = eduState.availabilityFilters || {};
+    var mode = filters.matrixRange === "day" ? "day" : "week";
+    var base = parseDateKey(filters.matrixDate || todayDateValue());
+    var start = mode === "day" ? base : startOfWeek(base);
+    var days = [];
+    for (var i = 0; i < (mode === "day" ? 1 : 7); i += 1) {
+      var day = addDays(start, i);
+      days.push({
+        date: dateOnlyText(day),
+        label: weekdayText(day.getDay() || 7) + " " + dateOnlyText(day).slice(5)
+      });
+    }
+    return {
+      mode: mode,
+      focusDate: dateOnlyText(base),
+      startDate: days[0] && days[0].date,
+      endDate: days[days.length - 1] && days[days.length - 1].date,
+      weekStartDate: dateOnlyText(start),
+      days: days
+    };
+  };
+
+  var dateInMatrixRange = function (dateKey, range) {
+    var key = String(dateKey || "").slice(0, 10);
+    return !!key && key >= range.startDate && key <= range.endDate;
+  };
+
+  var minutesOfTime = function (value) {
+    var parts = String(value || "").split(":");
+    var hour = Number(parts[0]);
+    var minute = Number(parts[1] || 0);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) return NaN;
+    return hour * 60 + minute;
+  };
+
+  var timeOfMinutes = function (minutes) {
+    var hour = Math.floor(Number(minutes || 0) / 60);
+    var minute = Number(minutes || 0) % 60;
+    var pad = function (n) { return n < 10 ? "0" + n : "" + n; };
+    return pad(hour) + ":" + pad(minute);
+  };
+
+  var bookingStartDateKey = function (booking) {
+    return dateOnlyText(booking && (booking.preferredStartAt || booking.startAt || booking.proposedStartAt));
+  };
+
+  var bookingStartTimeKey = function (booking) {
+    return timeOnlyText(booking && (booking.preferredStartAt || booking.startAt || booking.proposedStartAt));
+  };
+
+  var capacityLabel = function (capacity) {
+    var n = Number(capacity || 1);
+    if (n === 2) return "一对二";
+    if (n === 3) return "一对三";
+    return "一对一";
+  };
+
+  var bookingTypeForCapacity = function (capacity) {
+    var n = Number(capacity || 1);
+    if (n === 2) return "one_on_two";
+    if (n === 3) return "one_on_three";
+    return "one_on_one";
+  };
+
+  var availabilityStatusVisibleInMatrix = function (status) {
+    return ["draft", "published", "paused"].indexOf(String(status || "")) >= 0;
+  };
+
+  var statusFilterMatches = function (status) {
+    var filters = eduState.availabilityFilters || {};
+    return !filters.status || String(status || "") === String(filters.status);
+  };
+
+  var bookingAvailabilitySlots = function (range) {
+    var filters = eduState.availabilityFilters || {};
+    var rows = allAvailabilityRows().filter(function (item) {
+      if (!availabilityStatusVisibleInMatrix(item.status || "draft")) return false;
+      if (!statusFilterMatches(item.status || "draft")) return false;
+      if (filters.teacherId && String(item.teacherId) !== String(filters.teacherId)) return false;
+      if (filters.branchId && String(item.branchId) !== String(filters.branchId)) return false;
+      return dateInMatrixRange(item.date, range);
+    });
+    var slots = [];
+    rows.forEach(function (item) {
+      var start = minutesOfTime(item.startTime);
+      var end = minutesOfTime(item.endTime);
+      var duration = Number(item.slotDurationMinutes || 60);
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+      if (!Number.isFinite(duration) || duration <= 0) duration = 60;
+      for (var min = start; min + duration <= end; min += duration) {
+        slots.push({
+          availability: item,
+          id: idOf(item),
+          date: item.date,
+          startTime: timeOfMinutes(min),
+          endTime: timeOfMinutes(min + duration),
+          teacherId: item.teacherId || "",
+          branchId: item.branchId || "",
+          courseProductId: item.courseProductId || "",
+          courseName: item.courseName || courseName(item.courseProductId) || "不限课程",
+          resourceLabel: item.resourceLabel || ((findById(eduState.resources, item.resourceId) || {}).name) || "",
+          capacity: Number(item.capacity || 1),
+          status: item.status || "draft"
+        });
+      }
+    });
+    return slots;
+  };
+
+  var filteredBookingsForMatrix = function (range) {
+    var filters = eduState.availabilityFilters || {};
+    return (eduState.bookings || []).filter(function (item) {
+      var dateKey = bookingStartDateKey(item);
+      if (!dateInMatrixRange(dateKey, range)) return false;
+      if (!statusFilterMatches(item.status || "requested")) return false;
+      if (filters.teacherId && String(item.teacherId || "") !== String(filters.teacherId)) return false;
+      if (filters.branchId && String(item.branchId || "") !== String(filters.branchId)) return false;
+      return true;
+    }).sort(function (a, b) {
+      return String(a.preferredStartAt || a.createdAt || "").localeCompare(String(b.preferredStartAt || b.createdAt || ""));
+    });
+  };
+
+  var teacherRowsForAvailabilityMatrix = function (slots, bookings) {
+    var filters = eduState.availabilityFilters || {};
+    var activeIds = {};
+    slots.forEach(function (slot) { activeIds[String(slot.teacherId || "")] = true; });
+    bookings.forEach(function (booking) { activeIds[String(booking.teacherId || "")] = true; });
+    var staffTeachers = (eduState.staff || []).filter(function (item) {
+      var roles = item.roles || [];
+      var id = idOf(item);
+      if (filters.teacherId && String(id) !== String(filters.teacherId)) return false;
+      if (filters.branchId && item.branchId && String(item.branchId) !== String(filters.branchId)) return false;
+      return roles.indexOf("teacher") >= 0 || roles.indexOf("coach") >= 0 || roles.length === 0;
+    });
+    var rows = staffTeachers.filter(function (item) {
+      return staffTeachers.length <= 8 || activeIds[String(idOf(item))];
+    }).map(function (item) {
+      return { id: idOf(item), name: item.name || idOf(item), branchId: item.branchId || "" };
+    });
+    Object.keys(activeIds).forEach(function (id) {
+      if (!id) return;
+      if (rows.some(function (row) { return String(row.id) === String(id); })) return;
+      rows.push({ id: id, name: teacherName(id), branchId: "" });
+    });
+    if (activeIds[""] && !filters.teacherId) rows.push({ id: "", name: "待安排教练", branchId: "" });
+    return rows;
+  };
+
+  var availabilityMatrixTimeRows = function (range, slots, bookings) {
+    var timeSet = {};
+    slots.forEach(function (slot) { timeSet[slot.startTime] = true; });
+    bookings.forEach(function (booking) { timeSet[bookingStartTimeKey(booking)] = true; });
+    var times = Object.keys(timeSet).filter(Boolean).sort();
+    var rows = [];
+    range.days.forEach(function (day) {
+      times.forEach(function (time) {
+        var hasSlot = slots.some(function (slot) { return slot.date === day.date && slot.startTime === time; });
+        var hasBooking = bookings.some(function (booking) { return bookingStartDateKey(booking) === day.date && bookingStartTimeKey(booking) === time; });
+        if (hasSlot || hasBooking) rows.push({ date: day.date, dayLabel: day.label, time: time });
+      });
+    });
+    return rows;
+  };
+
   var filteredAvailability = function () {
     var filters = eduState.availabilityFilters || {};
-    return (eduState.availability || []).filter(function (item) {
+    var range = availabilityMatrixRange();
+    return allAvailabilityRows().filter(function (item) {
       if (filters.teacherId && String(item.teacherId) !== String(filters.teacherId)) return false;
       if (filters.branchId && String(item.branchId) !== String(filters.branchId)) return false;
       if (filters.status && String(item.status || "") !== String(filters.status)) return false;
       if (filters.weekday && String(item.weekday || "") !== String(filters.weekday)) return false;
-      if (filters.date && String(item.date || "") !== String(filters.date)) return false;
+      if (filters.matrixDate && item.date && !dateInMatrixRange(item.date, range)) return false;
       return true;
     }).sort(function (a, b) {
       return String(a.date || a.weekday || "").localeCompare(String(b.date || b.weekday || "")) || String(a.startTime || "").localeCompare(String(b.startTime || ""));
@@ -1786,19 +2011,141 @@
     return '<form class="edu-form" id="edu-availability-form">' +
       '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions() + '</select></label>' +
       '<label>分店<select class="form-input" name="branchId" required>' + branchOptions() + '</select></label>' +
-      '<label>星期<select class="form-input" name="weekday"><option value="">按日期</option><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="7">周日</option></select></label>' +
       '<label>指定日期<input class="form-input" name="date" type="date"></label>' +
+      '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions() + '</select></label>' +
+      '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option></select></label>' +
+      '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions() + '</select></label>' +
       '<label>开始<input class="form-input" name="startTime" type="time" required></label>' +
       '<label>结束<input class="form-input" name="endTime" type="time" required></label>' +
-      '<label>保存状态<select class="form-input" name="status"><option value="pending">待审核</option><option value="approved">直接通过</option></select></label>' +
-      '<div class="club-actions"><button class="club-action primary" type="submit">保存可排时间</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
+      '<label>每格时长<input class="form-input" name="slotDurationMinutes" type="number" min="15" step="15" value="60"></label>' +
+      '<label>保存状态<select class="form-input" name="status"><option value="draft">保存草稿</option><option value="published">直接发布</option></select></label>' +
+      '<div class="club-actions"><button class="club-action primary" type="submit">保存可约时间</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
     '</form>';
+  };
+
+  var availabilityMatrixSummaryHtml = function (slots, bookings, range) {
+    var availabilityIds = {};
+    slots.forEach(function (slot) {
+      if (slot.id) availabilityIds[slot.id] = slot.status;
+    });
+    var availabilityRows = Object.keys(availabilityIds).map(function (id) { return availabilityIds[id]; });
+    var count = function (list, status) {
+      return list.filter(function (item) { return String(item.status || item) === status; }).length;
+    };
+    var title = range.mode === "day"
+      ? range.focusDate + " 按日"
+      : range.startDate + " 至 " + range.endDate + " 按周";
+    return '<div class="edu-booking-summary">' +
+      '<div><strong>' + escapeHtml(title) + '</strong><span>时间 × 教练矩阵，发布后学员才能在小程序选择空位。</span></div>' +
+      '<div class="edu-booking-kpis">' +
+        '<span>草稿 ' + count(availabilityRows, "draft") + '</span>' +
+        '<span>已发布 ' + count(availabilityRows, "published") + '</span>' +
+        '<span>暂停 ' + count(availabilityRows, "paused") + '</span>' +
+        '<span>待确认 ' + count(bookings, "requested") + '</span>' +
+        '<span>已确认 ' + count(bookings, "confirmed") + '</span>' +
+      '</div>' +
+    '</div>';
+  };
+
+  var availabilitySlotCardHtml = function (slot) {
+    var item = slot.availability || {};
+    var canPublish = slot.status === "draft" && slot.id;
+    var canPause = slot.status === "published" && slot.id;
+    var actionHtml = '';
+    if (canPublish) actionHtml += '<button class="club-action mini" type="button" data-booking-publish-availability="' + escapeHtml(slot.id) + '">发布</button>';
+    if (canPause) actionHtml += '<button class="club-action mini" type="button" data-booking-pause-availability="' + escapeHtml(slot.id) + '">暂停</button>';
+    return '<div class="edu-booking-chip availability ' + escapeHtml(slot.status) + '">' +
+      '<div class="edu-booking-chip-head">' +
+        '<strong>' + escapeHtml(availabilityStatusLabel(slot.status)) + '</strong>' +
+        '<span>' + escapeHtml(slot.startTime + '-' + slot.endTime) + '</span>' +
+      '</div>' +
+      '<div class="edu-booking-chip-line">' + escapeHtml((slot.courseProductId ? slot.courseName : "不限课程") + ' · ' + capacityLabel(slot.capacity)) + '</div>' +
+      '<div class="edu-booking-chip-line">' + escapeHtml(branchName(slot.branchId)) + (slot.resourceLabel ? ' · ' + escapeHtml(slot.resourceLabel) : '') + '</div>' +
+      (item.publishedAt ? '<div class="edu-booking-chip-line muted">发布 ' + escapeHtml(formatCST(item.publishedAt)) + '</div>' : '') +
+      (actionHtml ? '<div class="edu-booking-chip-actions">' + actionHtml + '</div>' : '') +
+    '</div>';
+  };
+
+  var bookingCardStudentText = function (booking) {
+    return booking.studentNameSnapshot || booking.studentName || booking.name || (booking.student && booking.student.name) || "学员";
+  };
+
+  var bookingMatrixCardHtml = function (booking) {
+    var id = idOf(booking);
+    var actionable = ["requested", "alternative_proposed"].indexOf(String(booking.status || "")) >= 0;
+    var actionHtml = actionable
+      ? '<div class="edu-booking-chip-actions">' +
+          '<button class="club-action mini primary" type="button" data-booking-action="confirm" data-booking-id="' + escapeHtml(id) + '">确认</button>' +
+          '<button class="club-action mini" type="button" data-booking-action="propose" data-booking-id="' + escapeHtml(id) + '">改期</button>' +
+          '<button class="club-action mini danger" type="button" data-booking-action="reject" data-booking-id="' + escapeHtml(id) + '">拒绝</button>' +
+        '</div>'
+      : '';
+    return '<div class="edu-booking-chip request ' + escapeHtml(booking.status || "requested") + '">' +
+      '<div class="edu-booking-chip-head">' +
+        '<strong>' + escapeHtml(bookingCardStudentText(booking)) + '</strong>' +
+        '<span>' + escapeHtml(bookingStatusLabel(booking.status || "requested")) + '</span>' +
+      '</div>' +
+      '<div class="edu-booking-chip-line">' + escapeHtml((booking.courseName || courseName(booking.courseProductId) || "待确认课程") + ' · ' + (booking.teacherName || teacherName(booking.teacherId) || "待安排教练")) + '</div>' +
+      '<div class="edu-booking-chip-line">' + escapeHtml(branchName(booking.branchId)) + (booking.resourceLabel ? ' · ' + escapeHtml(booking.resourceLabel) : '') + '</div>' +
+      (booking.note ? '<div class="edu-booking-chip-line muted">' + escapeHtml(booking.note) + '</div>' : '') +
+      actionHtml +
+    '</div>';
+  };
+
+  var availabilityMatrixCellHtml = function (date, time, teacherId, slots, bookings) {
+    var cellSlots = slots.filter(function (slot) {
+      return slot.date === date && slot.startTime === time && String(slot.teacherId || "") === String(teacherId || "");
+    });
+    var cellBookings = bookings.filter(function (booking) {
+      return bookingStartDateKey(booking) === date && bookingStartTimeKey(booking) === time && String(booking.teacherId || "") === String(teacherId || "");
+    });
+    var html = cellSlots.map(availabilitySlotCardHtml).join("") + cellBookings.map(bookingMatrixCardHtml).join("");
+    return '<div class="edu-booking-cell ' + (html ? '' : 'empty') + '">' + (html || '<span>无安排</span>') + '</div>';
+  };
+
+  var availabilityMatrixHtml = function () {
+    var range = availabilityMatrixRange();
+    var slots = bookingAvailabilitySlots(range);
+    var bookings = filteredBookingsForMatrix(range);
+    var teachers = teacherRowsForAvailabilityMatrix(slots, bookings);
+    var rows = availabilityMatrixTimeRows(range, slots, bookings);
+    var draftIds = {};
+    slots.forEach(function (slot) {
+      if (slot.status === "draft" && slot.id) draftIds[slot.id] = true;
+    });
+    var gridStyle = 'grid-template-columns: minmax(120px, 150px) repeat(' + Math.max(teachers.length, 1) + ', minmax(190px, 1fr));';
+    var board = !teachers.length || !rows.length
+      ? '<div class="empty-state compact">当前范围暂无可约时间或约课申请。</div>'
+      : '<div class="edu-booking-board" style="' + gridStyle + '">' +
+          '<div class="edu-booking-head axis">时间</div>' +
+          teachers.map(function (teacher) {
+            return '<div class="edu-booking-head">' + escapeHtml(teacher.name || '-') + '<span>' + escapeHtml(branchName(teacher.branchId)) + '</span></div>';
+          }).join("") +
+          rows.map(function (row) {
+            return '<div class="edu-booking-axis"><strong>' + escapeHtml(row.time) + '</strong><span>' + escapeHtml(row.dayLabel) + '</span></div>' +
+              teachers.map(function (teacher) {
+                return availabilityMatrixCellHtml(row.date, row.time, teacher.id, slots, bookings);
+              }).join("");
+          }).join("") +
+        '</div>';
+    return '<section class="edu-booking-matrix">' +
+      availabilityMatrixSummaryHtml(slots, bookings, range) +
+      '<div class="edu-list-toolbar">' +
+        '<div class="club-actions">' +
+          '<button class="club-action primary" type="button" data-booking-publish-range="' + escapeHtml(Object.keys(draftIds).join(",")) + '">发布当前范围草稿</button>' +
+          '<button class="club-action" type="button" data-edu-create="availability">新增单条可约时间</button>' +
+          '<button class="club-action" type="button" data-copy-booking-availability-week="1">复制上周放号</button>' +
+        '</div>' +
+      '</div>' +
+      board +
+    '</section>';
   };
 
   var renderEduAvailability = function () {
     return availabilityBulkHtml() +
       availabilityFilterHtml() +
-      '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div></div>' +
+      availabilityMatrixHtml() +
+      '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div><span class="muted">明细列表用于核对提交人、审核人和原始记录。</span></div>' +
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>教练</th><th>分店</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
         (filteredAvailability().length ? filteredAvailability().map(function (item) {
           var dateType = item.date ? "指定日期" : (item.weekday ? "每周重复" : "-");
@@ -1873,6 +2220,8 @@
       setFormValue("schedule-export-settings-form", "range", exportSettings.range || "day");
     } else {
       var af = eduState.availabilityFilters || {};
+      setFormValue("edu-availability-filter-form", "matrixRange", af.matrixRange || "week");
+      setFormValue("edu-availability-filter-form", "matrixDate", af.matrixDate || todayDateValue());
       setFormValue("edu-availability-filter-form", "status", af.status || "");
       setFormValue("edu-availability-filter-form", "weekday", af.weekday || "");
     }
@@ -2549,17 +2898,40 @@
     }));
   };
 
-  var saveEduAvailability = function (form) {
-    var data = formData(form);
-    return withEduSaving(clubData.eduSaveAvailability(selectedClubId, {
+  var bookingAvailabilityPayload = function (data, date) {
+    var course = findById(eduState.courses, data.courseProductId);
+    var resource = findById(eduState.resources, data.resourceId);
+    var capacity = Number(data.capacity || 1);
+    var day = date || data.date || todayDateValue();
+    return {
+      id: data.id,
       teacherId: data.teacherId,
+      teacherNameSnapshot: teacherName(data.teacherId),
       branchId: data.branchId,
-      weekday: data.weekday,
-      date: data.date,
+      weekStartDate: dateOnlyText(startOfWeek(parseDateKey(day))),
+      date: day,
       startTime: data.startTime,
       endTime: data.endTime,
-      status: data.status || "pending"
-    }));
+      courseProductId: data.courseProductId || "",
+      courseName: course && course.name || "",
+      capacity: capacity,
+      bookingType: bookingTypeForCapacity(capacity),
+      resourceId: data.resourceId || "",
+      resourceLabel: resource && (resource.name || resource.tableNo || resource.roomId) || "",
+      slotDurationMinutes: Number(data.slotDurationMinutes || 60),
+      status: data.status || "draft"
+    };
+  };
+
+  var saveEduAvailability = function (form) {
+    var data = formData(form);
+    if (!data.teacherId) return window.alert("请选择教练。");
+    if (!data.branchId) return window.alert("请选择分店。");
+    if (!data.date) return window.alert("请选择日期。");
+    if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
+    if (data.startTime >= data.endTime) return window.alert("开始时间必须早于结束时间。");
+    var save = clubData.eduSaveBookingAvailability || clubData.eduSaveAvailability;
+    return withEduSaving(save(selectedClubId, bookingAvailabilityPayload(data)));
   };
 
   var saveEduAvailabilityBulk = function (form) {
@@ -2570,16 +2942,147 @@
     if (!data.branchId) return window.alert("请选择分店。");
     if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
     if (data.startTime >= data.endTime) return window.alert("开始时间必须早于结束时间。");
+    var save = clubData.eduSaveBookingAvailability || clubData.eduSaveAvailability;
     return withEduSaving(Promise.all(dates.map(function (date) {
-      return clubData.eduSaveAvailability(selectedClubId, {
-        teacherId: data.teacherId,
-        branchId: data.branchId,
-        date: date,
-        startTime: data.startTime,
-        endTime: data.endTime,
-        status: data.status || "approved"
-      });
+      return save(selectedClubId, bookingAvailabilityPayload(data, date));
     })));
+  };
+
+  var draftBookingAvailabilityIdsInRange = function () {
+    var range = availabilityMatrixRange();
+    var ids = {};
+    bookingAvailabilitySlots(range).forEach(function (slot) {
+      if (slot.status === "draft" && slot.id) ids[slot.id] = true;
+    });
+    return Object.keys(ids);
+  };
+
+  var publishBookingAvailabilityRange = function (idsText) {
+    if (!clubData.eduPublishBookingAvailabilityWeek) return window.alert("放号发布接口暂不可用。");
+    var ids = splitList(idsText).filter(Boolean);
+    if (!ids.length) ids = draftBookingAvailabilityIdsInRange();
+    if (!ids.length) return window.alert("当前范围没有草稿可发布。");
+    var range = availabilityMatrixRange();
+    var filters = eduState.availabilityFilters || {};
+    return withEduSaving(clubData.eduPublishBookingAvailabilityWeek(selectedClubId, {
+      branchId: filters.branchId || eduState.branchId || "",
+      weekStartDate: range.weekStartDate,
+      availabilityIds: ids
+    }));
+  };
+
+  var pauseBookingAvailability = function (id) {
+    if (!id) return;
+    if (!clubData.eduPauseBookingAvailability) return window.alert("暂停放号接口暂不可用。");
+    if (!window.confirm("确认暂停这个可约时间？暂停后学员不能继续预约该格子。")) return;
+    return withEduSaving(clubData.eduPauseBookingAvailability(selectedClubId, id, { reason: "Web 管理端暂停" }));
+  };
+
+  var copyPreviousBookingAvailabilityWeek = function () {
+    if (!clubData.eduCopyBookingAvailabilityWeek) return window.alert("复制放号接口暂不可用。");
+    var range = availabilityMatrixRange();
+    var fromWeek = dateOnlyText(addDays(parseDateKey(range.weekStartDate), -7));
+    var filters = eduState.availabilityFilters || {};
+    return withEduSaving(clubData.eduCopyBookingAvailabilityWeek(selectedClubId, {
+      branchId: filters.branchId || eduState.branchId || "",
+      fromWeekStartDate: fromWeek,
+      toWeekStartDate: range.weekStartDate
+    }));
+  };
+
+  var bookingById = function (id) {
+    return (eduState.bookings || []).find(function (item) {
+      return String(idOf(item)) === String(id || "");
+    }) || null;
+  };
+
+  var walletCourseId = function (wallet) {
+    var template = findById(eduState.packageTemplates, wallet && wallet.packageTemplateId);
+    return wallet && (wallet.courseProductId || (template && template.courseProductId) || "");
+  };
+
+  var walletLabelForBooking = function (wallet) {
+    var template = findById(eduState.packageTemplates, wallet && wallet.packageTemplateId);
+    var name = (template && template.name) || wallet.packageName || wallet.name || "课包";
+    return name + " · 剩余 " + lessonText(wallet.remainingUnits10);
+  };
+
+  var walletUsableForBooking = function (wallet, booking) {
+    if (!wallet || String(wallet.status || "active") !== "active") return false;
+    if (String(wallet.studentId || "") !== String(booking.studentId || "")) return false;
+    if (Number(wallet.remainingUnits10 || 0) <= 0) return false;
+    var courseId = walletCourseId(wallet);
+    if (booking.courseProductId && courseId && String(courseId) !== String(booking.courseProductId)) return false;
+    if (booking.branchId && wallet.branchId && String(wallet.branchId) !== String(booking.branchId)) return false;
+    return true;
+  };
+
+  var confirmBookingWithWallet = function (booking, wallets) {
+    var usable = (wallets || []).filter(function (wallet) {
+      return walletUsableForBooking(wallet, booking);
+    });
+    if (!usable.length) {
+      window.alert("该学员暂无可用于本次课程的有效课包，暂不能在 Web 端确认。");
+      return Promise.resolve();
+    }
+    var selected = usable[0];
+    if (usable.length > 1) {
+      var message = usable.map(function (wallet, index) {
+        return (index + 1) + ". " + walletLabelForBooking(wallet);
+      }).join("\n");
+      var answer = window.prompt("请选择确认约课使用的课包编号：\n" + message, "1");
+      if (answer === null) return Promise.resolve();
+      selected = usable[Number(answer) - 1];
+      if (!selected) return window.alert("课包编号无效，未执行确认。");
+    }
+    return withEduSaving(clubData.eduConfirmBooking(selectedClubId, idOf(booking), {
+      walletId: idOf(selected),
+      adminMessage: "Web 矩阵确认约课"
+    }));
+  };
+
+  var confirmBookingRequest = function (id) {
+    if (!clubData.eduConfirmBooking) return window.alert("约课确认接口暂不可用。");
+    var booking = bookingById(id);
+    if (!booking) return;
+    if (!booking.studentId) return window.alert("该约课缺少学员档案，暂不能确认。");
+    var localWallets = (eduState.wallets || []).filter(function (wallet) {
+      return String(wallet.studentId || "") === String(booking.studentId || "");
+    });
+    if (localWallets.some(function (wallet) { return walletUsableForBooking(wallet, booking); })) {
+      return confirmBookingWithWallet(booking, localWallets);
+    }
+    if (!clubData.eduStudentWallets) return window.alert("无法加载学员课包，暂不能确认。");
+    return clubData.eduStudentWallets(selectedClubId, booking.studentId, { status: "active" }).then(function (data) {
+      return confirmBookingWithWallet(booking, eduList(data));
+    }).catch(function () {
+      window.alert("学员课包加载失败，暂不能确认。");
+    });
+  };
+
+  var rejectBookingRequest = function (id) {
+    if (!clubData.eduRejectBooking) return window.alert("约课拒绝接口暂不可用。");
+    var reason = window.prompt("请输入拒绝原因", "暂无法安排");
+    if (reason === null) return;
+    return withEduSaving(clubData.eduRejectBooking(selectedClubId, id, {
+      rejectReason: reason,
+      adminMessage: reason
+    }));
+  };
+
+  var proposeBookingRequest = function (id) {
+    if (!clubData.eduProposeBooking) return window.alert("约课改期接口暂不可用。");
+    var message = window.prompt("请输入改期建议", "请联系俱乐部确认新的上课时间");
+    if (message === null) return;
+    return withEduSaving(clubData.eduProposeBooking(selectedClubId, id, {
+      adminMessage: message
+    }));
+  };
+
+  var handleBookingMatrixAction = function (id, action) {
+    if (action === "confirm") return confirmBookingRequest(id);
+    if (action === "reject") return rejectBookingRequest(id);
+    if (action === "propose") return proposeBookingRequest(id);
   };
 
   var saveEduResource = function (form) {
@@ -3135,6 +3638,29 @@
     eduPanelEl.querySelectorAll("[data-attendance-session]").forEach(function (button) {
       button.addEventListener("click", function () {
         openAttendanceModal(button.getAttribute("data-attendance-session"));
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-booking-publish-range]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        publishBookingAvailabilityRange(button.getAttribute("data-booking-publish-range"));
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-booking-publish-availability]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        publishBookingAvailabilityRange(button.getAttribute("data-booking-publish-availability"));
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-booking-pause-availability]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        pauseBookingAvailability(button.getAttribute("data-booking-pause-availability"));
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-copy-booking-availability-week]").forEach(function (button) {
+      button.addEventListener("click", copyPreviousBookingAvailabilityWeek);
+    });
+    eduPanelEl.querySelectorAll("[data-booking-action]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        handleBookingMatrixAction(button.getAttribute("data-booking-id"), button.getAttribute("data-booking-action"));
       });
     });
     eduPanelEl.querySelectorAll("[data-approve-availability]").forEach(function (button) {

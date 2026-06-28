@@ -315,6 +315,21 @@
         approve: approve !== false
       }, true);
     },
+    eduBookingAvailability: function (clubId, params) {
+      return apiGet("/club-admin/edu/booking-availability", Object.assign({ clubId: clubId }, params || {}), true);
+    },
+    eduSaveBookingAvailability: function (clubId, availability) {
+      return apiPost("/club-admin/edu/booking-availability", Object.assign({ clubId: clubId }, availability || {}), true);
+    },
+    eduPublishBookingAvailabilityWeek: function (clubId, payload) {
+      return apiPost("/club-admin/edu/booking-availability/publish-week", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
+    eduCopyBookingAvailabilityWeek: function (clubId, payload) {
+      return apiPost("/club-admin/edu/booking-availability/copy-week", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
+    eduPauseBookingAvailability: function (clubId, id, payload) {
+      return apiPost("/club-admin/edu/booking-availability/" + encodeURIComponent(id) + "/pause", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
     eduResources: function (clubId, params) {
       return apiGet("/club-admin/edu/resources", Object.assign({ clubId: clubId, page: 1, pageSize: 100 }, params || {}), true);
     },
@@ -349,6 +364,18 @@
         clubId: clubId,
         reason: reason || ""
       }, true);
+    },
+    eduBookings: function (clubId, params) {
+      return apiGet("/club-admin/edu/bookings", Object.assign({ clubId: clubId, page: 1, pageSize: 300 }, params || {}), true);
+    },
+    eduConfirmBooking: function (clubId, id, payload) {
+      return apiPost("/club-admin/edu/bookings/" + encodeURIComponent(id) + "/confirm", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
+    eduRejectBooking: function (clubId, id, payload) {
+      return apiPost("/club-admin/edu/bookings/" + encodeURIComponent(id) + "/reject", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
+    eduProposeBooking: function (clubId, id, payload) {
+      return apiPost("/club-admin/edu/bookings/" + encodeURIComponent(id) + "/propose", Object.assign({ clubId: clubId }, payload || {}), true);
     },
     eduAttendance: function (clubId, sessionId) {
       return apiGet("/club-admin/edu/sessions/" + encodeURIComponent(sessionId) + "/attendance", { clubId: clubId }, true);
