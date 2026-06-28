@@ -992,16 +992,7 @@
   };
 
   var scheduleToolbarHtml = function () {
-    return '<div class="edu-schedule-toolbar">' +
-      '<div class="club-actions">' +
-        '<button class="club-action primary" type="button" data-edu-create="sessions">集体班排课</button>' +
-        '<button class="club-action" type="button" data-edu-create="sessions">一对一排课</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tool="copy">复制/移动排课</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tool="progress">查看排课进度</button>' +
-        '<button class="club-action" type="button" data-edu-schedule-tool="batch">批量操作</button>' +
-        '' +
-      '</div>' +
-    '</div>';
+    return '';
   };
 
   var todayDateValue = function () {
@@ -1498,7 +1489,7 @@
         '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions('') + '</select></label>' +
         '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(eduState.branchId) + '</select></label>' +
         '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions('') + '</select></label>' +
-        '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option></select></label>' +
+        '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option><option value="4">一对四</option></select></label>' +
         '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions('') + '</select></label>' +
         '<label>开始时间<input class="form-input text-center" type="time" name="startTime" value="08:00" required></label>' +
         '<label>结束时间<input class="form-input text-center" type="time" name="endTime" value="10:00" required></label>' +
@@ -1601,6 +1592,7 @@
     var n = Number(capacity || 1);
     if (n === 2) return "一对二";
     if (n === 3) return "一对三";
+    if (n === 4) return "一对四";
     return "一对一";
   };
 
@@ -1608,6 +1600,7 @@
     var n = Number(capacity || 1);
     if (n === 2) return "one_on_two";
     if (n === 3) return "one_on_three";
+    if (n === 4) return "one_on_four";
     return "one_on_one";
   };
 
@@ -2148,7 +2141,7 @@
       '<label>分店<select class="form-input" name="branchId" required>' + branchOptions() + '</select></label>' +
       '<label>指定日期<input class="form-input" name="date" type="date"></label>' +
       '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions() + '</select></label>' +
-      '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option></select></label>' +
+      '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option><option value="4">一对四</option></select></label>' +
       '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions() + '</select></label>' +
       '<label>开始<input class="form-input" name="startTime" type="time" required></label>' +
       '<label>结束<input class="form-input" name="endTime" type="time" required></label>' +
