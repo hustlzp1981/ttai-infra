@@ -1036,10 +1036,8 @@ a {
 }
 
 .edu-visual-board.day {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 8px;
-  padding: 8px;
+  display: block;
+  padding: 0;
 }
 
 .edu-visual-grid {
@@ -1104,6 +1102,114 @@ a {
 
 .edu-schedule-card .club-action {
   min-height: 26px;
+  padding: 0 7px;
+  font-size: 12px;
+}
+
+.edu-day-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: #f8fafc;
+}
+
+.edu-day-summary strong {
+  color: var(--color-primary);
+}
+
+.edu-day-summary span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.edu-day-grid {
+  display: grid;
+}
+
+.edu-day-head,
+.edu-day-axis,
+.edu-day-cell {
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.edu-day-head {
+  min-height: 38px;
+  color: var(--color-primary);
+  background: #eef6f8;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.edu-day-head.teacher {
+  background: #e2efda;
+}
+
+.edu-day-axis {
+  display: grid;
+  align-content: center;
+  min-height: 92px;
+  color: var(--color-text);
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.edu-day-axis.time {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.edu-day-cell {
+  min-height: 92px;
+  background: #ffffff;
+}
+
+.edu-day-cell.empty {
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.edu-day-session {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 6px;
+  padding: 7px;
+  border-left: 4px solid var(--color-primary);
+  border-radius: 6px;
+  background: rgba(16, 67, 89, 0.06);
+  font-size: 12px;
+}
+
+.edu-day-session:last-child {
+  margin-bottom: 0;
+}
+
+.edu-day-session strong,
+.edu-day-session span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edu-day-session span {
+  color: var(--color-muted);
+}
+
+.edu-day-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.edu-day-session-actions .club-action {
+  min-height: 24px;
   padding: 0 7px;
   font-size: 12px;
 }
