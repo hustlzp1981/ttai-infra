@@ -262,6 +262,36 @@
     }, value);
   };
 
+  var studentLevelLabel = function (value) {
+    var text = String(value || "").trim();
+    if (!text) return "-";
+    var map = {
+      beginner: "初级",
+      novice: "入门",
+      intermediate: "中级",
+      advanced: "高级",
+      pro: "专业",
+      elite: "精英"
+    };
+    return map[text] || text;
+  };
+
+  var studentLevelOptions = function (selected) {
+    var options = [
+      ["", "未设置"],
+      ["beginner", "初级"],
+      ["intermediate", "中级"],
+      ["advanced", "高级"],
+      ["pro", "专业"],
+      ["elite", "精英"]
+    ];
+    var exists = options.some(function (item) { return String(item[0]) === String(selected || ""); });
+    if (selected && !exists) options.push([selected, studentLevelLabel(selected)]);
+    return options.map(function (item) {
+      return '<option value="' + escapeHtml(item[0]) + '"' + (String(item[0]) === String(selected || "") ? ' selected' : '') + '>' + escapeHtml(item[1]) + '</option>';
+    }).join("");
+  };
+
   var studentWechatBindHtml = function (student) {
     var bound = !!(student && (student.openid || student.wechatOpenid || student.boundOpenid));
     return badgeHtml(bound ? "已绑定" : "未绑定", bound ? "ok" : "none");
@@ -446,6 +476,20 @@
       revoke: "撤销返课",
       adjust: "手动调整"
     }, value);
+  };
+
+  var ledgerReasonLabel = function (value) {
+    var text = String(value || "").trim();
+    if (!text) return "-";
+    var map = {
+      "seed offline recharge": "线下充值导入",
+      "offline recharge": "线下充值",
+      "seed recharge": "初始化充值",
+      "seed attendance": "初始化点名",
+      "manual adjust": "手动调整",
+      "revoke attendance": "撤销点名"
+    };
+    return map[text.toLowerCase()] || text;
   };
 
   var badgeClass = function (type) {
@@ -2003,7 +2047,7 @@
       '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(item.branchId) + '</select></label>' +
       '<label>手机号<input class="form-input" name="phone" value="' + escapeHtml(item.phone || '') + '"></label>' +
       '<label>家长<input class="form-input" name="parentName" value="' + escapeHtml(item.parentName || '') + '"></label>' +
-      '<label>水平<input class="form-input" name="level" value="' + escapeHtml(item.level || '') + '"></label>' +
+      '<label>水平<select class="form-input" name="level">' + studentLevelOptions(item.level || '') + '</select></label>' +
       '<label>状态<select class="form-input" name="status"><option value="active">在读</option><option value="inactive">停用</option><option value="archived">归档</option></select></label>' +
       '<div class="club-actions"><button class="club-action primary" type="submit">保存学员</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
     '</form>';
@@ -2078,7 +2122,7 @@
         (eduState.students.length ? eduState.students.map(function (student) {
           var summary = studentWalletSummary(idOf(student));
           var balanceType = summary.remainingUnits10 > 10 ? "ok" : (summary.remainingUnits10 > 0 ? "pending" : "none");
-          return '<tr><td>' + rowCheck('students', idOf(student)) + ' <strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + escapeHtml(student.parentName || '-') + '</td><td>' + escapeHtml(student.level || '-') + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + studentWechatBindHtml(student) + '</td><td>' + badgeHtml(studentStatusLabel(student.status || 'active'), student.status || 'active') + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button><button class="club-action primary" data-bind-student="' + escapeHtml(idOf(student)) + '">绑定微信</button></td></tr>';
+          return '<tr><td>' + rowCheck('students', idOf(student)) + ' <strong>' + escapeHtml(student.name) + '</strong><br><span class="muted">' + escapeHtml(student.source || '-') + '</span></td><td>' + escapeHtml(branchName(student.branchId)) + '</td><td>' + escapeHtml(student.phone || '-') + '</td><td>' + escapeHtml(student.parentName || '-') + '</td><td>' + escapeHtml(studentLevelLabel(student.level)) + '</td><td>' + badgeHtml(lessonText(summary.remainingUnits10), balanceType) + '</td><td>' + escapeHtml(dateText(summary.nearestExpireAt)) + '</td><td>' + studentWechatBindHtml(student) + '</td><td>' + badgeHtml(studentStatusLabel(student.status || 'active'), student.status || 'active') + '</td><td><button class="club-action" data-edit-student="' + escapeHtml(idOf(student)) + '">编辑</button><button class="club-action primary" data-bind-student="' + escapeHtml(idOf(student)) + '">绑定微信</button></td></tr>';
         }).join("") : '<tr><td colspan="10">暂无学员</td></tr>') +
       '</tbody></table></div>' +
       eduActionBar("wallets", "", "") +
@@ -2573,7 +2617,7 @@
       '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>时间</th><th>类型</th><th>学员</th><th>课包</th><th>变动</th><th>余额</th><th>原因</th><th>操作</th></tr></thead><tbody>' +
         (eduState.ledgers.length ? eduState.ledgers.map(function (ledger) {
           var canRevoke = ledger.type === 'attendance' && ledger.relatedAttendanceId;
-          return '<tr><td>' + escapeHtml(formatCST(ledger.createdAt)) + '</td><td>' + badgeHtml(ledgerTypeLabel(ledger.type), ledger.type) + '</td><td><strong>' + escapeHtml(studentName(ledger.studentId)) + '</strong></td><td><span class="muted">' + escapeHtml(walletName(ledger.walletId)) + '</span></td><td><strong>' + escapeHtml(lessonText(ledger.unitsDelta10)) + '</strong></td><td>' + escapeHtml(lessonText(ledger.balanceAfter10)) + '</td><td>' + escapeHtml(ledger.reason || '-') + '</td><td>' + (canRevoke ? '<button class="club-action" data-revoke-attendance="' + escapeHtml(ledger.relatedAttendanceId) + '">撤销</button>' : '-') + '</td></tr>';
+          return '<tr><td>' + escapeHtml(formatCST(ledger.createdAt)) + '</td><td>' + badgeHtml(ledgerTypeLabel(ledger.type), ledger.type) + '</td><td><strong>' + escapeHtml(studentName(ledger.studentId)) + '</strong></td><td><span class="muted">' + escapeHtml(walletName(ledger.walletId)) + '</span></td><td><strong>' + escapeHtml(lessonText(ledger.unitsDelta10)) + '</strong></td><td>' + escapeHtml(lessonText(ledger.balanceAfter10)) + '</td><td>' + escapeHtml(ledgerReasonLabel(ledger.reason)) + '</td><td>' + (canRevoke ? '<button class="club-action" data-revoke-attendance="' + escapeHtml(ledger.relatedAttendanceId) + '">撤销</button>' : '-') + '</td></tr>';
         }).join("") : '<tr><td colspan="8">暂无账本流水</td></tr>') +
       '</tbody></table></div>';
     bindEduPanelEvents();
@@ -2708,7 +2752,7 @@
         consumeAmountCents: Number(ledger.amountCents || 0),
         balanceAfter10: Number(ledger.balanceAfter10 || 0),
         attendanceText: ledger.type === "attendance" ? "出勤" : "-",
-        reason: ledger.reason || ledger.coachNote || ""
+        reason: ledgerReasonLabel(ledger.reason || ledger.coachNote)
       };
     });
   };
@@ -3622,7 +3666,7 @@
           { label: "课包", value: function (row) { return walletName(row.walletId); } },
           { label: "变动", value: function (row) { return lessonText(row.unitsDelta10); } },
           { label: "余额", value: function (row) { return lessonText(row.balanceAfter10); } },
-          { label: "原因", value: function (row) { return row.reason || ""; } }
+          { label: "原因", value: function (row) { return ledgerReasonLabel(row.reason); } }
         ]
       }
     };
