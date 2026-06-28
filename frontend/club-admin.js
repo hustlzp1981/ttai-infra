@@ -3356,6 +3356,20 @@
     return "全部日期";
   };
 
+  var reportExcelColumnWidth = function (label) {
+    label = String(label || "");
+    if (/时间|日期/.test(label)) return "180px";
+    if (/备注|课程名称|班级名称|扣课课包/.test(label)) return "180px";
+    if (/分店|汇总项|课程|班级|教练|学员/.test(label)) return "140px";
+    return "110px";
+  };
+
+  var reportExcelCellStyle = function (col, rowIndex) {
+    return "border:1px solid #d7e2de;padding:8px 10px;color:#19302b;" +
+      "width:" + reportExcelColumnWidth(col.label) + ";white-space:nowrap;mso-number-format:\"\\@\";" +
+      "background:" + (rowIndex % 2 ? "#f7fbf9" : "#ffffff") + ";";
+  };
+
   var downloadReportExcel = function (name, rows, columns) {
     rows = rows || [];
     columns = columns || [];
@@ -3363,15 +3377,19 @@
     var generatedAt = formatCST(new Date().toISOString());
     var tableRows = rows.length ? rows.map(function (row, rowIndex) {
       return '<tr>' + columns.map(function (col) {
-        return '<td style="border:1px solid #d7e2de;padding:8px 10px;color:#19302b;mso-number-format:\\@;background:' + (rowIndex % 2 ? '#f7fbf9' : '#ffffff') + ';">' + escapeHtml(col.value(row)) + '</td>';
+        return "<td style='" + reportExcelCellStyle(col, rowIndex) + "'>" + escapeHtml(col.value(row)) + "</td>";
       }).join("") + '</tr>';
     }).join("") : '<tr><td colspan="' + colCount + '" style="border:1px solid #d7e2de;padding:14px 10px;text-align:center;color:#66736f;">暂无报表数据</td></tr>';
+    var colGroup = '<colgroup>' + columns.map(function (col) {
+      return "<col style='width:" + reportExcelColumnWidth(col.label) + ";mso-width-source:userset;'>";
+    }).join("") + '</colgroup>';
     var html = '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
       '<table style="border-collapse:collapse;font-family:Arial,Microsoft YaHei,sans-serif;font-size:13px;min-width:960px;">' +
+        colGroup +
         '<tr><td colspan="' + colCount + '" style="background:#173f35;color:#ffffff;font-size:20px;font-weight:700;padding:16px 14px;">教务-' + escapeHtml(name) + '</td></tr>' +
         '<tr><td colspan="' + colCount + '" style="background:#eaf4ef;color:#2b4d45;padding:10px 14px;border:1px solid #c9ddd4;">日期范围：' + escapeHtml(reportDateRangeText()) + '　生成时间：' + escapeHtml(generatedAt) + '</td></tr>' +
         '<tr>' + columns.map(function (col) {
-          return '<th style="border:1px solid #bfd7ce;background:#2f7d68;color:#ffffff;padding:9px 10px;text-align:left;font-weight:700;">' + escapeHtml(col.label) + '</th>';
+          return "<th style='border:1px solid #bfd7ce;background:#2f7d68;color:#ffffff;padding:9px 10px;text-align:left;font-weight:700;width:" + reportExcelColumnWidth(col.label) + ";white-space:nowrap;'>" + escapeHtml(col.label) + "</th>";
         }).join("") + '</tr>' +
         tableRows +
       '</table>' +
