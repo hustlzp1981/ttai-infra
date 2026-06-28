@@ -51,7 +51,7 @@
     bookings: [],
     resources: [],
     sessions: [],
-    scheduleView: "list",
+    scheduleView: "day",
     scheduleFilters: {},
     scheduleExports: [],
     scheduleExportSettings: { enabled: false, timeOfDay: "22:00", range: "day" },
@@ -890,8 +890,10 @@
   var eduScheduleTabs = function () {
     var active = eduState.scheduleTab || "sessions";
     return '<div class="edu-subtabs">' +
-      '<button class="edu-subtab ' + (active === 'sessions' ? 'active' : '') + '" type="button" data-edu-schedule-tab="sessions">详细课表</button>' +
-      '<button class="edu-subtab ' + (active === 'availability' ? 'active' : '') + '" type="button" data-edu-schedule-tab="availability">教练可排时间管理</button>' +
+      '<button class="edu-subtab ' + (active === 'sessions' ? 'active' : '') + '" type="button" data-edu-schedule-tab="sessions">课表</button>' +
+      '<button class="edu-subtab ' + (active === 'availability' ? 'active' : '') + '" type="button" data-edu-schedule-tab="availability">放号排课</button>' +
+      '<button class="edu-subtab ' + (active === 'bookings' ? 'active' : '') + '" type="button" data-edu-schedule-tab="bookings">约课确认</button>' +
+      '<button class="edu-subtab ' + (active === 'exports' ? 'active' : '') + '" type="button" data-edu-schedule-tab="exports">导出</button>' +
     '</div>';
   };
 
@@ -986,7 +988,7 @@
           '<label>上课场地<input class="form-input" name="roomId" value="' + escapeHtml(filters.roomId || '') + '" placeholder="场地/球台"></label>' +
           '<label>课程属性<select class="form-input" name="teachingMode"><option value="">全部</option><option value="group">集体班</option><option value="private">一对一</option><option value="semi_private">一对多</option><option value="trial">体验课</option></select></label>' +
           '<label>班级标签<input class="form-input" name="classTag" value="' + escapeHtml(filters.classTag || '') + '" placeholder="标签"></label>' +
-          '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="schedule">重置</button><button class="club-action" type="button" data-edu-export="sessions">导出</button></div>' +
+          '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="schedule">重置</button></div>' +
         '</div>' +
       '</form>';
   };
@@ -1077,7 +1079,7 @@
   };
 
   var scheduleViewSwitchHtml = function () {
-    var view = eduState.scheduleView || "list";
+    var view = eduState.scheduleView || "day";
     var button = function (key, label) {
       return '<button class="' + (view === key ? 'active' : '') + '" type="button" data-edu-schedule-view="' + escapeHtml(key) + '">' + escapeHtml(label) + '</button>';
     };
@@ -1086,13 +1088,11 @@
       button("day", "按天") +
       button("week", "按周") +
       button("month", "按月") +
-      button("teacher-free", "教练空闲") +
-      button("room-free", "场地空闲") +
     '</div>';
   };
 
   var scheduleViewControlsHtml = function () {
-    var view = eduState.scheduleView || "list";
+    var view = eduState.scheduleView || "day";
     var filters = eduState.scheduleFilters || {};
     var teacher = '<label>教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>';
     var content = "";
@@ -1394,7 +1394,7 @@
   };
 
   var scheduleVisualHtml = function () {
-    var view = eduState.scheduleView || "list";
+    var view = eduState.scheduleView || "day";
     var baseRows = filteredSessions();
     var range = scheduleViewRange(view);
     var rows = ["day", "week", "month", "teacher-free", "room-free"].indexOf(view) >= 0
@@ -2297,8 +2297,10 @@
     return availabilityBulkHtml() +
       availabilityFilterHtml() +
       availabilityMatrixHtml() +
-      '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div><span class="muted">明细列表用于核对提交人、审核人和原始记录。</span></div>' +
-      '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>教练</th><th>分店</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
+      '<details class="edu-detail-drawer">' +
+        '<summary>查看明细列表</summary>' +
+        '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div><span class="muted">用于核对提交人、审核人和原始记录。</span></div>' +
+        '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>教练</th><th>分店</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
         (filteredAvailability().length ? filteredAvailability().map(function (item) {
           var dateType = item.date ? "指定日期" : (item.weekday ? "每周重复" : "-");
           var actions = item.status === 'pending' ? '<button class="club-action primary" data-approve-availability="' + escapeHtml(idOf(item)) + '">通过</button><button class="club-action" data-reject-availability="' + escapeHtml(idOf(item)) + '">拒绝</button>' : '-';
@@ -2306,6 +2308,94 @@
           var dateTextValue = item.date ? (item.date + ' · ' + day) : (dateType + ' · ' + day);
           return '<tr><td>' + rowCheck('availability', idOf(item)) + ' <strong>' + escapeHtml(teacherName(item.teacherId)) + '</strong></td><td>' + escapeHtml(branchName(item.branchId)) + '</td><td>' + escapeHtml(dateTextValue) + '</td><td>' + escapeHtml(item.startTime || '-') + '</td><td>' + escapeHtml(item.endTime || '-') + '</td><td>' + badgeHtml(availabilityStatusLabel(item.status), item.status) + '</td><td>' + escapeHtml(availabilitySubmitterName(item)) + '</td><td>' + escapeHtml(availabilityReviewerName(item)) + '</td><td>' + actions + '</td><td>-</td></tr>';
         }).join("") : '<tr><td colspan="10">暂无可排时间</td></tr>') +
+      '</tbody></table></div>' +
+      '</details>';
+  };
+
+  var bookingRequesterText = function (booking) {
+    var candidates = [booking.parentName, booking.guardianName, booking.userNickname, booking.nickname, booking.contactName, booking.phone];
+    for (var i = 0; i < candidates.length; i += 1) {
+      var value = String(candidates[i] || "").trim();
+      if (value && !isLikelyOpenid(value)) return value;
+    }
+    return "微信用户";
+  };
+
+  var bookingTimeText = function (booking) {
+    var start = booking.preferredStartAt || booking.startAt || booking.proposedStartAt || "";
+    var end = booking.preferredEndAt || booking.endAt || booking.proposedEndAt || "";
+    if (!start) return "-";
+    return formatCST(start) + (end ? " - " + timeOnlyText(end) : "");
+  };
+
+  var bookingCapacityText = function (booking) {
+    if (booking.capacity) return capacityLabel(booking.capacity);
+    var type = String(booking.bookingType || "");
+    if (type === "one_on_two") return "一对二";
+    if (type === "one_on_three") return "一对三";
+    if (type === "one_on_four") return "一对四";
+    return "一对一";
+  };
+
+  var bookingConfirmRows = function () {
+    var order = {
+      requested: 1,
+      alternative_proposed: 2,
+      confirmed: 3,
+      rejected: 4,
+      cancelled: 5,
+      expired: 6
+    };
+    return (eduState.bookings || []).slice().sort(function (a, b) {
+      var ao = order[String(a.status || "requested")] || 99;
+      var bo = order[String(b.status || "requested")] || 99;
+      if (ao !== bo) return ao - bo;
+      return String(a.preferredStartAt || a.startAt || a.createdAt || "").localeCompare(String(b.preferredStartAt || b.startAt || b.createdAt || ""));
+    });
+  };
+
+  var bookingConfirmSummaryHtml = function (rows) {
+    var count = function (status) {
+      return rows.filter(function (item) { return String(item.status || "requested") === status; }).length;
+    };
+    return '<div class="edu-booking-summary">' +
+      '<div><strong>约课确认</strong><span>处理学员从小程序提交的约课申请。</span></div>' +
+      '<div class="edu-booking-kpis">' +
+        '<span>待确认 ' + count("requested") + '</span>' +
+        '<span>改期中 ' + count("alternative_proposed") + '</span>' +
+        '<span>已确认 ' + count("confirmed") + '</span>' +
+        '<span>已拒绝 ' + count("rejected") + '</span>' +
+      '</div>' +
+    '</div>';
+  };
+
+  var bookingConfirmActionHtml = function (booking) {
+    var id = idOf(booking);
+    if (["requested", "alternative_proposed"].indexOf(String(booking.status || "requested")) < 0) return "-";
+    return '<button class="club-action primary" type="button" data-booking-action="confirm" data-booking-id="' + escapeHtml(id) + '">确认</button>' +
+      '<button class="club-action" type="button" data-booking-action="propose" data-booking-id="' + escapeHtml(id) + '">改期</button>' +
+      '<button class="club-action danger" type="button" data-booking-action="reject" data-booking-id="' + escapeHtml(id) + '">拒绝</button>';
+  };
+
+  var renderEduBookingConfirmations = function () {
+    var rows = bookingConfirmRows();
+    return bookingConfirmSummaryHtml(rows) +
+      '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>学员</th><th>提交人</th><th>课程</th><th>教练</th><th>约课时间</th><th>分店/场地</th><th>类型</th><th>状态</th><th>备注</th><th>操作</th></tr></thead><tbody>' +
+        (rows.length ? rows.map(function (booking) {
+          var place = branchName(booking.branchId) + (booking.resourceLabel ? ' / ' + booking.resourceLabel : '');
+          return '<tr>' +
+            '<td><strong>' + escapeHtml(bookingCardStudentText(booking)) + '</strong></td>' +
+            '<td>' + escapeHtml(bookingRequesterText(booking)) + '</td>' +
+            '<td>' + escapeHtml(booking.courseName || courseName(booking.courseProductId) || '-') + '</td>' +
+            '<td>' + escapeHtml(booking.teacherName || teacherName(booking.teacherId) || '-') + '</td>' +
+            '<td>' + escapeHtml(bookingTimeText(booking)) + '</td>' +
+            '<td>' + escapeHtml(place) + '</td>' +
+            '<td>' + escapeHtml(bookingCapacityText(booking)) + '</td>' +
+            '<td>' + badgeHtml(bookingStatusLabel(booking.status || "requested"), booking.status || "requested") + '</td>' +
+            '<td>' + escapeHtml(booking.note || booking.adminMessage || booking.rejectReason || '-') + '</td>' +
+            '<td><div class="club-actions">' + bookingConfirmActionHtml(booking) + '</div></td>' +
+          '</tr>';
+        }).join("") : '<tr><td colspan="10">暂无约课申请</td></tr>') +
       '</tbody></table></div>';
   };
 
@@ -2347,16 +2437,20 @@
 
   var renderEduSessions = function () {
     var active = eduState.scheduleTab || "sessions";
+    if (active === "sessions" && ["list", "day", "week", "month"].indexOf(eduState.scheduleView || "day") < 0) {
+      eduState.scheduleView = "day";
+    }
     eduPanelEl.innerHTML =
-      eduFrameStart("排课管理", "详细课表负责课次；教练可排时间管理负责排课前置时间约束。") +
+      eduFrameStart("排课管理", "课表查看最终排课，放号排课发布可约时间，约课确认处理申请。") +
       eduScheduleTabs() +
       (active === "availability" ? renderEduAvailability() :
+      active === "bookings" ? renderEduBookingConfirmations() :
+      active === "exports" ? scheduleExportPanelHtml() :
       scheduleFilterHtml() +
       scheduleToolbarHtml() +
-      scheduleExportPanelHtml() +
       scheduleViewSwitchHtml() +
       scheduleViewControlsHtml() +
-      ((eduState.scheduleView || "list") === "list"
+      ((eduState.scheduleView || "day") === "list"
         ? '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>班级</th><th>课程</th><th>班型</th><th>分店</th><th>教练</th><th>场地</th><th>上课时间</th><th>时长</th><th>状态</th><th>备注</th><th>学员</th><th>计费数量</th><th>操作</th></tr></thead><tbody>' +
           scheduleRowsHtml() +
         '</tbody></table></div>'
@@ -2370,12 +2464,15 @@
       setFormValue("edu-schedule-view-filter-form", "dayDate", sf.dayDate || todayDateValue());
       setFormValue("edu-schedule-view-filter-form", "weekValue", sf.weekValue || weekInputValue(new Date()));
       setFormValue("edu-schedule-view-filter-form", "monthValue", sf.monthValue || monthInputValue(new Date()));
+    }
+    if (active === "exports") {
       var exportForm = eduState.scheduleExportForm || {};
       setFormValue("schedule-export-form", "range", exportForm.range || "day");
       var exportSettings = eduState.scheduleExportSettings || {};
       setFormValue("schedule-export-settings-form", "enabled", exportSettings.enabled ? "true" : "false");
       setFormValue("schedule-export-settings-form", "range", exportSettings.range || "day");
-    } else {
+    }
+    if (active === "availability") {
       var af = eduState.availabilityFilters || {};
       setFormValue("edu-availability-filter-form", "matrixRange", af.matrixRange || "week");
       setFormValue("edu-availability-filter-form", "matrixDate", af.matrixDate || todayDateValue());

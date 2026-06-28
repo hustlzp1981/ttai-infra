@@ -900,6 +900,34 @@ a {
   min-height: 34px;
 }
 
+.edu-detail-drawer {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  margin-top: 12px;
+}
+
+.edu-detail-drawer summary {
+  cursor: pointer;
+  min-height: 36px;
+  padding: 9px 12px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.edu-detail-drawer[open] summary {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.edu-detail-drawer .edu-list-toolbar {
+  padding: 10px 12px 0;
+}
+
+.edu-detail-drawer .admin-table-wrap {
+  margin: 10px 12px 12px;
+}
+
 .edu-subtabs {
   display: inline-flex;
   align-items: center;
