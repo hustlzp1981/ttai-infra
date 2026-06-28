@@ -1510,8 +1510,8 @@
         '<div class="club-actions"><button class="club-action" type="button" data-availability-skip="clear">清空</button><button class="club-action" type="button" data-availability-skip="weekend">跳过周末</button><button class="club-action" type="button" data-availability-skip="holiday">跳过节假日</button><button class="club-action primary" type="submit">确定</button></div>' +
       '</div>' +
       '<div class="edu-filter-grid compact">' +
+        '<input type="hidden" name="branchId" value="' + escapeHtml(eduState.branchId || '') + '">' +
         '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions('') + '</select></label>' +
-        '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(eduState.branchId) + '</select></label>' +
         '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions('') + '</select></label>' +
         '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option><option value="4">一对四</option></select></label>' +
         '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions('') + '</select></label>' +
@@ -1529,13 +1529,12 @@
 
   var availabilityFilterHtml = function () {
     var filters = eduState.availabilityFilters || {};
-    return '<div class="edu-page-path">当前位置：教务管理 / 排课管理 / 教练可排时间管理</div>' +
+    return '<div class="edu-page-path">当前位置：教务管理 / 排课管理 / 放号排课</div>' +
       '<form class="edu-filter-panel" id="edu-availability-filter-form">' +
         '<div class="edu-filter-grid compact">' +
           '<label>矩阵范围<select class="form-input" name="matrixRange"><option value="week">按周</option><option value="day">按日</option></select></label>' +
           '<label>查询日期<input class="form-input" type="date" name="matrixDate" value="' + escapeHtml(filters.matrixDate || todayDateValue()) + '"></label>' +
           '<label>教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
-          '<label>分店<select class="form-input" name="branchId">' + filterBranchOptions(filters.branchId) + '</select></label>' +
           '<label>状态<select class="form-input" name="status"><option value="">全部</option><option value="draft">草稿</option><option value="published">已发布</option><option value="paused">已暂停</option><option value="requested">待确认</option><option value="confirmed">已确认</option><option value="alternative_proposed">改期中</option><option value="rejected">已拒绝</option><option value="cancelled">已取消</option><option value="pending">待审核</option><option value="approved">已通过</option></select></label>' +
           '<label>星期<select class="form-input" name="weekday"><option value="">全部</option><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="7">周日</option></select></label>' +
           '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="availability">重置</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div>' +
@@ -3161,7 +3160,7 @@
       id: data.id,
       teacherId: data.teacherId,
       teacherNameSnapshot: teacherName(data.teacherId),
-      branchId: data.branchId,
+      branchId: data.branchId || eduState.branchId,
       weekStartDate: dateOnlyText(startOfWeek(parseDateKey(day))),
       date: day,
       startTime: data.startTime,
@@ -3180,7 +3179,7 @@
   var saveEduAvailability = function (form) {
     var data = formData(form);
     if (!data.teacherId) return window.alert("请选择教练。");
-    if (!data.branchId) return window.alert("请选择分店。");
+    if (!data.branchId && !eduState.branchId) return window.alert("请先在页面顶部选择分店。");
     if (!data.date) return window.alert("请选择日期。");
     if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
     if (data.startTime >= data.endTime) return window.alert("开始时间必须早于结束时间。");
@@ -3193,7 +3192,7 @@
     var dates = data.dates ? (Array.isArray(data.dates) ? data.dates : [data.dates]) : [];
     if (!dates.length) return window.alert("请先选择可排日期。");
     if (!data.teacherId) return window.alert("请选择教练。");
-    if (!data.branchId) return window.alert("请选择分店。");
+    if (!data.branchId && !eduState.branchId) return window.alert("请先在页面顶部选择分店。");
     if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
     if (data.startTime >= data.endTime) return window.alert("开始时间必须早于结束时间。");
     var save = clubData.eduSaveBookingAvailability || clubData.eduSaveAvailability;
