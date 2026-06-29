@@ -2400,19 +2400,11 @@
   };
 
   var bookingConfirmRows = function () {
-    var order = {
-      requested: 1,
-      alternative_proposed: 2,
-      confirmed: 3,
-      rejected: 4,
-      cancelled: 5,
-      expired: 6
-    };
     return (eduState.bookings || []).slice().sort(function (a, b) {
-      var ao = order[String(a.status || "requested")] || 99;
-      var bo = order[String(b.status || "requested")] || 99;
-      if (ao !== bo) return ao - bo;
-      return String(a.preferredStartAt || a.startAt || a.createdAt || "").localeCompare(String(b.preferredStartAt || b.startAt || b.createdAt || ""));
+      var au = String(a.updatedAt || a.createdAt || a.preferredStartAt || a.startAt || "");
+      var bu = String(b.updatedAt || b.createdAt || b.preferredStartAt || b.startAt || "");
+      if (au !== bu) return bu.localeCompare(au);
+      return String(a.preferredStartAt || a.startAt || "").localeCompare(String(b.preferredStartAt || b.startAt || ""));
     });
   };
 
