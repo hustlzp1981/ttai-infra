@@ -31,6 +31,8 @@
   var eduRefreshEl = document.getElementById("edu-refresh");
   var _qrBranchData = null;
   var _clubDetail = null;
+  var bookingAutoRefreshTimer = null;
+  var bookingAutoRefreshInFlight = false;
   var eduState = {
     activeTab: "courses",
     branchId: "",
@@ -808,6 +810,32 @@
     }).catch(function (err) {
       eduPanelEl.innerHTML = eduErrorHtml(err);
     });
+  };
+
+  var isBookingConfirmPanelActive = function () {
+    return eduState.activeTab === "sessions" && (eduState.scheduleTab || "sessions") === "bookings";
+  };
+
+  var refreshEduBookings = function () {
+    if (!selectedClubId || !clubData.eduBookings || bookingAutoRefreshInFlight || document.hidden) return Promise.resolve();
+    var branchId = selectedEduBranch();
+    var params = Object.assign({ pageSize: 300 }, branchId ? { branchId: branchId } : {});
+    bookingAutoRefreshInFlight = true;
+    return clubData.eduBookings(selectedClubId, params).then(function (data) {
+      eduState.bookings = eduList(data);
+      if (isBookingConfirmPanelActive()) renderEduPanel();
+    }).catch(function () {
+      return null;
+    }).finally(function () {
+      bookingAutoRefreshInFlight = false;
+    });
+  };
+
+  var startBookingAutoRefresh = function () {
+    if (bookingAutoRefreshTimer) return;
+    bookingAutoRefreshTimer = setInterval(function () {
+      if (isBookingConfirmPanelActive()) refreshEduBookings();
+    }, 30000);
   };
 
   var branchOptions = function (selected) {
@@ -4146,6 +4174,7 @@
           return renderEduReports();
         }
         renderEduSessions();
+        if (isBookingConfirmPanelActive()) refreshEduBookings();
       });
     });
     eduPanelEl.querySelectorAll("[data-edu-report-tab]").forEach(function (button) {
@@ -4158,6 +4187,7 @@
       button.addEventListener("click", function () {
         eduState.scheduleTab = button.getAttribute("data-edu-schedule-tab") || "sessions";
         renderEduSessions();
+        if (isBookingConfirmPanelActive()) refreshEduBookings();
       });
     });
     eduPanelEl.querySelectorAll("[data-edu-schedule-view]").forEach(function (button) {
@@ -4297,6 +4327,7 @@
     renderActivities();
     loadBranchQRData();
     loadEduData();
+    startBookingAutoRefresh();
   };
 
   var loadDashboard = function () {
