@@ -1343,7 +1343,7 @@
       courseProductId: session.courseProductId || klass.courseProductId,
       courseNameSnapshot: session.courseNameSnapshot || course.name,
       teacherId: session.teacherId,
-      teacherName: session.teacherName || (teacher && teacher.name),
+      teacherName: (teacher && teacher.name) || session.teacherName,
       startAt: formatDateTimeLocal(session.startAt),
       endAt: formatDateTimeLocal(session.endAt),
       roomId: session.roomId,
@@ -1380,7 +1380,7 @@
     var place = (session.roomId || '') + ((session.tableNos || []).length ? ' / ' + session.tableNos.join(',') : '');
     return '<div class="edu-schedule-card">' +
       '<div class="edu-schedule-card-title">' + (withCheck ? rowCheck('sessions', id) : '') + '<strong>' + escapeHtml(sessionTitle(session)) + '</strong></div>' +
-      '<div>' + escapeHtml(timeOnlyText(session.startAt)) + '-' + escapeHtml(timeOnlyText(session.endAt)) + ' · ' + escapeHtml(session.teacherName || teacherName(session.teacherId)) + '</div>' +
+      '<div>' + escapeHtml(timeOnlyText(session.startAt)) + '-' + escapeHtml(timeOnlyText(session.endAt)) + ' · ' + escapeHtml(teacherName(session.teacherId) || session.teacherName) + '</div>' +
       '<div class="muted">' + escapeHtml(place || branchName(session.branchId)) + '</div>' +
       '<div class="club-actions"><button class="club-action" type="button" data-edit-session="' + escapeHtml(id) + '">编辑</button>' + (canAttendanceSession(session) ? '<button class="club-action primary" type="button" data-attendance-session="' + escapeHtml(id) + '">点名</button>' : '') + '<button class="club-action" type="button" data-cancel-session="' + escapeHtml(id) + '">取消</button></div>' +
     '</div>';
@@ -1402,7 +1402,7 @@
       if (!groups[key]) {
         groups[key] = {
           key,
-          name: session.teacherName || teacherName(session.teacherId) || "未指定教练",
+          name: teacherName(session.teacherId) || session.teacherName || "未指定教练",
           order: order[key] != null ? order[key] : 9999
         };
       }
@@ -2349,7 +2349,7 @@
         '<strong>' + escapeHtml(bookingCardStudentText(booking)) + '</strong>' +
         '<span>' + escapeHtml(bookingStatusLabel(booking.status || "requested")) + '</span>' +
       '</div>' +
-      '<div class="edu-booking-chip-line">' + escapeHtml((booking.courseName || courseName(booking.courseProductId) || "待确认课程") + ' · ' + (booking.teacherName || teacherName(booking.teacherId) || "待安排教练")) + '</div>' +
+      '<div class="edu-booking-chip-line">' + escapeHtml((booking.courseName || courseName(booking.courseProductId) || "待确认课程") + ' · ' + (teacherName(booking.teacherId) || booking.teacherName || "待安排教练")) + '</div>' +
       '<div class="edu-booking-chip-line">' + escapeHtml(branchName(booking.branchId)) + (booking.resourceLabel ? ' · ' + escapeHtml(booking.resourceLabel) : '') + '</div>' +
       (booking.note ? '<div class="edu-booking-chip-line muted">' + escapeHtml(booking.note) + '</div>' : '') +
       actionHtml +
@@ -2442,7 +2442,7 @@
 
   var bookingChangeTargetText = function (booking) {
     if (!booking || String(booking.status || "") !== "change_requested") return "";
-    var teacher = booking.changeRequestTeacherName || teacherName(booking.changeRequestTeacherId) || booking.teacherName || "-";
+    var teacher = teacherName(booking.changeRequestTeacherId) || booking.changeRequestTeacherName || booking.teacherName || "-";
     var branch = booking.changeRequestBranchName || branchName(booking.changeRequestBranchId) || branchName(booking.branchId);
     var resource = booking.changeRequestResourceLabel || resourceName(booking.changeRequestResourceId);
     var start = booking.changeRequestStartAt || "";
@@ -2523,7 +2523,7 @@
             '<td><strong>' + escapeHtml(bookingCardStudentText(booking)) + '</strong></td>' +
             '<td>' + escapeHtml(bookingRequesterText(booking)) + '</td>' +
             '<td>' + escapeHtml(booking.courseName || courseName(booking.courseProductId) || '-') + '</td>' +
-            '<td>' + escapeHtml(booking.teacherName || teacherName(booking.teacherId) || '-') + '</td>' +
+            '<td>' + escapeHtml(teacherName(booking.teacherId) || booking.teacherName || '-') + '</td>' +
             '<td>' + escapeHtml(bookingTimeText(booking)) + '</td>' +
             '<td>' + escapeHtml(place) + '</td>' +
             '<td>' + escapeHtml(bookingCapacityText(booking)) + '</td>' +
