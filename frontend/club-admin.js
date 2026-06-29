@@ -2386,6 +2386,10 @@
     return formatCST(start) + (end ? " - " + timeOnlyText(end) : "");
   };
 
+  var bookingUpdatedText = function (booking) {
+    return booking && (booking.updatedAt || booking.createdAt) ? formatCST(booking.updatedAt || booking.createdAt) : "-";
+  };
+
   var bookingCapacityText = function (booking) {
     if (booking.capacity) return capacityLabel(booking.capacity);
     var type = String(booking.bookingType || "");
@@ -2438,7 +2442,7 @@
   var renderEduBookingConfirmations = function () {
     var rows = bookingConfirmRows();
     return bookingConfirmSummaryHtml(rows) +
-      '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>学员</th><th>提交人</th><th>课程</th><th>教练</th><th>约课时间</th><th>分店/场地</th><th>类型</th><th>状态</th><th>备注</th><th>操作</th></tr></thead><tbody>' +
+      '<div class="admin-table-wrap wide"><table class="admin-table"><thead><tr><th>学员</th><th>提交人</th><th>课程</th><th>教练</th><th>约课时间</th><th>分店/场地</th><th>类型</th><th>状态</th><th>更新时间</th><th>备注</th><th>操作</th></tr></thead><tbody>' +
         (rows.length ? rows.map(function (booking) {
           var place = branchName(booking.branchId) + (booking.resourceLabel ? ' / ' + booking.resourceLabel : '');
           return '<tr>' +
@@ -2450,10 +2454,11 @@
             '<td>' + escapeHtml(place) + '</td>' +
             '<td>' + escapeHtml(bookingCapacityText(booking)) + '</td>' +
             '<td>' + badgeHtml(bookingStatusLabel(booking.status || "requested"), booking.status || "requested") + '</td>' +
+            '<td>' + escapeHtml(bookingUpdatedText(booking)) + '</td>' +
             '<td>' + escapeHtml(booking.note || booking.adminMessage || booking.rejectReason || '-') + '</td>' +
             '<td><div class="club-actions">' + bookingConfirmActionHtml(booking) + '</div></td>' +
           '</tr>';
-        }).join("") : '<tr><td colspan="10">暂无约课申请</td></tr>') +
+        }).join("") : '<tr><td colspan="11">暂无约课申请</td></tr>') +
       '</tbody></table></div>';
   };
 
