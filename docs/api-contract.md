@@ -439,3 +439,49 @@ POST /api/chat/training-log
 
 DELETE /api/chat/training-log/:id
 响应: { code: 0 }
+
+---
+
+## 4. 俱乐部教务管理
+
+### 4.1 导入学员 Excel (2026-06-29)
+POST /api/club-admin/edu/students/import
+请求头: Authorization: Bearer <token>
+请求体: multipart/form-data
+- clubId: string - 俱乐部 id 或 slug
+- file: binary - 学员表，支持 `.xlsx`、`.xlsm`、Web 学员管理导出的表格型 `.xls`、CSV
+
+导入字段:
+- 学员/姓名/学员姓名: 学员姓名，必填
+- 分店/所属分店/校区: 分店名称或分店 id，可选；为空时使用当前管理员可访问的默认分店
+- 手机号/手机/联系电话: 学员手机号，可选
+- 家长/家长姓名/监护人: 家长姓名，可选
+- 家长手机号/家长手机: 家长手机号，可选
+- 水平/等级: 初级、入门、中级、高级、专业、精英，或已有内部值
+- 状态: 在读、启用、正常、停用、归档；为空默认在读
+- 来源、备注: 可选
+
+去重规则:
+- 优先按同俱乐部、非归档学员的手机号去重。
+- 无手机号时，按同俱乐部、同分店、同学员姓名、同家长姓名去重；家长为空时匹配家长为空或未设置的学员。
+- 重复行跳过，不覆盖已有学员。
+
+响应:
+```
+{
+  "code": 0,
+  "data": {
+    "totalRows": 2,
+    "createdCount": 1,
+    "skippedCount": 1,
+    "errorCount": 0,
+    "created": [{ "line": 2, "id": "mongo-object-id", "name": "张三" }],
+    "skipped": [{ "line": 3, "name": "张三", "reason": "重复学员已跳过", "duplicateId": "mongo-object-id" }],
+    "errors": []
+  }
+}
+```
+错误:
+- 400: 未选择文件、文件无法解析或学员姓名缺失
+- 401: 未登录
+- 403: 无教务学员写权限或无分店权限

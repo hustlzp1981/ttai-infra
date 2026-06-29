@@ -917,8 +917,12 @@
   var eduActionBar = function (type, createLabel, extraHtml) {
     var createButton = createLabel ? '<button class="club-action primary" type="button" data-edu-create="' + type + '">' + escapeHtml(createLabel) + '</button>' : '';
     var deleteButton = createLabel ? '<button class="club-action" type="button" data-edu-delete="' + type + '">删除</button>' : '';
+    var exportLabel = type === "students" ? "导出EXCEL" : "导出";
+    var importButton = type === "students"
+      ? '<button class="club-action" type="button" data-edu-import-students title="支持导出相同格式的 Excel 导入，导入前会按手机号和学员信息去重">导入</button><input type="file" accept=".xlsx,.xlsm,.csv" data-edu-import-students-file hidden>'
+      : '';
     return '<div class="edu-list-toolbar">' +
-      '<div class="club-actions">' + createButton + deleteButton + '<button class="club-action" type="button" data-edu-export="' + type + '">导出</button></div>' +
+      '<div class="club-actions">' + createButton + deleteButton + '<button class="club-action" type="button" data-edu-export="' + type + '">' + exportLabel + '</button>' + importButton + '</div>' +
       (extraHtml || '') +
     '</div>';
   };
@@ -3149,6 +3153,22 @@
     }));
   };
 
+  var importEduStudents = function (file) {
+    if (!file) return;
+    if (!clubData.eduImportStudents) {
+      window.alert("当前版本暂不支持导入学员");
+      return;
+    }
+    if (!window.confirm("确认导入这个学员表吗？系统会按手机号、学员姓名、分店和家长进行去重，重复学员会自动跳过。")) return;
+    return clubData.eduImportStudents(selectedClubId, file).then(function (result) {
+      var data = result && result.data ? result.data : result || {};
+      window.alert("导入完成：新增 " + (data.createdCount || 0) + " 人，跳过重复 " + (data.skippedCount || 0) + " 人，错误 " + (data.errorCount || 0) + " 行。");
+      return loadEduData();
+    }).catch(function (err) {
+      if (eduPanelEl) eduPanelEl.insertAdjacentHTML("afterbegin", eduErrorHtml(err));
+    });
+  };
+
   var saveEduPackageTemplate = function (form) {
     var data = formData(form);
     return withEduSaving(clubData.eduSavePackageTemplate(selectedClubId, {
@@ -3502,6 +3522,34 @@
     URL.revokeObjectURL(url);
   };
 
+  var downloadEduExcel = function (name, rows, columns) {
+    rows = rows || [];
+    columns = columns || [];
+    var tableRows = rows.length ? rows.map(function (row, rowIndex) {
+      return '<tr>' + columns.map(function (col) {
+        return '<td style="border:1px solid #d7e2de;padding:8px 10px;mso-number-format:\'\\@\';background:' + (rowIndex % 2 ? '#f7fbf9' : '#ffffff') + ';">' + escapeHtml(col.value(row)) + '</td>';
+      }).join("") + '</tr>';
+    }).join("") : '<tr><td colspan="' + Math.max(columns.length, 1) + '" style="border:1px solid #d7e2de;padding:14px 10px;text-align:center;color:#66736f;">暂无数据</td></tr>';
+    var html = '<!doctype html><html><head><meta charset="utf-8"></head><body>' +
+      '<table style="border-collapse:collapse;font-family:Arial,Microsoft YaHei,sans-serif;font-size:13px;">' +
+        '<tr>' + columns.map(function (col) {
+          return '<th style="border:1px solid #bfd7ce;background:#2f7d68;color:#ffffff;padding:9px 10px;text-align:left;font-weight:700;white-space:nowrap;">' + escapeHtml(col.label) + '</th>';
+        }).join("") + '</tr>' +
+        tableRows +
+      '</table>' +
+    '</body></html>';
+    var blob = new Blob(["\ufeff" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    var today = todayDateValue().replace(/-/g, "");
+    a.href = url;
+    a.download = "教务-" + name + "-" + today + ".xls";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   var reportDateRangeText = function () {
     var filters = currentReportFilters();
     if (filters.startDate && filters.endDate) return filters.startDate + " 至 " + filters.endDate;
@@ -3598,6 +3646,9 @@
           { label: "学员", value: function (row) { return row.name; } },
           { label: "分店", value: function (row) { return branchName(row.branchId); } },
           { label: "手机号", value: function (row) { return row.phone || ""; } },
+          { label: "家长", value: function (row) { return row.parentName || ""; } },
+          { label: "家长手机号", value: function (row) { return row.parentPhone || ""; } },
+          { label: "水平", value: function (row) { return studentLevelLabel(row.level); } },
           { label: "剩余课时", value: function (row) { return lessonText(studentWalletSummary(idOf(row)).remainingUnits10); } },
           { label: "状态", value: function (row) { return studentStatusLabel(row.status || "active"); } }
         ]
@@ -3686,6 +3737,9 @@
     };
     var item = exporters[type];
     if (!item) return;
+    if (type === "students") {
+      return downloadEduExcel(item.name, item.rows || [], item.columns);
+    }
     downloadCsv(item.name, item.rows || [], item.columns);
   };
 
@@ -3963,6 +4017,19 @@
     eduPanelEl.querySelectorAll("[data-edu-export]").forEach(function (button) {
       button.addEventListener("click", function () {
         exportEduData(button.getAttribute("data-edu-export"));
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-edu-import-students]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        var input = eduPanelEl.querySelector("[data-edu-import-students-file]");
+        if (input) input.click();
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-edu-import-students-file]").forEach(function (input) {
+      input.addEventListener("change", function () {
+        var file = input.files && input.files[0];
+        input.value = "";
+        importEduStudents(file);
       });
     });
     eduPanelEl.querySelectorAll("[data-schedule-export-download]").forEach(function (button) {

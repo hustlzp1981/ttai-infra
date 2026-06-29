@@ -127,6 +127,14 @@
     });
   };
 
+  var apiForm = function (path, formData, auth) {
+    return fetchJson(apiBase + path, {
+      method: "POST",
+      headers: auth ? authHeaders() : {},
+      body: formData
+    });
+  };
+
   window.TTAI_CLUB_DATA = {
     source: "api",
     previewEnabled: previewEnabled,
@@ -230,6 +238,12 @@
     },
     eduDeleteStudent: function (clubId, id) {
       return apiDelete("/club-admin/edu/students/" + encodeURIComponent(id), { clubId: clubId }, true);
+    },
+    eduImportStudents: function (clubId, file) {
+      var form = new FormData();
+      form.append("clubId", clubId);
+      form.append("file", file);
+      return apiForm("/club-admin/edu/students/import", form, true);
     },
     eduStudentBindQrcode: function (clubId, studentId, payload) {
       return apiPost("/club-admin/edu/students/" + encodeURIComponent(studentId) + "/bind-qrcode", Object.assign({

@@ -37,6 +37,7 @@
 | GET | /api/competitions/eightcups | 八大杯赛信息 | ✅ |
 | POST | /api/video-shares | 创建视频公开分享短码 | ✅ |
 | GET | /api/video-shares/detail?code= | 公开只读视频分享详情 | ✅ |
+| POST | /api/club-admin/edu/students/import | 管理端导入学员 Excel，按手机号/学员信息去重 | ✅ |
 
 ---
 
