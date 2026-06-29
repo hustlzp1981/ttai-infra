@@ -2417,6 +2417,7 @@
       '<div class="edu-booking-kpis">' +
         '<span>待确认 ' + count("requested") + '</span>' +
         '<span>改期中 ' + count("alternative_proposed") + '</span>' +
+        '<span>改期申请 ' + count("change_requested") + '</span>' +
         '<span>已确认 ' + count("confirmed") + '</span>' +
         '<span>已拒绝 ' + count("rejected") + '</span>' +
       '</div>' +
@@ -2425,7 +2426,12 @@
 
   var bookingConfirmActionHtml = function (booking) {
     var id = idOf(booking);
-    if (["requested", "alternative_proposed"].indexOf(String(booking.status || "requested")) < 0) return "-";
+    var status = String(booking.status || "requested");
+    if (status === "change_requested") {
+      return '<button class="club-action primary" type="button" data-booking-action="confirm" data-booking-id="' + escapeHtml(id) + '">接受改期</button>' +
+        '<button class="club-action danger" type="button" data-booking-action="reject" data-booking-id="' + escapeHtml(id) + '">拒绝改期</button>';
+    }
+    if (["requested", "alternative_proposed"].indexOf(status) < 0) return "-";
     return '<button class="club-action primary" type="button" data-booking-action="confirm" data-booking-id="' + escapeHtml(id) + '">确认</button>' +
       '<button class="club-action" type="button" data-booking-action="propose" data-booking-id="' + escapeHtml(id) + '">改期</button>' +
       '<button class="club-action danger" type="button" data-booking-action="reject" data-booking-id="' + escapeHtml(id) + '">拒绝</button>';
