@@ -113,6 +113,12 @@
     return teacherId ? "已删除教练" : "-";
   };
 
+  var resourceName = function (resourceId) {
+    var resource = findById(eduState.resources, resourceId);
+    if (resource) return resource.name || resource.tableNo || resource.roomId || "球台";
+    return resourceId ? "已删除球台" : "";
+  };
+
   var isLikelyOpenid = function (value) {
     return /^o[A-Za-z0-9_-]{20,}$/.test(String(value || ""));
   };
@@ -2434,6 +2440,28 @@
     return formatCST(start) + (end ? " - " + timeOnlyText(end) : "");
   };
 
+  var bookingChangeTargetText = function (booking) {
+    if (!booking || String(booking.status || "") !== "change_requested") return "";
+    var teacher = booking.changeRequestTeacherName || teacherName(booking.changeRequestTeacherId) || booking.teacherName || "-";
+    var branch = booking.changeRequestBranchName || branchName(booking.changeRequestBranchId) || branchName(booking.branchId);
+    var resource = booking.changeRequestResourceLabel || resourceName(booking.changeRequestResourceId);
+    var start = booking.changeRequestStartAt || "";
+    var end = booking.changeRequestEndAt || "";
+    var text = (start ? formatCST(start) : "-") + (end ? " - " + timeOnlyText(end) : "");
+    return text + " · " + teacher + " · " + branch + (resource ? " · " + resource : "");
+  };
+
+  var bookingRemarkText = function (booking) {
+    var parts = [];
+    var target = bookingChangeTargetText(booking);
+    if (target) parts.push("改期目标: " + target);
+    if (booking.changeRequestNote) parts.push("改期备注: " + booking.changeRequestNote);
+    if (booking.note) parts.push(booking.note);
+    if (booking.adminMessage) parts.push(booking.adminMessage);
+    if (booking.rejectReason) parts.push(booking.rejectReason);
+    return parts.length ? parts.join(" | ") : "-";
+  };
+
   var bookingUpdatedText = function (booking) {
     return booking && (booking.updatedAt || booking.createdAt) ? formatCST(booking.updatedAt || booking.createdAt) : "-";
   };
@@ -2501,7 +2529,7 @@
             '<td>' + escapeHtml(bookingCapacityText(booking)) + '</td>' +
             '<td>' + badgeHtml(bookingStatusLabel(booking.status || "requested"), booking.status || "requested") + '</td>' +
             '<td>' + escapeHtml(bookingUpdatedText(booking)) + '</td>' +
-            '<td>' + escapeHtml(booking.note || booking.adminMessage || booking.rejectReason || '-') + '</td>' +
+            '<td>' + escapeHtml(bookingRemarkText(booking)) + '</td>' +
             '<td><div class="club-actions">' + bookingConfirmActionHtml(booking) + '</div></td>' +
           '</tr>';
         }).join("") : '<tr><td colspan="11">暂无约课申请</td></tr>') +
@@ -3429,6 +3457,14 @@
     var booking = bookingById(id);
     if (!booking) return;
     if (!booking.studentId) return window.alert("该约课缺少学员档案，暂不能确认。");
+    if (String(booking.status || "") === "change_requested") {
+      var target = bookingChangeTargetText(booking);
+      if (!window.confirm("确认接受学员改期？\n" + (target || "目标时段以学员申请为准"))) return Promise.resolve();
+      return withEduSaving(clubData.eduConfirmBooking(selectedClubId, idOf(booking), {
+        walletId: booking.walletId || "",
+        adminMessage: target ? ("Web 接受改期: " + target) : "Web 接受改期"
+      }));
+    }
     var localWallets = (eduState.wallets || []).filter(function (wallet) {
       return String(wallet.studentId || "") === String(booking.studentId || "");
     });
