@@ -1389,6 +1389,53 @@ a {
   font-size: 12px;
 }
 
+.edu-release-mode-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.edu-release-mode-tabs button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.edu-release-mode-tabs button.active {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.edu-week-release-panel {
+  display: none;
+  gap: 8px;
+}
+
+.edu-free-manage[data-availability-release-mode="week"] .edu-week-release-panel {
+  display: grid;
+}
+
+.edu-free-manage[data-availability-release-mode="week"] [data-availability-day-field] {
+  display: none;
+}
+
+.edu-release-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+
 .edu-free-calendar-head strong {
   margin: 0 3px;
   color: var(--color-primary);
@@ -1610,25 +1657,74 @@ a {
   font-size: 12px;
 }
 
-.edu-booking-chip.draft,
-.edu-booking-chip.requested,
-.edu-booking-chip.alternative_proposed {
-  border-left-color: #b7791f;
-  background: #fff8e6;
+.edu-booking-chip.draft {
+  border-left-color: #94a3b8;
+  background: #f8fafc;
 }
 
-.edu-booking-chip.published,
+.edu-booking-chip.published {
+  border-left-color: #16a34a;
+  background: #ecfdf3;
+}
+
+.edu-booking-chip.paused {
+  border-left-color: #64748b;
+  background: #f1f5f9;
+}
+
+.edu-booking-chip.requested {
+  border-left-color: #f59e0b;
+  background: #fff7ed;
+}
+
 .edu-booking-chip.confirmed {
-  border-left-color: #2f855a;
-  background: #edf7ed;
+  border-left-color: #0891b2;
+  background: #ecfeff;
 }
 
-.edu-booking-chip.paused,
-.edu-booking-chip.rejected,
+.edu-booking-chip.alternative_proposed,
+.edu-booking-chip.change_requested {
+  border-left-color: #8b5cf6;
+  background: #f5f3ff;
+}
+
+.edu-booking-chip.rejected {
+  border-left-color: #dc2626;
+  background: #fef2f2;
+}
+
 .edu-booking-chip.cancelled,
 .edu-booking-chip.expired {
   border-left-color: #64748b;
   background: #f1f5f9;
+}
+
+.edu-booking-chip.draft .edu-booking-chip-head span,
+.edu-booking-chip.paused .edu-booking-chip-head span,
+.edu-booking-chip.cancelled .edu-booking-chip-head span,
+.edu-booking-chip.expired .edu-booking-chip-head span {
+  color: #475569;
+}
+
+.edu-booking-chip.published .edu-booking-chip-head span {
+  color: #15803d;
+}
+
+.edu-booking-chip.requested .edu-booking-chip-head span {
+  color: #b45309;
+}
+
+.edu-booking-chip.confirmed .edu-booking-chip-head span {
+  color: #0e7490;
+}
+
+.edu-booking-chip.alternative_proposed .edu-booking-chip-head span,
+.edu-booking-chip.change_requested .edu-booking-chip-head span {
+  color: #6d28d9;
+}
+
+.edu-booking-chip.rejected .edu-booking-chip-head span {
+  color: #b91c1c;
 }
 
 .edu-booking-chip-head {
@@ -1942,6 +2038,44 @@ a {
 .status-badge.muted {
   background: rgba(107, 114, 128, 0.12);
   color: var(--color-muted);
+}
+
+.status-badge.draft {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.status-badge.published {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-badge.paused,
+.status-badge.cancelled,
+.status-badge.expired {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.status-badge.requested {
+  background: #ffedd5;
+  color: #b45309;
+}
+
+.status-badge.confirmed {
+  background: #cffafe;
+  color: #0e7490;
+}
+
+.status-badge.alternative_proposed,
+.status-badge.change_requested {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.status-badge.rejected {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 #edu-admin-section {

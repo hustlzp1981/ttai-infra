@@ -463,6 +463,7 @@
       requested: "待确认",
       confirmed: "已确认",
       alternative_proposed: "改期中",
+      change_requested: "改期申请",
       rejected: "已拒绝",
       cancelled: "已取消",
       expired: "已过期"
@@ -493,6 +494,7 @@
   };
 
   var badgeClass = function (type) {
+    if (["draft", "published", "paused", "requested", "confirmed", "alternative_proposed", "change_requested", "rejected", "cancelled", "expired"].indexOf(type) >= 0) return type;
     if (["active", "approved", "published", "confirmed", "scheduled", "purchase", "ok", "none"].indexOf(type) >= 0) return "ok";
     if (["pending", "draft", "requested", "alternative_proposed", "pending_attendance", "attendance"].indexOf(type) >= 0) return "warn";
     if (["cancelled", "inactive", "archived", "paused", "rejected", "expired", "revoked", "revoke"].indexOf(type) >= 0) return "muted";
@@ -1548,26 +1550,35 @@
     ].map(function (slot) {
       return '<button class="club-action" type="button" data-availability-preset="' + escapeHtml(slot[0] + '-' + slot[1]) + '">' + escapeHtml(slot[0] + '-' + slot[1]) + '</button>';
     }).join('');
-    return '<form class="edu-free-manage" id="edu-availability-bulk-form">' +
+    return '<form class="edu-free-manage" id="edu-availability-bulk-form" data-availability-release-mode="day">' +
       '<div class="edu-free-manage-head">' +
-        '<div><strong>批量设置可排时间</strong><span>日期批量设置</span></div>' +
-        '<div class="club-actions"><button class="club-action" type="button" data-availability-skip="clear">清空</button><button class="club-action" type="button" data-availability-skip="weekend">跳过周末</button><button class="club-action" type="button" data-availability-skip="holiday">跳过节假日</button><button class="club-action primary" type="submit">确定</button></div>' +
+        '<div><strong>放号排课</strong><span>按天临时放号，按周发布常规可约时间。</span></div>' +
+        '<div class="edu-release-mode-tabs">' +
+          '<button class="active" type="button" data-availability-release-mode="day">按天放号</button>' +
+          '<button type="button" data-availability-release-mode="week">按周放号</button>' +
+        '</div>' +
       '</div>' +
+      '<input type="hidden" name="releaseMode" value="day">' +
       '<div class="edu-filter-grid compact">' +
         '<input type="hidden" name="branchId" value="' + escapeHtml(eduState.branchId || '') + '">' +
         '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions('') + '</select></label>' +
         '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions('') + '</select></label>' +
         '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option><option value="4">一对四</option></select></label>' +
         '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions('') + '</select></label>' +
+        '<label data-availability-day-field>放号日期<input class="form-input" type="date" name="singleDate" value="' + escapeHtml(todayDateValue()) + '"></label>' +
         '<label>开始时间<input class="form-input text-center" type="time" name="startTime" value="08:00" required></label>' +
         '<label>结束时间<input class="form-input text-center" type="time" name="endTime" value="10:00" required></label>' +
         '<label>每格时长<input class="form-input text-center" type="number" min="15" step="15" name="slotDurationMinutes" value="60"></label>' +
-        '<label>保存状态<select class="form-input" name="status"><option value="draft">保存草稿</option><option value="published">直接发布</option></select></label>' +
+        '<label>发布方式<select class="form-input" name="status"><option value="published">直接发布</option><option value="draft">先存草稿</option></select></label>' +
       '</div>' +
-      '<div class="edu-free-calendar-head"><span>已选<strong data-availability-selected-count>0</strong>天</span><span class="muted" data-availability-calendar-note>当前周期</span></div>' +
-      '<div class="edu-free-weekdays">' + dayHeads + '</div>' +
-      '<div class="edu-free-calendar-grid">' + dates + '</div>' +
+      '<div class="edu-week-release-panel" data-availability-week-panel>' +
+        '<div class="edu-free-calendar-head"><span>本周/下周可多选，已选<strong data-availability-selected-count>0</strong>天</span><span class="muted" data-availability-calendar-note>当前周期</span></div>' +
+        '<div class="club-actions compact"><button class="club-action" type="button" data-availability-skip="clear">清空</button><button class="club-action" type="button" data-availability-skip="weekend">跳过周末</button><button class="club-action" type="button" data-availability-skip="holiday">跳过节假日</button></div>' +
+        '<div class="edu-free-weekdays">' + dayHeads + '</div>' +
+        '<div class="edu-free-calendar-grid">' + dates + '</div>' +
+      '</div>' +
       '<div class="edu-free-presets"><span>常用时间段</span>' + presets + '</div>' +
+      '<div class="edu-release-actions"><button class="club-action primary" type="submit">发布空位</button><span class="muted">发布后会在下方矩阵中显示，学员即可在小程序选择可约格子。</span></div>' +
     '</form>';
   };
 
@@ -1576,12 +1587,12 @@
     return '<div class="edu-page-path">当前位置：管理功能 / 排课管理 / 放号排课</div>' +
       '<form class="edu-filter-panel" id="edu-availability-filter-form">' +
         '<div class="edu-filter-grid compact">' +
-          '<label>矩阵范围<select class="form-input" name="matrixRange"><option value="week">按周</option><option value="day">按日</option></select></label>' +
-          '<label>查询日期<input class="form-input" type="date" name="matrixDate" value="' + escapeHtml(filters.matrixDate || todayDateValue()) + '"></label>' +
+          '<label>预览方式<select class="form-input" name="matrixRange"><option value="week">按周查看</option><option value="day">按天查看</option></select></label>' +
+          '<label>预览日期<input class="form-input" type="date" name="matrixDate" value="' + escapeHtml(filters.matrixDate || todayDateValue()) + '"></label>' +
           '<label>教练<select class="form-input" name="teacherId">' + filterTeacherOptions(filters.teacherId) + '</select></label>' +
           '<label>状态<select class="form-input" name="status"><option value="">全部</option><option value="draft">草稿</option><option value="published">已发布</option><option value="paused">已暂停</option><option value="requested">待确认</option><option value="confirmed">已确认</option><option value="alternative_proposed">改期中</option><option value="rejected">已拒绝</option><option value="cancelled">已取消</option><option value="pending">待审核</option><option value="approved">已通过</option></select></label>' +
           '<label>星期<select class="form-input" name="weekday"><option value="">全部</option><option value="1">周一</option><option value="2">周二</option><option value="3">周三</option><option value="4">周四</option><option value="5">周五</option><option value="6">周六</option><option value="7">周日</option></select></label>' +
-          '<div class="edu-filter-actions"><button class="club-action primary" type="submit">查询</button><button class="club-action" type="button" data-edu-filter-reset="availability">重置</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div>' +
+          '<div class="edu-filter-actions"><button class="club-action primary" type="submit">应用</button><button class="club-action" type="button" data-edu-filter-reset="availability">重置</button></div>' +
         '</div>' +
       '</form>';
   };
@@ -2327,8 +2338,8 @@
       availabilityMatrixSummaryHtml(slots, bookings, range) +
       '<div class="edu-list-toolbar">' +
         '<div class="club-actions">' +
-          '<button class="club-action primary" type="button" data-booking-publish-range="' + escapeHtml(Object.keys(draftIds).join(",")) + '">发布当前范围草稿</button>' +
-          '<button class="club-action" type="button" data-edu-create="availability">新增单条可约时间</button>' +
+          '<button class="club-action primary" type="button" data-booking-publish-range="' + escapeHtml(Object.keys(draftIds).join(",")) + '">发布当前草稿</button>' +
+          '<button class="club-action" type="button" data-edu-create="availability">新增单条</button>' +
           '<button class="club-action" type="button" data-copy-booking-availability-week="1">复制上周放号</button>' +
         '</div>' +
       '</div>' +
@@ -2341,8 +2352,8 @@
       availabilityFilterHtml() +
       availabilityMatrixHtml() +
       '<details class="edu-detail-drawer">' +
-        '<summary>查看明细列表</summary>' +
-        '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出</button></div><span class="muted">用于核对提交人、审核人和原始记录。</span></div>' +
+        '<summary>高级：查看原始明细</summary>' +
+        '<div class="edu-list-toolbar"><div class="club-actions"><button class="club-action" type="button" data-edu-delete="availability">删除</button><button class="club-action" type="button" data-edu-export="availability">导出明细</button></div><span class="muted">用于核对提交人、审核人和原始记录，日常放号优先看上方矩阵。</span></div>' +
         '<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>教练</th><th>分店</th><th>日期/星期</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>提交人</th><th>审核人</th><th>审核</th><th>操作</th></tr></thead><tbody>' +
         (filteredAvailability().length ? filteredAvailability().map(function (item) {
           var dateType = item.date ? "指定日期" : (item.weekday ? "每周重复" : "-");
@@ -3233,8 +3244,11 @@
 
   var saveEduAvailabilityBulk = function (form) {
     var data = formData(form);
-    var dates = data.dates ? (Array.isArray(data.dates) ? data.dates : [data.dates]) : [];
-    if (!dates.length) return window.alert("请先选择可排日期。");
+    var dates = data.releaseMode === "day"
+      ? [data.singleDate || todayDateValue()]
+      : (data.dates ? (Array.isArray(data.dates) ? data.dates : [data.dates]) : []);
+    dates = dates.filter(Boolean);
+    if (!dates.length) return window.alert(data.releaseMode === "week" ? "请先选择要放号的日期。" : "请选择放号日期。");
     if (!data.teacherId) return window.alert("请选择教练。");
     if (!data.branchId && !eduState.branchId) return window.alert("请先在页面顶部选择分店。");
     if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
@@ -3795,8 +3809,25 @@
     if (count) count.textContent = checked;
   };
 
+  var syncAvailabilityReleaseMode = function (form, mode) {
+    if (!form) return;
+    var nextMode = mode === "week" ? "week" : "day";
+    form.setAttribute("data-availability-release-mode", nextMode);
+    var hidden = form.querySelector('[name="releaseMode"]');
+    if (hidden) hidden.value = nextMode;
+    form.querySelectorAll("button[data-availability-release-mode]").forEach(function (button) {
+      button.classList.toggle("active", button.getAttribute("data-availability-release-mode") === nextMode);
+    });
+    syncAvailabilityBulkSelection();
+  };
+
   var bindAvailabilityBulkControls = function (form) {
     if (!form) return;
+    form.querySelectorAll("button[data-availability-release-mode]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        syncAvailabilityReleaseMode(form, button.getAttribute("data-availability-release-mode"));
+      });
+    });
     form.querySelectorAll('input[name="dates"]').forEach(function (input) {
       input.addEventListener("change", syncAvailabilityBulkSelection);
     });
@@ -3834,6 +3865,7 @@
         syncAvailabilityBulkSelection();
       });
     });
+    syncAvailabilityReleaseMode(form, form.querySelector('[name="releaseMode"]') && form.querySelector('[name="releaseMode"]').value || "day");
     syncAvailabilityBulkSelection();
   };
 
