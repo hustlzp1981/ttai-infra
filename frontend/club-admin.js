@@ -1617,6 +1617,10 @@
       '</form>';
   };
 
+  var availabilityPreviewModeDefault = function () {
+    return (eduState.availabilityBulkForm || {}).releaseMode === "week" ? "week" : "day";
+  };
+
   var allAvailabilityRows = function () {
     var map = {};
     (eduState.availability || []).concat(eduState.bookingAvailability || []).forEach(function (item) {
@@ -1637,7 +1641,7 @@
 
   var availabilityMatrixRange = function () {
     var filters = eduState.availabilityFilters || {};
-    var mode = filters.matrixRange === "day" ? "day" : "week";
+    var mode = (filters.matrixRange || availabilityPreviewModeDefault()) === "day" ? "day" : "week";
     var base = parseDateKey(filters.matrixDate || todayDateValue());
     var start = mode === "day" ? base : startOfWeek(base);
     var days = [];
@@ -2551,7 +2555,7 @@
     }
     if (active === "availability") {
       var af = eduState.availabilityFilters || {};
-      setFormValue("edu-availability-filter-form", "matrixRange", af.matrixRange || "week");
+      setFormValue("edu-availability-filter-form", "matrixRange", af.matrixRange || availabilityPreviewModeDefault());
       setFormValue("edu-availability-filter-form", "matrixDate", af.matrixDate || todayDateValue());
       setFormValue("edu-availability-filter-form", "status", af.status || "");
       setFormValue("edu-availability-filter-form", "weekday", af.weekday || "");
@@ -3916,7 +3920,7 @@
     renderEduPanel();
   };
 
-  var syncAvailabilityReleaseMode = function (form, mode) {
+  var syncAvailabilityReleaseMode = function (form, mode, refreshPreview) {
     if (!form) return;
     var nextMode = mode === "week" ? "week" : "day";
     form.setAttribute("data-availability-release-mode", nextMode);
@@ -3925,16 +3929,20 @@
     form.querySelectorAll("button[data-availability-release-mode]").forEach(function (button) {
       button.classList.toggle("active", button.getAttribute("data-availability-release-mode") === nextMode);
     });
+    eduState.availabilityFilters = Object.assign({}, eduState.availabilityFilters || {}, { matrixRange: nextMode });
+    var filter = document.getElementById("edu-availability-filter-form");
+    var input = filter && filter.querySelector('[name="matrixRange"]');
+    if (input) input.value = nextMode;
     syncAvailabilityBulkSelection();
     captureAvailabilityBulkForm(form);
+    if (refreshPreview) renderEduPanel();
   };
 
   var bindAvailabilityBulkControls = function (form) {
     if (!form) return;
     form.querySelectorAll("button[data-availability-release-mode]").forEach(function (button) {
       button.addEventListener("click", function () {
-        syncAvailabilityReleaseMode(form, button.getAttribute("data-availability-release-mode"));
-        captureAvailabilityBulkForm(form);
+        syncAvailabilityReleaseMode(form, button.getAttribute("data-availability-release-mode"), true);
       });
     });
     form.querySelectorAll('input[name="dates"]').forEach(function (input) {
