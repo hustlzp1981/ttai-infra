@@ -485,3 +485,54 @@ POST /api/club-admin/edu/students/import
 - 400: 未选择文件、文件无法解析或学员姓名缺失
 - 401: 未登录
 - 403: 无教务学员写权限或无分店权限
+
+### 4.2 学员申请约课改期 (2026-06-29)
+POST /api/club-edu/my/bookings/:id/request-change
+请求头: Authorization: Bearer <token>
+请求体:
+```
+{
+  "slotKey": "club:branch:teacher:start:end:course",
+  "branchId": "b-east",
+  "teacherId": "teacher-id",
+  "courseProductId": "course-id",
+  "resourceId": "table-id",
+  "resourceLabel": "1号台",
+  "startAt": "2026-07-01T11:00:00+08:00",
+  "endAt": "2026-07-01T12:00:00+08:00",
+  "capacity": 1,
+  "note": "想换到周三"
+}
+```
+说明:
+- 仅允许申请本人创建的约课。
+- 当前状态必须是 `confirmed` 或 `alternative_proposed`。
+- 新空位按已发布空位重新校验，成功后状态变为 `change_requested`。
+- 原已确认课次继续保留，等待管理员确认或拒绝改期。
+
+响应:
+```
+{ "code": 0, "data": { "booking": { "id": "...", "status": "change_requested" } } }
+```
+错误:
+- 400: 当前状态不能申请改期、缺少新空位信息
+- 401: 未登录
+- 404: 约课申请不存在
+- 409: 新空位已失效或已满
+
+### 4.3 管理员处理约课改期 (2026-06-29)
+POST /api/club-admin/edu/bookings/:id/confirm
+请求头: Authorization: Bearer <token>
+请求体: `{ "clubId": "ttai-edu-test-club", "adminMessage": "已确认改期" }`
+说明:
+- 当 booking 状态是 `change_requested` 时，确认接口会重新校验新空位容量。
+- 确认成功后创建或加入新课次，旧 roster 标记为取消，并从旧 session 的学员列表移除。
+- 若旧课次已完成或已点名，返回 400，不做改期。
+- 返回的 booking 状态恢复为 `confirmed`，并更新 `slotKey`、`preferredStartAt`、`preferredEndAt`、`confirmedSessionId`、`confirmedRosterId`。
+
+POST /api/club-admin/edu/bookings/:id/reject
+请求头: Authorization: Bearer <token>
+请求体: `{ "clubId": "ttai-edu-test-club", "rejectReason": "该时间已满", "adminMessage": "建议选择其他时间" }`
+说明:
+- 当 booking 状态是 `change_requested` 时，拒绝接口会清空改期申请字段，booking 状态恢复为 `confirmed`。
+- 原已确认课次和 roster 不变。

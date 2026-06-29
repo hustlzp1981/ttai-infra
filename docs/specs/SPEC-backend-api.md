@@ -38,6 +38,7 @@
 | POST | /api/video-shares | 创建视频公开分享短码 | ✅ |
 | GET | /api/video-shares/detail?code= | 公开只读视频分享详情 | ✅ |
 | POST | /api/club-admin/edu/students/import | 管理端导入学员 Excel，按手机号/学员信息去重 | ✅ |
+| POST | /api/club-edu/my/bookings/:id/request-change | 学员对已确认约课申请改期 | ✅ |
 
 ---
 
