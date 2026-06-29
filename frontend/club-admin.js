@@ -56,6 +56,7 @@
     scheduleExports: [],
     scheduleExportSettings: { enabled: false, timeOfDay: "22:00", range: "day" },
     scheduleExportForm: { date: "", range: "day" },
+    availabilityBulkForm: {},
     availabilityFilters: {},
     reportTab: "fee",
     reportFilters: {}
@@ -1538,10 +1539,24 @@
     var dayHeads = [1, 2, 3, 4, 5, 6, 7].map(function (day) {
       return '<span>' + escapeHtml(weekdayText(day).replace('周', '')) + '</span>';
     }).join('');
+    var bulkForm = Object.assign({
+      releaseMode: "day",
+      singleDate: (eduState.availabilityFilters || {}).matrixDate || todayDateValue(),
+      startTime: "08:00",
+      endTime: "10:00",
+      slotDurationMinutes: "60",
+      status: "published"
+    }, eduState.availabilityBulkForm || {});
+    var releaseMode = bulkForm.releaseMode === "week" ? "week" : "day";
+    var selectedDates = {};
+    (Array.isArray(bulkForm.dates) ? bulkForm.dates : [bulkForm.dates]).filter(Boolean).forEach(function (date) {
+      selectedDates[String(date)] = true;
+    });
     var dates = availabilityCalendarDays().map(function (day) {
       var cls = "edu-free-date" + (day.weekend ? " weekend" : "") + (day.disabled ? " disabled" : "");
+      if (selectedDates[day.date]) cls += " selected";
       return '<label class="' + cls + '">' +
-        '<input type="checkbox" name="dates" value="' + escapeHtml(day.date) + '" data-weekend="' + (day.weekend ? '1' : '') + '"' + (day.disabled ? ' disabled' : '') + '>' +
+        '<input type="checkbox" name="dates" value="' + escapeHtml(day.date) + '" data-weekend="' + (day.weekend ? '1' : '') + '"' + (selectedDates[day.date] ? ' checked' : '') + (day.disabled ? ' disabled' : '') + '>' +
         '<strong>' + escapeHtml(day.date.slice(5)) + '</strong><span>' + escapeHtml(weekdayText(day.weekday)) + '</span>' +
       '</label>';
     }).join('');
@@ -1552,28 +1567,29 @@
       ["15:00", "17:00"],
       ["18:00", "20:00"]
     ].map(function (slot) {
-      return '<button class="club-action" type="button" data-availability-preset="' + escapeHtml(slot[0] + '-' + slot[1]) + '">' + escapeHtml(slot[0] + '-' + slot[1]) + '</button>';
+      var active = bulkForm.startTime === slot[0] && bulkForm.endTime === slot[1];
+      return '<button class="club-action' + (active ? ' active' : '') + '" type="button" data-availability-preset="' + escapeHtml(slot[0] + '-' + slot[1]) + '">' + escapeHtml(slot[0] + '-' + slot[1]) + '</button>';
     }).join('');
-    return '<form class="edu-free-manage" id="edu-availability-bulk-form" data-availability-release-mode="day">' +
+    return '<form class="edu-free-manage" id="edu-availability-bulk-form" data-availability-release-mode="' + escapeHtml(releaseMode) + '">' +
       '<div class="edu-free-manage-head">' +
         '<div><strong>放号排课</strong><span>按天临时放号，按周发布常规可约时间。</span></div>' +
         '<div class="edu-release-mode-tabs">' +
-          '<button class="active" type="button" data-availability-release-mode="day">按天放号</button>' +
-          '<button type="button" data-availability-release-mode="week">按周放号</button>' +
+          '<button class="' + (releaseMode === 'day' ? 'active' : '') + '" type="button" data-availability-release-mode="day">按天放号</button>' +
+          '<button class="' + (releaseMode === 'week' ? 'active' : '') + '" type="button" data-availability-release-mode="week">按周放号</button>' +
         '</div>' +
       '</div>' +
-      '<input type="hidden" name="releaseMode" value="day">' +
+      '<input type="hidden" name="releaseMode" value="' + escapeHtml(releaseMode) + '">' +
       '<div class="edu-filter-grid compact">' +
         '<input type="hidden" name="branchId" value="' + escapeHtml(eduState.branchId || '') + '">' +
-        '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions('') + '</select></label>' +
-        '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions('') + '</select></label>' +
-        '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option><option value="4">一对四</option></select></label>' +
-        '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions('') + '</select></label>' +
-        '<label data-availability-day-field>放号日期<input class="form-input" type="date" name="singleDate" value="' + escapeHtml(todayDateValue()) + '"></label>' +
-        '<label>开始时间<input class="form-input text-center" type="time" name="startTime" value="08:00" required></label>' +
-        '<label>结束时间<input class="form-input text-center" type="time" name="endTime" value="10:00" required></label>' +
-        '<label>每格时长<input class="form-input text-center" type="number" min="15" step="15" name="slotDurationMinutes" value="60"></label>' +
-        '<label>发布方式<select class="form-input" name="status"><option value="published">直接发布</option><option value="draft">先存草稿</option></select></label>' +
+        '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions(bulkForm.teacherId || '') + '</select></label>' +
+        '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions(bulkForm.courseProductId || '') + '</select></label>' +
+        '<label>容量<select class="form-input" name="capacity"><option value="1"' + (String(bulkForm.capacity || '1') === '1' ? ' selected' : '') + '>一对一</option><option value="2"' + (String(bulkForm.capacity || '') === '2' ? ' selected' : '') + '>一对二</option><option value="3"' + (String(bulkForm.capacity || '') === '3' ? ' selected' : '') + '>一对三</option><option value="4"' + (String(bulkForm.capacity || '') === '4' ? ' selected' : '') + '>一对四</option></select></label>' +
+        '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions(bulkForm.resourceId || '') + '</select></label>' +
+        '<label data-availability-day-field>放号日期<input class="form-input" type="date" name="singleDate" value="' + escapeHtml(bulkForm.singleDate || todayDateValue()) + '"></label>' +
+        '<label>开始时间<input class="form-input text-center" type="time" name="startTime" value="' + escapeHtml(bulkForm.startTime || '08:00') + '" required></label>' +
+        '<label>结束时间<input class="form-input text-center" type="time" name="endTime" value="' + escapeHtml(bulkForm.endTime || '10:00') + '" required></label>' +
+        '<label>每格时长<input class="form-input text-center" type="number" min="15" step="15" name="slotDurationMinutes" value="' + escapeHtml(bulkForm.slotDurationMinutes || '60') + '"></label>' +
+        '<label>发布方式<select class="form-input" name="status"><option value="published"' + ((bulkForm.status || 'published') === 'published' ? ' selected' : '') + '>直接发布</option><option value="draft"' + (bulkForm.status === 'draft' ? ' selected' : '') + '>先存草稿</option></select></label>' +
       '</div>' +
       '<div class="edu-week-release-panel" data-availability-week-panel>' +
         '<div class="edu-free-calendar-head"><span>本周/下周可多选，已选<strong data-availability-selected-count>0</strong>天</span><span class="muted" data-availability-calendar-note>当前周期</span></div>' +
@@ -3266,11 +3282,12 @@
   };
 
   var saveEduAvailabilityBulk = function (form) {
-    var data = formData(form);
+    var data = captureAvailabilityBulkForm(form);
     var dates = data.releaseMode === "day"
       ? [data.singleDate || todayDateValue()]
       : (data.dates ? (Array.isArray(data.dates) ? data.dates : [data.dates]) : []);
     dates = dates.filter(Boolean);
+    setAvailabilityPreviewDate(dates[0]);
     if (!dates.length) return window.alert(data.releaseMode === "week" ? "请先选择要放号的日期。" : "请选择放号日期。");
     if (!data.teacherId) return window.alert("请选择教练。");
     if (!data.branchId && !eduState.branchId) return window.alert("请先在页面顶部选择分店。");
@@ -3866,6 +3883,39 @@
     if (count) count.textContent = checked;
   };
 
+  var syncAvailabilityPresetState = function (form) {
+    if (!form) return;
+    var start = form.querySelector('[name="startTime"]');
+    var end = form.querySelector('[name="endTime"]');
+    var value = (start && start.value || "") + "-" + (end && end.value || "");
+    form.querySelectorAll("[data-availability-preset]").forEach(function (button) {
+      button.classList.toggle("active", button.getAttribute("data-availability-preset") === value);
+    });
+  };
+
+  var captureAvailabilityBulkForm = function (form) {
+    var data = formData(form);
+    data.dates = [];
+    form.querySelectorAll('input[name="dates"]:checked').forEach(function (input) {
+      data.dates.push(input.value);
+    });
+    eduState.availabilityBulkForm = data;
+    return data;
+  };
+
+  var setAvailabilityPreviewDate = function (date) {
+    if (!date) return;
+    eduState.availabilityFilters = Object.assign({}, eduState.availabilityFilters || {}, { matrixDate: date });
+    var filter = document.getElementById("edu-availability-filter-form");
+    var input = filter && filter.querySelector('[name="matrixDate"]');
+    if (input) input.value = date;
+  };
+
+  var refreshAvailabilityPreviewDate = function (date) {
+    setAvailabilityPreviewDate(date);
+    renderEduPanel();
+  };
+
   var syncAvailabilityReleaseMode = function (form, mode) {
     if (!form) return;
     var nextMode = mode === "week" ? "week" : "day";
@@ -3876,6 +3926,7 @@
       button.classList.toggle("active", button.getAttribute("data-availability-release-mode") === nextMode);
     });
     syncAvailabilityBulkSelection();
+    captureAvailabilityBulkForm(form);
   };
 
   var bindAvailabilityBulkControls = function (form) {
@@ -3883,10 +3934,34 @@
     form.querySelectorAll("button[data-availability-release-mode]").forEach(function (button) {
       button.addEventListener("click", function () {
         syncAvailabilityReleaseMode(form, button.getAttribute("data-availability-release-mode"));
+        captureAvailabilityBulkForm(form);
       });
     });
     form.querySelectorAll('input[name="dates"]').forEach(function (input) {
-      input.addEventListener("change", syncAvailabilityBulkSelection);
+      input.addEventListener("change", function () {
+        syncAvailabilityBulkSelection();
+        var data = captureAvailabilityBulkForm(form);
+        if (input.checked) refreshAvailabilityPreviewDate(input.value);
+        else if (data.dates && data.dates.length) refreshAvailabilityPreviewDate(data.dates[0]);
+      });
+    });
+    var singleDate = form.querySelector('[name="singleDate"]');
+    if (singleDate) {
+      singleDate.addEventListener("change", function () {
+        captureAvailabilityBulkForm(form);
+        refreshAvailabilityPreviewDate(singleDate.value);
+      });
+    }
+    form.querySelectorAll('[name="teacherId"], [name="courseProductId"], [name="capacity"], [name="resourceId"], [name="slotDurationMinutes"], [name="status"]').forEach(function (input) {
+      input.addEventListener("change", function () {
+        captureAvailabilityBulkForm(form);
+      });
+    });
+    form.querySelectorAll('[name="startTime"], [name="endTime"]').forEach(function (input) {
+      input.addEventListener("change", function () {
+        captureAvailabilityBulkForm(form);
+        syncAvailabilityPresetState(form);
+      });
     });
     form.querySelectorAll("[data-availability-preset]").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -3894,6 +3969,8 @@
         if (parts.length === 2) {
           form.querySelector('[name="startTime"]').value = parts[0];
           form.querySelector('[name="endTime"]').value = parts[1];
+          captureAvailabilityBulkForm(form);
+          syncAvailabilityPresetState(form);
         }
       });
     });
@@ -3920,10 +3997,12 @@
           note.textContent = mode === "holiday" && !changed ? "无节假日" : "已更新";
         }
         syncAvailabilityBulkSelection();
+        captureAvailabilityBulkForm(form);
       });
     });
     syncAvailabilityReleaseMode(form, form.querySelector('[name="releaseMode"]') && form.querySelector('[name="releaseMode"]').value || "day");
     syncAvailabilityBulkSelection();
+    syncAvailabilityPresetState(form);
   };
 
   var bindEduPanelEvents = function () {

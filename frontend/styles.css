@@ -1502,6 +1502,12 @@ a {
   justify-content: flex-start;
 }
 
+.edu-free-presets .club-action.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
 .edu-free-slot {
   margin-bottom: 5px;
   border-radius: 5px;
