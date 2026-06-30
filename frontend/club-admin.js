@@ -2315,9 +2315,13 @@
     var item = slot.availability || {};
     var canPublish = slot.status === "draft" && slot.id;
     var canPause = slot.status === "published" && slot.id;
+    var canResume = slot.status === "paused" && slot.id;
+    var canDelete = (slot.status === "draft" || slot.status === "paused") && slot.id;
     var actionHtml = '';
     if (canPublish) actionHtml += '<button class="club-action mini" type="button" data-booking-publish-availability="' + escapeHtml(slot.id) + '">发布</button>';
     if (canPause) actionHtml += '<button class="club-action mini" type="button" data-booking-pause-availability="' + escapeHtml(slot.id) + '">暂停</button>';
+    if (canResume) actionHtml += '<button class="club-action mini" type="button" data-booking-resume-availability="' + escapeHtml(slot.id) + '">恢复</button>';
+    if (canDelete) actionHtml += '<button class="club-action mini danger" type="button" data-booking-delete-availability="' + escapeHtml(slot.id) + '">删除</button>';
     return '<div class="edu-booking-chip availability ' + escapeHtml(slot.status) + '">' +
       '<div class="edu-booking-chip-head">' +
         '<strong>' + escapeHtml(availabilityStatusLabel(slot.status)) + '</strong>' +
@@ -3385,8 +3389,21 @@
   var pauseBookingAvailability = function (id) {
     if (!id) return;
     if (!clubData.eduPauseBookingAvailability) return window.alert("暂停放号接口暂不可用。");
-    if (!window.confirm("确认暂停这个可约时间？暂停后学员不能继续预约该格子。")) return;
+    if (!window.confirm("确认暂停这个可约时间？暂停只会停止新预约，不会取消已有约课。")) return;
     return withEduSaving(clubData.eduPauseBookingAvailability(selectedClubId, id, { reason: "Web 管理端暂停" }));
+  };
+
+  var resumeBookingAvailability = function (id) {
+    if (!id) return;
+    if (!clubData.eduResumeBookingAvailability) return window.alert("恢复放号接口暂不可用。");
+    return withEduSaving(clubData.eduResumeBookingAvailability(selectedClubId, id, { reason: "Web 管理端恢复" }));
+  };
+
+  var deleteBookingAvailability = function (id) {
+    if (!id) return;
+    if (!clubData.eduDeleteBookingAvailability) return window.alert("删除放号接口暂不可用。");
+    if (!window.confirm("确认删除这个放号？仅无约课、无课次占用的草稿或暂停放号可以删除。")) return;
+    return withEduSaving(clubData.eduDeleteBookingAvailability(selectedClubId, id));
   };
 
   var copyPreviousBookingAvailabilityWeek = function () {
@@ -4301,6 +4318,16 @@
     eduPanelEl.querySelectorAll("[data-booking-pause-availability]").forEach(function (button) {
       button.addEventListener("click", function () {
         pauseBookingAvailability(button.getAttribute("data-booking-pause-availability"));
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-booking-resume-availability]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        resumeBookingAvailability(button.getAttribute("data-booking-resume-availability"));
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-booking-delete-availability]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        deleteBookingAvailability(button.getAttribute("data-booking-delete-availability"));
       });
     });
     eduPanelEl.querySelectorAll("[data-copy-booking-availability-week]").forEach(function (button) {

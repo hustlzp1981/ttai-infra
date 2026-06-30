@@ -344,6 +344,12 @@
     eduPauseBookingAvailability: function (clubId, id, payload) {
       return apiPost("/club-admin/edu/booking-availability/" + encodeURIComponent(id) + "/pause", Object.assign({ clubId: clubId }, payload || {}), true);
     },
+    eduResumeBookingAvailability: function (clubId, id, payload) {
+      return apiPost("/club-admin/edu/booking-availability/" + encodeURIComponent(id) + "/resume", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
+    eduDeleteBookingAvailability: function (clubId, id) {
+      return apiDelete("/club-admin/edu/booking-availability/" + encodeURIComponent(id), { clubId: clubId }, true);
+    },
     eduResources: function (clubId, params) {
       return apiGet("/club-admin/edu/resources", Object.assign({ clubId: clubId, page: 1, pageSize: 100 }, params || {}), true);
     },
