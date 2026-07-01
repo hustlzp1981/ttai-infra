@@ -39,6 +39,9 @@
 | GET | /api/video-shares/detail?code= | 公开只读视频分享详情 | ✅ |
 | POST | /api/club-admin/edu/students/import | 管理端导入学员 Excel，按手机号/学员信息去重 | ✅ |
 | POST | /api/club-edu/my/bookings/:id/request-change | 学员对已确认约课申请改期 | ✅ |
+| POST | /api/club-admin/edu/bookings/direct-confirm | 管理员线下约定后直接代约并确认，写入 confirmed booking/session/roster | ✅ |
+| POST | /api/club-admin/edu/bookings/copy-preview | 复制某天/某周已确认约课为目标日期草稿预览，不写库 | ✅ |
+| POST | /api/club-admin/edu/bookings/publish-draft | 发布复制草稿，复用管理员代约创建 confirmed 约课 | ✅ |
 
 ---
 

@@ -388,6 +388,15 @@
     eduBookings: function (clubId, params) {
       return apiGet("/club-admin/edu/bookings", Object.assign({ clubId: clubId, page: 1, pageSize: 300 }, params || {}), true);
     },
+    eduDirectConfirmBooking: function (clubId, payload) {
+      return apiPost("/club-admin/edu/bookings/direct-confirm", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
+    eduCopyBookingPreview: function (clubId, payload) {
+      return apiPost("/club-admin/edu/bookings/copy-preview", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
+    eduPublishBookingDraft: function (clubId, payload) {
+      return apiPost("/club-admin/edu/bookings/publish-draft", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
     eduConfirmBooking: function (clubId, id, payload) {
       return apiPost("/club-admin/edu/bookings/" + encodeURIComponent(id) + "/confirm", Object.assign({ clubId: clubId }, payload || {}), true);
     },

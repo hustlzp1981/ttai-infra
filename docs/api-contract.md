@@ -536,3 +536,119 @@ POST /api/club-admin/edu/bookings/:id/reject
 说明:
 - 当 booking 状态是 `change_requested` 时，拒绝接口会清空改期申请字段，booking 状态恢复为 `confirmed`。
 - 原已确认课次和 roster 不变。
+
+### 4.4 管理员直接代约与复制约课草稿 (2026-07-01)
+
+#### 4.4.1 直接代约并确认
+POST /api/club-admin/edu/bookings/direct-confirm
+请求头: Authorization: Bearer <token>
+请求体:
+```
+{
+  "clubId": "ttai-edu-test-club",
+  "branchId": "b-east",
+  "teacherId": "teacher-id",
+  "courseProductId": "course-id",
+  "resourceId": "table-id",
+  "resourceLabel": "1号台",
+  "capacity": 2,
+  "startAt": "2026-07-08T18:00:00+08:00",
+  "endAt": "2026-07-08T19:00:00+08:00",
+  "students": [
+    { "studentId": "student-a", "walletId": "wallet-a", "expectedDeductUnits10": 10 },
+    { "studentId": "student-b", "walletId": "wallet-b", "expectedDeductUnits10": 10 }
+  ],
+  "adminMessage": "管理员代约确认"
+}
+```
+说明:
+- 用于管理员把线下微信/电话已约定的课程直接写入约课表，booking 创建后即为 `confirmed`。
+- 新增 booking `sourceMode=admin_direct`；不要求目标时间先发布空位，但仍校验分店权限、学员、课包、时间有效性、容量以及教练/场地冲突。
+- 同一时间同一教练同一场地的一对多学员会复用同一 `EduSession`，并分别写入 `EduSessionRoster`。
+- 若学员已绑定微信，`requestedBy` 写入学员 openid，学员端“我的约课”可看到该已确认约课；未绑定时仅管理端可见。
+
+响应:
+```
+{
+  "code": 0,
+  "data": {
+    "session": { "id": "session-id", "status": "scheduled" },
+    "items": [
+      { "booking": { "id": "booking-id", "status": "confirmed" }, "roster": { "id": "roster-id" } }
+    ]
+  }
+}
+```
+错误:
+- 400: 缺少分店/教练/学员/时间/课包，或学员人数超过容量
+- 403: 无该分店管理权限
+- 404: 学员或课包不存在
+- 409: 同一学员同一时段已有约课，或教练/场地冲突，或容量不足
+
+#### 4.4.2 复制约课预览
+POST /api/club-admin/edu/bookings/copy-preview
+请求头: Authorization: Bearer <token>
+请求体:
+```
+{
+  "clubId": "ttai-edu-test-club",
+  "range": "day",
+  "branchId": "b-east",
+  "teacherId": "",
+  "sourceDate": "2026-07-08",
+  "targetDate": "2026-07-09"
+}
+```
+`range=week` 时使用 `sourceWeekStartDate` 和 `targetWeekStartDate`，日期均为目标周周一。
+
+说明:
+- 只读取源日期/源周的 `confirmed` 约课，按日期偏移生成草稿，不写库。
+- 草稿保留学生、课包、教练、课程、球台、容量和时间结构，供管理端确认后发布。
+
+响应:
+```
+{
+  "code": 0,
+  "data": {
+    "range": "day",
+    "sourceStartDate": "2026-07-08",
+    "targetStartDate": "2026-07-09",
+    "drafts": [
+      {
+        "sourceBookingId": "booking-id",
+        "branchId": "b-east",
+        "teacherId": "teacher-id",
+        "startAt": "2026-07-09T10:00:00.000Z",
+        "endAt": "2026-07-09T11:00:00.000Z",
+        "students": [{ "studentId": "student-a", "walletId": "wallet-a", "expectedDeductUnits10": 10 }]
+      }
+    ]
+  }
+}
+```
+
+#### 4.4.3 发布约课草稿
+POST /api/club-admin/edu/bookings/publish-draft
+请求头: Authorization: Bearer <token>
+请求体:
+```
+{
+  "clubId": "ttai-edu-test-club",
+  "drafts": [ /* copy-preview 返回的 drafts */ ]
+}
+```
+说明:
+- 对每条草稿复用 direct-confirm 创建逻辑，成功后生成 `confirmed` booking + session + roster。
+- 已存在同一学员同一时段 active booking 时跳过并返回 `skipped`，不会重复创建。
+
+响应:
+```
+{
+  "code": 0,
+  "data": {
+    "created": [{ "session": { "id": "session-id" }, "items": [] }],
+    "skipped": [{ "message": "同一时段已有约课记录" }],
+    "errors": []
+  }
+}
+```

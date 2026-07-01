@@ -1776,6 +1776,7 @@
           branchId: item.branchId || "",
           courseProductId: item.courseProductId || "",
           courseName: item.courseName || courseName(item.courseProductId) || "不限课程",
+          resourceId: item.resourceId || "",
           resourceLabel: item.resourceLabel || ((findById(eduState.resources, item.resourceId) || {}).name) || "",
           capacity: Number(item.capacity || 1),
           status: item.status || "draft"
@@ -2368,7 +2369,19 @@
       return bookingStartDateKey(booking) === date && bookingStartTimeKey(booking) === time && String(booking.teacherId || "") === String(teacherId || "");
     });
     var html = cellSlots.map(availabilitySlotCardHtml).join("") + cellBookings.map(bookingMatrixCardHtml).join("");
-    return '<div class="edu-booking-cell ' + (html ? '' : 'empty') + '">' + (html || '<span>无安排</span>') + '</div>';
+    var seed = cellSlots[0] || cellBookings[0] || {};
+    var endTime = seed.endTime || timeOfMinutes(minutesOfTime(time) + 60);
+    var addButton = '<button class="club-action mini" type="button" data-direct-booking-add="1"' +
+      ' data-date="' + escapeHtml(date) + '"' +
+      ' data-start-time="' + escapeHtml(time) + '"' +
+      ' data-end-time="' + escapeHtml(endTime) + '"' +
+      ' data-teacher-id="' + escapeHtml(teacherId || seed.teacherId || '') + '"' +
+      ' data-branch-id="' + escapeHtml(seed.branchId || eduState.branchId || '') + '"' +
+      ' data-course-product-id="' + escapeHtml(seed.courseProductId || '') + '"' +
+      ' data-resource-id="' + escapeHtml(seed.resourceId || '') + '"' +
+      ' data-resource-label="' + escapeHtml(seed.resourceLabel || '') + '"' +
+      ' data-capacity="' + escapeHtml(seed.capacity || 1) + '">+ 代约</button>';
+    return '<div class="edu-booking-cell ' + (html ? '' : 'empty') + '">' + (html || '<span>无安排</span>') + '<div class="edu-booking-chip-actions">' + addButton + '</div></div>';
   };
 
   var availabilityMatrixHtml = function () {
@@ -2401,6 +2414,9 @@
       '<div class="edu-list-toolbar">' +
         '<div class="club-actions">' +
           '<button class="club-action primary" type="button" data-booking-publish-range="' + escapeHtml(Object.keys(draftIds).join(",")) + '">发布当前草稿</button>' +
+          '<button class="club-action" type="button" data-direct-booking-add="1">代约确认</button>' +
+          '<button class="club-action" type="button" data-copy-bookings="day">复制当天约课</button>' +
+          '<button class="club-action" type="button" data-copy-bookings="week">复制本周约课</button>' +
           '<button class="club-action" type="button" data-edu-create="availability">新增单条</button>' +
           '<button class="club-action" type="button" data-copy-booking-availability-week="1">复制上周放号</button>' +
         '</div>' +
@@ -3445,6 +3461,185 @@
     return true;
   };
 
+  var directBookingWalletOptions = function (studentId, courseProductId, selected) {
+    if (!studentId) return '<option value="">先选择学员</option>';
+    var booking = { studentId: studentId, courseProductId: courseProductId || "" };
+    var rows = (eduState.wallets || []).filter(function (wallet) {
+      return walletUsableForBooking(wallet, booking);
+    });
+    if (!rows.length) return '<option value="">无可用课包</option>';
+    var selectedId = selected || idOf(rows[0]);
+    return rows.map(function (wallet) {
+      var id = idOf(wallet);
+      return '<option value="' + escapeHtml(id) + '"' + (String(id) === String(selectedId || "") ? ' selected' : '') + '>' + escapeHtml(walletLabelForBooking(wallet)) + '</option>';
+    }).join("");
+  };
+
+  var directBookingPrefillFromButton = function (button) {
+    var range = availabilityMatrixRange();
+    var filters = eduState.availabilityFilters || {};
+    var date = button && button.getAttribute("data-date") || range.focusDate || todayDateValue();
+    var startTime = button && button.getAttribute("data-start-time") || "09:00";
+    return {
+      branchId: button && button.getAttribute("data-branch-id") || filters.branchId || eduState.branchId || "",
+      teacherId: button && button.getAttribute("data-teacher-id") || filters.teacherId || "",
+      courseProductId: button && button.getAttribute("data-course-product-id") || "",
+      resourceId: button && button.getAttribute("data-resource-id") || "",
+      resourceLabel: button && button.getAttribute("data-resource-label") || "",
+      capacity: Number(button && button.getAttribute("data-capacity") || 1),
+      startAt: date + "T" + startTime,
+      endAt: date + "T" + (button && button.getAttribute("data-end-time") || timeOfMinutes(minutesOfTime(startTime) + 60))
+    };
+  };
+
+  var directBookingStudentRowsHtml = function (prefill) {
+    var count = Math.min(Math.max(Number(prefill && prefill.capacity || 1), 1), 4);
+    var rows = [];
+    for (var i = 0; i < 4; i += 1) {
+      rows.push('<div class="edu-direct-student-row" data-direct-student-row="' + i + '"' + (i >= count ? ' data-optional-row="1" style="display:none"' : '') + '>' +
+        '<label>学员' + (i + 1) + '<select class="form-input" name="directStudentId">' + studentOptions("") + '</select></label>' +
+        '<label>课包<select class="form-input" name="directWalletId">' + directBookingWalletOptions("", prefill && prefill.courseProductId, "") + '</select></label>' +
+        '<label>扣课<input class="form-input" name="directDeductUnits10" type="number" min="0.1" step="0.1" value="1"></label>' +
+      '</div>');
+    }
+    return rows.join("");
+  };
+
+  var directBookingFormHtml = function (prefill) {
+    prefill = prefill || directBookingPrefillFromButton(null);
+    return '<form class="edu-form" id="edu-direct-booking-form">' +
+      '<label>分店<select class="form-input" name="branchId" required>' + branchOptions(prefill.branchId) + '</select></label>' +
+      '<label>教练<select class="form-input" name="teacherId" required>' + teacherOptions(prefill.teacherId) + '</select></label>' +
+      '<label>课程<select class="form-input" name="courseProductId">' + bookingCourseOptions(prefill.courseProductId) + '</select></label>' +
+      '<label>容量<select class="form-input" name="capacity"><option value="1">一对一</option><option value="2">一对二</option><option value="3">一对三</option><option value="4">一对四</option></select></label>' +
+      '<label>开始<input class="form-input" name="startAt" type="datetime-local" value="' + escapeHtml(prefill.startAt || "") + '" required></label>' +
+      '<label>结束<input class="form-input" name="endAt" type="datetime-local" value="' + escapeHtml(prefill.endAt || "") + '" required></label>' +
+      '<label>座位/球台<select class="form-input" name="resourceId">' + resourceOptions(prefill.resourceId) + '</select></label>' +
+      '<label>球台名称<input class="form-input" name="resourceLabel" value="' + escapeHtml(prefill.resourceLabel || "") + '"></label>' +
+      directBookingStudentRowsHtml(prefill) +
+      '<label class="wide">备注<input class="form-input" name="adminMessage" value="管理员代约确认"></label>' +
+      '<div class="club-actions wide"><button class="club-action primary" type="submit">确认约课</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
+    '</form>';
+  };
+
+  var syncDirectBookingWallets = function (form) {
+    if (!form) return;
+    var courseProductId = form.elements.courseProductId && form.elements.courseProductId.value || "";
+    form.querySelectorAll("[data-direct-student-row]").forEach(function (row) {
+      var student = row.querySelector('[name="directStudentId"]');
+      var wallet = row.querySelector('[name="directWalletId"]');
+      if (!student || !wallet) return;
+      var current = wallet.value;
+      wallet.innerHTML = directBookingWalletOptions(student.value, courseProductId, current);
+    });
+  };
+
+  var syncDirectBookingCapacityRows = function (form) {
+    if (!form) return;
+    var capacity = Math.min(Math.max(Number(form.elements.capacity && form.elements.capacity.value || 1), 1), 4);
+    form.querySelectorAll("[data-direct-student-row]").forEach(function (row, index) {
+      row.style.display = index < capacity ? "" : "none";
+    });
+  };
+
+  var openDirectBookingModal = function (prefill) {
+    if (!clubData.eduDirectConfirmBooking) return window.alert("管理员代约接口暂不可用。");
+    renderEduModal("代约确认", directBookingFormHtml(prefill));
+    setSelectValue("capacity", String(Math.min(Math.max(Number(prefill && prefill.capacity || 1), 1), 4)));
+    var form = document.getElementById("edu-direct-booking-form");
+    syncDirectBookingCapacityRows(form);
+    syncDirectBookingWallets(form);
+  };
+
+  var directBookingPayload = function (form) {
+    var data = formData(form);
+    var students = [];
+    form.querySelectorAll("[data-direct-student-row]").forEach(function (row) {
+      if (row.style.display === "none") return;
+      var student = row.querySelector('[name="directStudentId"]');
+      var wallet = row.querySelector('[name="directWalletId"]');
+      var deduct = row.querySelector('[name="directDeductUnits10"]');
+      if (!student || !student.value) return;
+      if (!wallet || !wallet.value) throw new Error("请选择 " + studentName(student.value) + " 的课包");
+      students.push({
+        studentId: student.value,
+        walletId: wallet.value,
+        expectedDeductUnits10: lessonInputUnits10(deduct && deduct.value || 1)
+      });
+    });
+    if (!students.length) throw new Error("请至少选择 1 名学员");
+    if (students.length > Number(data.capacity || 1)) throw new Error("学员人数不能超过容量");
+    return {
+      branchId: data.branchId,
+      teacherId: data.teacherId,
+      courseProductId: data.courseProductId,
+      resourceId: data.resourceId,
+      resourceLabel: data.resourceLabel,
+      capacity: Number(data.capacity || 1),
+      startAt: data.startAt,
+      endAt: data.endAt,
+      students: students,
+      adminMessage: data.adminMessage || "管理员代约确认"
+    };
+  };
+
+  var submitDirectBooking = function (form) {
+    var payload;
+    try {
+      payload = directBookingPayload(form);
+    } catch (err) {
+      return window.alert(err.message || "代约信息不完整");
+    }
+    return withEduSaving(clubData.eduDirectConfirmBooking(selectedClubId, payload));
+  };
+
+  var bookingCopyPreviewHtml = function (data) {
+    var drafts = data && data.drafts || [];
+    eduState.bookingCopyDrafts = drafts;
+    return '<div class="edu-copy-preview">' +
+      '<div class="edu-booking-summary"><div><strong>复制约课草稿</strong><span>从 ' + escapeHtml(data && data.sourceStartDate || '-') + ' 复制到 ' + escapeHtml(data && data.targetStartDate || '-') + '</span></div><div class="edu-booking-kpis"><span>草稿 ' + drafts.length + '</span></div></div>' +
+      '<div class="admin-table-wrap compact"><table class="admin-table"><thead><tr><th>时间</th><th>学员</th><th>教练</th><th>类型</th></tr></thead><tbody>' +
+        (drafts.length ? drafts.map(function (draft) {
+          var student = (draft.students || [])[0] || {};
+          return '<tr><td>' + escapeHtml(formatCST(draft.startAt)) + '</td><td>' + escapeHtml(studentName(student.studentId)) + '</td><td>' + escapeHtml(teacherName(draft.teacherId)) + '</td><td>' + escapeHtml(capacityLabel(draft.capacity)) + '</td></tr>';
+        }).join("") : '<tr><td colspan="4">没有可复制的已确认约课</td></tr>') +
+      '</tbody></table></div>' +
+      '<div class="club-actions"><button class="club-action primary" type="button" data-publish-booking-drafts="1"' + (drafts.length ? '' : ' disabled') + '>发布草稿</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
+    '</div>';
+  };
+
+  var copyBookingDrafts = function (rangeType) {
+    if (!clubData.eduCopyBookingPreview || !clubData.eduPublishBookingDraft) return window.alert("复制约课接口暂不可用。");
+    var range = availabilityMatrixRange();
+    var filters = eduState.availabilityFilters || {};
+    var weekMode = rangeType === "week";
+    var sourceDate = weekMode ? range.weekStartDate : range.focusDate;
+    var defaultTarget = dateOnlyText(addDays(parseDateKey(sourceDate), weekMode ? 7 : 1));
+    var targetDate = window.prompt(weekMode ? "复制到哪一周？请输入目标周一日期" : "复制到哪一天？请输入目标日期", defaultTarget);
+    if (targetDate === null) return Promise.resolve();
+    targetDate = String(targetDate || "").slice(0, 10);
+    if (!targetDate) return window.alert("目标日期不能为空。");
+    return clubData.eduCopyBookingPreview(selectedClubId, {
+      range: weekMode ? "week" : "day",
+      branchId: filters.branchId || eduState.branchId || "",
+      teacherId: filters.teacherId || "",
+      sourceDate: sourceDate,
+      sourceWeekStartDate: weekMode ? sourceDate : "",
+      targetDate: targetDate,
+      targetWeekStartDate: weekMode ? targetDate : ""
+    }).then(function (data) {
+      renderEduModal("复制约课草稿", bookingCopyPreviewHtml(data || {}));
+    }).catch(function (err) {
+      eduPanelEl.insertAdjacentHTML("afterbegin", eduErrorHtml(err));
+    });
+  };
+
+  var publishBookingDrafts = function () {
+    var drafts = eduState.bookingCopyDrafts || [];
+    if (!drafts.length) return window.alert("没有可发布的草稿。");
+    return withEduSaving(clubData.eduPublishBookingDraft(selectedClubId, { drafts: drafts }));
+  };
+
   var confirmBookingWithWallet = function (booking, wallets) {
     var usable = (wallets || []).filter(function (wallet) {
       return walletUsableForBooking(wallet, booking);
@@ -4108,6 +4303,7 @@
     var attendanceForm = document.getElementById("edu-attendance-form");
     var copyMoveForm = document.getElementById("edu-copy-move-form");
     var batchSessionForm = document.getElementById("edu-batch-session-form");
+    var directBookingForm = document.getElementById("edu-direct-booking-form");
     var availabilityBulkForm = document.getElementById("edu-availability-bulk-form");
     var scheduleFilterForm = document.getElementById("edu-schedule-filter-form");
     var scheduleViewFilterForm = document.getElementById("edu-schedule-view-filter-form");
@@ -4131,6 +4327,15 @@
     if (attendanceForm) attendanceForm.addEventListener("submit", function (e) { e.preventDefault(); submitEduAttendance(attendanceForm); });
     if (copyMoveForm) copyMoveForm.addEventListener("submit", function (e) { e.preventDefault(); applyCopyMoveSessions(copyMoveForm); });
     if (batchSessionForm) batchSessionForm.addEventListener("submit", function (e) { e.preventDefault(); applyBatchSessions(batchSessionForm); });
+    if (directBookingForm) {
+      directBookingForm.addEventListener("submit", function (e) { e.preventDefault(); submitDirectBooking(directBookingForm); });
+      directBookingForm.querySelectorAll('[name="directStudentId"], [name="courseProductId"], [name="capacity"]').forEach(function (input) {
+        input.addEventListener("change", function () {
+          syncDirectBookingCapacityRows(directBookingForm);
+          syncDirectBookingWallets(directBookingForm);
+        });
+      });
+    }
     if (scheduleFilterForm) scheduleFilterForm.addEventListener("submit", function (e) {
       e.preventDefault();
       eduState.scheduleFilters = Object.assign({}, eduState.scheduleFilters || {}, formData(scheduleFilterForm));
@@ -4208,6 +4413,21 @@
     });
     eduPanelEl.querySelectorAll("[data-schedule-view-export]").forEach(function (button) {
       button.addEventListener("click", downloadCurrentScheduleViewExcel);
+    });
+    eduPanelEl.querySelectorAll("[data-direct-booking-add]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        openDirectBookingModal(directBookingPrefillFromButton(button));
+      });
+    });
+    eduPanelEl.querySelectorAll("[data-copy-bookings]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        copyBookingDrafts(button.getAttribute("data-copy-bookings"));
+      });
+    });
+    document.querySelectorAll("[data-publish-booking-drafts]").forEach(function (button) {
+      if (button.dataset.eduBound) return;
+      button.dataset.eduBound = "1";
+      button.addEventListener("click", publishBookingDrafts);
     });
     eduPanelEl.querySelectorAll("[data-schedule-export-save]").forEach(function (button) {
       button.addEventListener("click", saveScheduleExcel);
