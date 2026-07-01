@@ -37,6 +37,8 @@
 | GET | /api/competitions/eightcups | 八大杯赛信息 | ✅ |
 | POST | /api/video-shares | 创建视频公开分享短码 | ✅ |
 | GET | /api/video-shares/detail?code= | 公开只读视频分享详情 | ✅ |
+| GET | /api/club-admin/clubs/:id/brand-config | 管理端读取俱乐部品牌配置，未配置返回空对象 | ✅ |
+| GET | /api/club-admin/edu/pending-counts | 管理端教务待办计数：待点名、待确认约课、课包到期、新线索 | ✅ |
 | POST | /api/club-admin/edu/students/import | 管理端导入学员 Excel，按手机号/学员信息去重 | ✅ |
 | POST | /api/club-edu/my/bookings/:id/request-change | 学员对已确认约课申请改期 | ✅ |
 | POST | /api/club-admin/edu/bookings/direct-confirm | 管理员线下约定后直接代约并确认，写入 confirmed booking/session/roster | ✅ |

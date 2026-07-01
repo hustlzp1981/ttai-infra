@@ -444,6 +444,52 @@ DELETE /api/chat/training-log/:id
 
 ## 4. 俱乐部教务管理
 
+### 4.0 管理端品牌配置与待办计数 (2026-07-01)
+
+#### 4.0.1 俱乐部品牌配置
+GET /api/club-admin/clubs/:id/brand-config
+请求头: Authorization: Bearer <token>
+说明:
+- `:id` 支持俱乐部 Mongo id 或 slug。
+- 鉴权复用俱乐部管理员权限；无管理权限返回 403。
+- 当前俱乐部未配置 `brandConfig` 时返回空对象，前端使用默认品牌。
+
+响应:
+```
+{
+  "code": 0,
+  "data": {
+    "brandConfig": {}
+  }
+}
+```
+
+#### 4.0.2 教务待办计数
+GET /api/club-admin/edu/pending-counts?clubId=ttai-edu-test-club
+请求头: Authorization: Bearer <token>
+说明:
+- 鉴权: `edu.course.read`。
+- `pendingAttendance`: `EduSession` 中 `status in ['scheduled','pending_attendance']` 且 `startAt <= now`。
+- `pendingBookings`: `EduBookingRequest.status = 'requested'`。
+- `pendingExpiry`: `EduWallet.status = 'active'` 且 30 天内到期或剩余课时 `remainingUnits10 <= 30`。
+- `newLeads`: `ClubLead.status = 'new'`。
+- 教务计数按管理员分店权限过滤。
+
+响应:
+```
+{
+  "code": 0,
+  "data": {
+    "counts": {
+      "pendingAttendance": 0,
+      "pendingBookings": 0,
+      "pendingExpiry": 1,
+      "newLeads": 0
+    }
+  }
+}
+```
+
 ### 4.1 导入学员 Excel (2026-06-29)
 POST /api/club-admin/edu/students/import
 请求头: Authorization: Bearer <token>
