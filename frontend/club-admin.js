@@ -3593,6 +3593,24 @@
     return withEduSaving(clubData.eduDirectConfirmBooking(selectedClubId, payload));
   };
 
+  var bookingDraftStudentName = function (studentId) {
+    var student = findById(eduState.students, studentId) || {};
+    return student.name || student.studentName || studentId || "-";
+  };
+
+  var bookingDraftTeacherName = function (teacherId) {
+    var teacher = findById(eduState.staff, teacherId) || {};
+    return teacher.name || teacher.teacherName || teacherId || "-";
+  };
+
+  var bookingDraftCapacityLabel = function (capacity) {
+    var n = Number(capacity || 1);
+    if (n === 2) return "一对二";
+    if (n === 3) return "一对三";
+    if (n === 4) return "一对四";
+    return "一对一";
+  };
+
   var bookingCopyPreviewHtml = function (data) {
     var drafts = data && data.drafts || [];
     eduState.bookingCopyDrafts = drafts;
@@ -3601,7 +3619,7 @@
       '<div class="admin-table-wrap compact"><table class="admin-table"><thead><tr><th>时间</th><th>学员</th><th>教练</th><th>类型</th></tr></thead><tbody>' +
         (drafts.length ? drafts.map(function (draft) {
           var student = (draft.students || [])[0] || {};
-          return '<tr><td>' + escapeHtml(formatCST(draft.startAt)) + '</td><td>' + escapeHtml(studentName(student.studentId)) + '</td><td>' + escapeHtml(teacherName(draft.teacherId)) + '</td><td>' + escapeHtml(capacityLabel(draft.capacity)) + '</td></tr>';
+          return '<tr><td>' + escapeHtml(formatCST(draft.startAt)) + '</td><td>' + escapeHtml(bookingDraftStudentName(student.studentId)) + '</td><td>' + escapeHtml(bookingDraftTeacherName(draft.teacherId)) + '</td><td>' + escapeHtml(bookingDraftCapacityLabel(draft.capacity)) + '</td></tr>';
         }).join("") : '<tr><td colspan="4">没有可复制的已确认约课</td></tr>') +
       '</tbody></table></div>' +
       '<div class="club-actions"><button class="club-action primary" type="button" data-publish-booking-drafts="1"' + (drafts.length ? '' : ' disabled') + '>发布草稿</button><button class="club-action" type="button" data-edu-modal-close="1">取消</button></div>' +
