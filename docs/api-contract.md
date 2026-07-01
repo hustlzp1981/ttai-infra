@@ -464,7 +464,37 @@ GET /api/club-admin/clubs/:id/brand-config
 }
 ```
 
-#### 4.0.2 教务待办计数
+#### 4.0.2 公开品牌配置
+GET /api/clubs/public-brand?id=ttai-edu-test-club
+说明:
+- 公开只读接口，不需要登录。
+- `id` 支持俱乐部 Mongo id 或 slug。
+- 仅返回公开展示字段，用于小程序预约页/公开体验页加载联合品牌样式。
+- 当前俱乐部未配置 `brandConfig` 时返回可降级的俱乐部名称、简介等默认展示字段。
+
+响应:
+```
+{
+  "code": 0,
+  "data": {
+    "brand": {
+      "clubNameDisplay": "心铄乒乓",
+      "primaryColor": "",
+      "secondaryColor": "",
+      "logoUrl": "",
+      "subtitle": "俱乐部简介",
+      "poweredByText": "",
+      "customerService": null
+    }
+  }
+}
+```
+
+错误:
+- 400: 缺少 `id`
+- 404: 俱乐部不存在
+
+#### 4.0.3 教务待办计数
 GET /api/club-admin/edu/pending-counts?clubId=ttai-edu-test-club
 请求头: Authorization: Bearer <token>
 说明:
