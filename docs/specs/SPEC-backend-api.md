@@ -35,6 +35,8 @@
 | POST | /api/competitions/recommend | AI 智能推荐 | ✅ |
 | GET | /api/competitions/platforms | 赛事平台入口 | ✅ |
 | GET | /api/competitions/eightcups | 八大杯赛信息 | ✅ |
+| POST | /api/opencode/messages | 后台赛事链接录入异步任务，`event.import_link` 支持 `content.categoryHint` 指定赛事分类 | ✅ |
+| POST | /api/admin/opencode/event-drafts | OpenCode 内部写入赛事草稿/发布，支持 `categoryHint` 强制覆盖 `type/competitionLevel` | ✅ |
 | POST | /api/video-shares | 创建视频公开分享短码 | ✅ |
 | GET | /api/video-shares/detail?code= | 公开只读视频分享详情 | ✅ |
 | GET | /api/clubs/public-brand | 公开只读俱乐部品牌配置，供预约页/体验页加载联合品牌样式 | ✅ |

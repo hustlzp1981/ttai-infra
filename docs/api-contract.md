@@ -300,6 +300,33 @@ GET /api/events/refresh
  data: { fetched: 5, new: 2, timestamp: 2026-05-17T02:00:00Z }
  }
 
+### 2.11 后台赛事链接录入分类 hint
+POST /api/opencode/messages
+说明: 管理端提交 `type=event.import_link` 时，可在 `content.categoryHint` 携带管理员指定分类。后端 OpenCode worker 和 Express `/api/admin/opencode/event-drafts` 会以该 hint 覆盖模型输出的 `draftEvent.type` 与 `draftEvent.competitionLevel`。
+
+请求体:
+```
+{
+  "type": "event.import_link",
+  "content": {
+    "link": "https://mp.weixin.qq.com/...",
+    "rawText": "赛事通知原文",
+    "categoryHint": {
+      "key": "youth_professional",
+      "label": "青少年专业",
+      "type": "youth",
+      "competitionLevel": "professional"
+    }
+  }
+}
+```
+
+支持的 `categoryHint.key`:
+- `international` → `type=international`, `competitionLevel=professional`
+- `domestic` → `type=domestic`, `competitionLevel=professional`
+- `youth_professional` → `type=youth`, `competitionLevel=professional`
+- `youth_amateur` → `type=youth`, `competitionLevel=amateur`
+
 ---
 
 ## 3. 视频库/对手/训练统计 API (2026-05-17 | Howie)
