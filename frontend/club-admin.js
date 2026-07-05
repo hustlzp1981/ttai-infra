@@ -2312,7 +2312,22 @@
     '</div>';
   };
 
-  var availabilitySlotCardHtml = function (slot) {
+  var directBookingButtonHtml = function (date, time, teacherId, seed, capacity, label) {
+    seed = seed || {};
+    var endTime = seed.endTime || timeOfMinutes(minutesOfTime(time) + 60);
+    return '<button class="club-action mini" type="button" data-direct-booking-add="1"' +
+      ' data-date="' + escapeHtml(date) + '"' +
+      ' data-start-time="' + escapeHtml(time) + '"' +
+      ' data-end-time="' + escapeHtml(endTime) + '"' +
+      ' data-teacher-id="' + escapeHtml(teacherId || seed.teacherId || '') + '"' +
+      ' data-branch-id="' + escapeHtml(seed.branchId || eduState.branchId || '') + '"' +
+      ' data-course-product-id="' + escapeHtml(seed.courseProductId || '') + '"' +
+      ' data-resource-id="' + escapeHtml(seed.resourceId || '') + '"' +
+      ' data-resource-label="' + escapeHtml(seed.resourceLabel || '') + '"' +
+      ' data-capacity="' + escapeHtml(capacity || seed.capacity || 1) + '">' + escapeHtml(label || '+ 代约') + '</button>';
+  };
+
+  var availabilitySlotCardHtml = function (slot, extraActionHtml) {
     var item = slot.availability || {};
     var canPublish = slot.status === "draft" && slot.id;
     var canPause = slot.status === "published" && slot.id;
@@ -2323,6 +2338,7 @@
     if (canPause) actionHtml += '<button class="club-action mini" type="button" data-booking-pause-availability="' + escapeHtml(slot.id) + '">暂停</button>';
     if (canResume) actionHtml += '<button class="club-action mini" type="button" data-booking-resume-availability="' + escapeHtml(slot.id) + '">恢复</button>';
     if (canDelete) actionHtml += '<button class="club-action mini danger" type="button" data-booking-delete-availability="' + escapeHtml(slot.id) + '">删除</button>';
+    if (extraActionHtml) actionHtml += extraActionHtml;
     return '<div class="edu-booking-chip availability ' + escapeHtml(slot.status) + '">' +
       '<div class="edu-booking-chip-head">' +
         '<strong>' + escapeHtml(availabilityStatusLabel(slot.status)) + '</strong>' +
@@ -2378,23 +2394,19 @@
     if (!Number.isFinite(capacity) || capacity <= 0) capacity = 1;
     var remaining = Math.max(0, capacity - occupyingBookings.length);
     var visibleSlots = occupyingBookings.length ? [] : cellSlots;
-    var html = visibleSlots.map(availabilitySlotCardHtml).join("") + cellBookings.map(bookingMatrixCardHtml).join("");
+    var addInlineDirect = !occupyingBookings.length && activeSlot.id && String(activeSlot.status || "") === "published";
+    var html = visibleSlots.map(function (slot) {
+      var inlineAction = addInlineDirect && String(slot.id || "") === String(activeSlot.id || "")
+        ? directBookingButtonHtml(date, time, teacherId, slot, capacity, "代约")
+        : "";
+      return availabilitySlotCardHtml(slot, inlineAction);
+    }).join("") + cellBookings.map(bookingMatrixCardHtml).join("");
     var seed = cellSlots[0] || cellBookings[0] || {};
-    var endTime = seed.endTime || timeOfMinutes(minutesOfTime(time) + 60);
     var canAddDirect = !occupyingBookings.length || remaining > 0;
     var addLabel = occupyingBookings.length ? "补位" : "+ 代约";
     if (cellSlots.length && !cellSlots.some(function (slot) { return String(slot.status || "") === "published"; })) canAddDirect = false;
-    var addButton = '<button class="club-action mini" type="button" data-direct-booking-add="1"' +
-      ' data-date="' + escapeHtml(date) + '"' +
-      ' data-start-time="' + escapeHtml(time) + '"' +
-      ' data-end-time="' + escapeHtml(endTime) + '"' +
-      ' data-teacher-id="' + escapeHtml(teacherId || seed.teacherId || '') + '"' +
-      ' data-branch-id="' + escapeHtml(seed.branchId || eduState.branchId || '') + '"' +
-      ' data-course-product-id="' + escapeHtml(seed.courseProductId || '') + '"' +
-      ' data-resource-id="' + escapeHtml(seed.resourceId || '') + '"' +
-      ' data-resource-label="' + escapeHtml(seed.resourceLabel || '') + '"' +
-      ' data-capacity="' + escapeHtml(capacity) + '">' + escapeHtml(addLabel) + '</button>';
-    return '<div class="edu-booking-cell ' + (html ? '' : 'empty') + '">' + (html || '<span>无安排</span>') + (canAddDirect ? '<div class="edu-booking-chip-actions">' + addButton + '</div>' : '') + '</div>';
+    var addButton = directBookingButtonHtml(date, time, teacherId, seed, capacity, addLabel);
+    return '<div class="edu-booking-cell ' + (html ? '' : 'empty') + '">' + (html || '<span>无安排</span>') + (canAddDirect && !addInlineDirect ? '<div class="edu-booking-chip-actions">' + addButton + '</div>' : '') + '</div>';
   };
 
   var availabilityMatrixHtml = function () {
