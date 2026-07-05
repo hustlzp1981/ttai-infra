@@ -1789,6 +1789,7 @@
   var filteredBookingsForMatrix = function (range) {
     var filters = eduState.availabilityFilters || {};
     return (eduState.bookings || []).filter(function (item) {
+      if (["rejected", "cancelled", "expired"].indexOf(String(item.status || "")) >= 0) return false;
       var dateKey = bookingStartDateKey(item);
       if (!dateInMatrixRange(dateKey, range)) return false;
       if (!statusFilterMatches(item.status || "requested")) return false;
