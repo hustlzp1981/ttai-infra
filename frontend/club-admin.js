@@ -3350,6 +3350,28 @@
     };
   };
 
+  var bookingAvailabilityPayloads = function (data, date) {
+    var base = bookingAvailabilityPayload(data, date);
+    var start = minutesOfTime(base.startTime);
+    var end = minutesOfTime(base.endTime);
+    var duration = Number(base.slotDurationMinutes || 60);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return [base];
+    if (!Number.isFinite(duration) || duration <= 0) duration = 60;
+    if (base.id || end - start <= duration) return [base];
+    if ((end - start) % duration !== 0) {
+      window.alert("选择的时间段必须能按每格时长完整切分。");
+      return null;
+    }
+    var rows = [];
+    for (var min = start; min + duration <= end; min += duration) {
+      rows.push(Object.assign({}, base, {
+        startTime: timeOfMinutes(min),
+        endTime: timeOfMinutes(min + duration)
+      }));
+    }
+    return rows;
+  };
+
   var saveEduAvailability = function (form) {
     var data = formData(form);
     if (!data.teacherId) return window.alert("请选择教练。");
@@ -3358,7 +3380,11 @@
     if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
     if (data.startTime >= data.endTime) return window.alert("开始时间必须早于结束时间。");
     var save = clubData.eduSaveBookingAvailability || clubData.eduSaveAvailability;
-    return withEduSaving(save(selectedClubId, bookingAvailabilityPayload(data)));
+    var payloads = bookingAvailabilityPayloads(data);
+    if (!payloads || !payloads.length) return;
+    return withEduSaving(Promise.all(payloads.map(function (payload) {
+      return save(selectedClubId, payload);
+    })));
   };
 
   var saveEduAvailabilityBulk = function (form) {
@@ -3374,8 +3400,14 @@
     if (!data.startTime || !data.endTime) return window.alert("请填写开始和结束时间。");
     if (data.startTime >= data.endTime) return window.alert("开始时间必须早于结束时间。");
     var save = clubData.eduSaveBookingAvailability || clubData.eduSaveAvailability;
-    return withEduSaving(Promise.all(dates.map(function (date) {
-      return save(selectedClubId, bookingAvailabilityPayload(data, date));
+    var payloads = [];
+    for (var i = 0; i < dates.length; i += 1) {
+      var rows = bookingAvailabilityPayloads(data, dates[i]);
+      if (!rows) return;
+      payloads = payloads.concat(rows);
+    }
+    return withEduSaving(Promise.all(payloads.map(function (payload) {
+      return save(selectedClubId, payload);
     })));
   };
 
