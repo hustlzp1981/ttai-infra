@@ -640,6 +640,14 @@ POST /api/club-admin/edu/bookings/:id/reject
 - 当 booking 状态是 `change_requested` 时，拒绝接口会清空改期申请字段，booking 状态恢复为 `confirmed`。
 - 原已确认课次和 roster 不变。
 
+POST /api/club-admin/edu/bookings/:id/cancel
+请求头: Authorization: Bearer <token>
+请求体: `{ "clubId": "ttai-edu-test-club", "cancelReason": "俱乐部临时取消", "adminMessage": "Web 矩阵取消已确认约课" }`
+说明:
+- 管理员取消约课，支持 `requested`、`alternative_proposed`、`change_requested`、`confirmed`。
+- 当 booking 状态是 `confirmed` 时，会释放已确认课次中的 roster；若课次无其他有效名单，则课次状态变为 `cancelled`。
+- 返回的 booking 状态变为 `cancelled`，学员端“我的约课”继续展示取消记录，对应可约空位重新释放。
+
 ### 4.4 管理员直接代约与复制约课草稿 (2026-07-01)
 
 #### 4.4.1 直接代约并确认

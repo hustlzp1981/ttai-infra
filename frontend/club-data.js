@@ -403,6 +403,9 @@
     eduRejectBooking: function (clubId, id, payload) {
       return apiPost("/club-admin/edu/bookings/" + encodeURIComponent(id) + "/reject", Object.assign({ clubId: clubId }, payload || {}), true);
     },
+    eduCancelBooking: function (clubId, id, payload) {
+      return apiPost("/club-admin/edu/bookings/" + encodeURIComponent(id) + "/cancel", Object.assign({ clubId: clubId }, payload || {}), true);
+    },
     eduProposeBooking: function (clubId, id, payload) {
       return apiPost("/club-admin/edu/bookings/" + encodeURIComponent(id) + "/propose", Object.assign({ clubId: clubId }, payload || {}), true);
     },

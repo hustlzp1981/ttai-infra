@@ -1790,6 +1790,10 @@
     var filters = eduState.availabilityFilters || {};
     return (eduState.bookings || []).filter(function (item) {
       if (["rejected", "cancelled", "expired"].indexOf(String(item.status || "")) >= 0) return false;
+      if (String(item.status || "") === "confirmed" && item.confirmedSessionId) {
+        var session = findById(eduState.sessions, item.confirmedSessionId);
+        if (session && String(session.status || "") === "cancelled") return false;
+      }
       var dateKey = bookingStartDateKey(item);
       if (!dateInMatrixRange(dateKey, range)) return false;
       if (!statusFilterMatches(item.status || "requested")) return false;
@@ -2351,7 +2355,6 @@
       chipHeadHtml("空位", availabilityStatusLabel(slot.status), actionHtml) +
       '<div class="edu-booking-chip-line">' + escapeHtml((slot.courseProductId ? slot.courseName : "不限课程") + ' · ' + capacityLabel(slot.capacity)) + '</div>' +
       '<div class="edu-booking-chip-line">' + escapeHtml(branchName(slot.branchId)) + (slot.resourceLabel ? ' · ' + escapeHtml(slot.resourceLabel) : '') + '</div>' +
-      (item.publishedAt ? '<div class="edu-booking-chip-line muted">发布 ' + escapeHtml(formatCST(item.publishedAt)) + '</div>' : '') +
     '</div>';
   };
 
@@ -3794,11 +3797,13 @@
   };
 
   var cancelConfirmedBookingSession = function (id) {
-    if (!clubData.eduCancelSession) return window.alert("取消课次接口暂不可用。");
+    if (!clubData.eduCancelBooking) return window.alert("取消约课接口暂不可用。");
     var booking = bookingById(id);
-    if (!booking || !booking.confirmedSessionId) return window.alert("该已确认约课没有关联课次，暂不能在矩阵中取消。");
     if (!window.confirm("确认取消这节已确认约课？")) return Promise.resolve();
-    return withEduSaving(clubData.eduCancelSession(selectedClubId, booking.confirmedSessionId, "Web 矩阵取消已确认约课"));
+    return withEduSaving(clubData.eduCancelBooking(selectedClubId, id, {
+      cancelReason: "Web 矩阵取消已确认约课",
+      adminMessage: "Web 矩阵取消已确认约课"
+    }));
   };
 
   var handleBookingMatrixAction = function (id, action) {
