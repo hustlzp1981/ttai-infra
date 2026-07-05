@@ -2361,6 +2361,10 @@
     '</div>';
   };
 
+  var bookingOccupiesMatrixCell = function (booking) {
+    return ["requested", "alternative_proposed", "change_requested", "confirmed"].indexOf(String(booking && booking.status || "requested")) >= 0;
+  };
+
   var availabilityMatrixCellHtml = function (date, time, teacherId, slots, bookings) {
     var cellSlots = slots.filter(function (slot) {
       return slot.date === date && slot.startTime === time && String(slot.teacherId || "") === String(teacherId || "");
@@ -2368,9 +2372,18 @@
     var cellBookings = bookings.filter(function (booking) {
       return bookingStartDateKey(booking) === date && bookingStartTimeKey(booking) === time && String(booking.teacherId || "") === String(teacherId || "");
     });
-    var html = cellSlots.map(availabilitySlotCardHtml).join("") + cellBookings.map(bookingMatrixCardHtml).join("");
+    var occupyingBookings = cellBookings.filter(bookingOccupiesMatrixCell);
+    var activeSlot = cellSlots.find(function (slot) { return String(slot.status || "") === "published"; }) || cellSlots[0] || {};
+    var capacity = Number(activeSlot.capacity || (occupyingBookings[0] && occupyingBookings[0].capacity) || 1);
+    if (!Number.isFinite(capacity) || capacity <= 0) capacity = 1;
+    var remaining = Math.max(0, capacity - occupyingBookings.length);
+    var visibleSlots = occupyingBookings.length ? [] : cellSlots;
+    var html = visibleSlots.map(availabilitySlotCardHtml).join("") + cellBookings.map(bookingMatrixCardHtml).join("");
     var seed = cellSlots[0] || cellBookings[0] || {};
     var endTime = seed.endTime || timeOfMinutes(minutesOfTime(time) + 60);
+    var canAddDirect = !occupyingBookings.length || remaining > 0;
+    var addLabel = occupyingBookings.length ? "补位" : "+ 代约";
+    if (cellSlots.length && !cellSlots.some(function (slot) { return String(slot.status || "") === "published"; })) canAddDirect = false;
     var addButton = '<button class="club-action mini" type="button" data-direct-booking-add="1"' +
       ' data-date="' + escapeHtml(date) + '"' +
       ' data-start-time="' + escapeHtml(time) + '"' +
@@ -2380,8 +2393,8 @@
       ' data-course-product-id="' + escapeHtml(seed.courseProductId || '') + '"' +
       ' data-resource-id="' + escapeHtml(seed.resourceId || '') + '"' +
       ' data-resource-label="' + escapeHtml(seed.resourceLabel || '') + '"' +
-      ' data-capacity="' + escapeHtml(seed.capacity || 1) + '">+ 代约</button>';
-    return '<div class="edu-booking-cell ' + (html ? '' : 'empty') + '">' + (html || '<span>无安排</span>') + '<div class="edu-booking-chip-actions">' + addButton + '</div></div>';
+      ' data-capacity="' + escapeHtml(capacity) + '">' + escapeHtml(addLabel) + '</button>';
+    return '<div class="edu-booking-cell ' + (html ? '' : 'empty') + '">' + (html || '<span>无安排</span>') + (canAddDirect ? '<div class="edu-booking-chip-actions">' + addButton + '</div>' : '') + '</div>';
   };
 
   var availabilityMatrixHtml = function () {
