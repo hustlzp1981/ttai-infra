@@ -1653,6 +1653,16 @@ a {
   font-size: 12px;
 }
 
+.edu-booking-cell.empty.action-only {
+  align-content: start;
+  text-align: right;
+}
+
+.edu-booking-empty-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .edu-booking-chip {
   display: grid;
   gap: 4px;
@@ -1735,10 +1745,25 @@ a {
 
 .edu-booking-chip-head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   color: var(--color-text);
   font-weight: 800;
+}
+
+.edu-booking-chip-title {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.edu-booking-chip-title strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .edu-booking-chip-head span,
@@ -1764,6 +1789,12 @@ a {
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 2px;
+}
+
+.edu-booking-chip-actions.inline {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  margin-top: 0;
 }
 
 .club-action.mini {

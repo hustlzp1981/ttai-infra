@@ -2328,6 +2328,13 @@
       ' data-capacity="' + escapeHtml(capacity || seed.capacity || 1) + '">' + escapeHtml(label || '+ 代约') + '</button>';
   };
 
+  var chipHeadHtml = function (title, status, actionHtml) {
+    return '<div class="edu-booking-chip-head">' +
+      '<div class="edu-booking-chip-title"><strong>' + escapeHtml(title || '-') + '</strong><span>' + escapeHtml(status || '') + '</span></div>' +
+      (actionHtml ? '<div class="edu-booking-chip-actions inline">' + actionHtml + '</div>' : '') +
+    '</div>';
+  };
+
   var availabilitySlotCardHtml = function (slot, extraActionHtml) {
     var item = slot.availability || {};
     var canPublish = slot.status === "draft" && slot.id;
@@ -2341,14 +2348,10 @@
     if (canDelete) actionHtml += '<button class="club-action mini danger" type="button" data-booking-delete-availability="' + escapeHtml(slot.id) + '">删除</button>';
     if (extraActionHtml) actionHtml += extraActionHtml;
     return '<div class="edu-booking-chip availability ' + escapeHtml(slot.status) + '">' +
-      '<div class="edu-booking-chip-head">' +
-        '<strong>' + escapeHtml(availabilityStatusLabel(slot.status)) + '</strong>' +
-        '<span>' + escapeHtml(slot.startTime + '-' + slot.endTime) + '</span>' +
-      '</div>' +
+      chipHeadHtml("空位", availabilityStatusLabel(slot.status), actionHtml) +
       '<div class="edu-booking-chip-line">' + escapeHtml((slot.courseProductId ? slot.courseName : "不限课程") + ' · ' + capacityLabel(slot.capacity)) + '</div>' +
       '<div class="edu-booking-chip-line">' + escapeHtml(branchName(slot.branchId)) + (slot.resourceLabel ? ' · ' + escapeHtml(slot.resourceLabel) : '') + '</div>' +
       (item.publishedAt ? '<div class="edu-booking-chip-line muted">发布 ' + escapeHtml(formatCST(item.publishedAt)) + '</div>' : '') +
-      (actionHtml ? '<div class="edu-booking-chip-actions">' + actionHtml + '</div>' : '') +
     '</div>';
   };
 
@@ -2358,23 +2361,24 @@
 
   var bookingMatrixCardHtml = function (booking) {
     var id = idOf(booking);
+    var status = String(booking.status || "requested");
     var actionable = ["requested", "alternative_proposed"].indexOf(String(booking.status || "")) >= 0;
-    var actionHtml = actionable
-      ? '<div class="edu-booking-chip-actions">' +
-          '<button class="club-action mini primary" type="button" data-booking-action="confirm" data-booking-id="' + escapeHtml(id) + '">确认</button>' +
-          '<button class="club-action mini" type="button" data-booking-action="propose" data-booking-id="' + escapeHtml(id) + '">改期</button>' +
-          '<button class="club-action mini danger" type="button" data-booking-action="reject" data-booking-id="' + escapeHtml(id) + '">拒绝</button>' +
-        '</div>'
-      : '';
+    var actionHtml = '';
+    if (actionable) {
+      actionHtml = '<button class="club-action mini primary" type="button" data-booking-action="confirm" data-booking-id="' + escapeHtml(id) + '">确认</button>' +
+        '<button class="club-action mini" type="button" data-booking-action="propose" data-booking-id="' + escapeHtml(id) + '">改期</button>' +
+        '<button class="club-action mini danger" type="button" data-booking-action="reject" data-booking-id="' + escapeHtml(id) + '">拒绝</button>';
+    } else if (status === "confirmed" && booking.confirmedSessionId) {
+      actionHtml = '<button class="club-action mini danger" type="button" data-booking-action="cancel-session" data-booking-id="' + escapeHtml(id) + '">取消</button>';
+    }
+    var courseText = booking.courseName || courseName(booking.courseProductId) || "待确认课程";
+    var teacherText = teacherName(booking.teacherId) || booking.teacherName || "";
+    var detailText = courseText + ' · ' + bookingCapacityText(booking) + (teacherText && teacherText !== "-" ? ' · ' + teacherText : '');
     return '<div class="edu-booking-chip request ' + escapeHtml(booking.status || "requested") + '">' +
-      '<div class="edu-booking-chip-head">' +
-        '<strong>' + escapeHtml(bookingCardStudentText(booking)) + '</strong>' +
-        '<span>' + escapeHtml(bookingStatusLabel(booking.status || "requested")) + '</span>' +
-      '</div>' +
-      '<div class="edu-booking-chip-line">' + escapeHtml((booking.courseName || courseName(booking.courseProductId) || "待确认课程") + ' · ' + (teacherName(booking.teacherId) || booking.teacherName || "待安排教练")) + '</div>' +
+      chipHeadHtml(bookingCardStudentText(booking), bookingStatusLabel(booking.status || "requested"), actionHtml) +
+      '<div class="edu-booking-chip-line">' + escapeHtml(detailText) + '</div>' +
       '<div class="edu-booking-chip-line">' + escapeHtml(branchName(booking.branchId)) + (booking.resourceLabel ? ' · ' + escapeHtml(booking.resourceLabel) : '') + '</div>' +
       (booking.note ? '<div class="edu-booking-chip-line muted">' + escapeHtml(booking.note) + '</div>' : '') +
-      actionHtml +
     '</div>';
   };
 
@@ -2407,6 +2411,9 @@
     var addLabel = occupyingBookings.length ? "补位" : "+ 代约";
     if (cellSlots.length && !cellSlots.some(function (slot) { return String(slot.status || "") === "published"; })) canAddDirect = false;
     var addButton = directBookingButtonHtml(date, time, teacherId, seed, capacity, addLabel);
+    if (!html && canAddDirect) {
+      return '<div class="edu-booking-cell empty action-only"><div class="edu-booking-empty-actions">' + addButton + '</div></div>';
+    }
     return '<div class="edu-booking-cell ' + (html ? '' : 'empty') + '">' + (html || '<span>无安排</span>') + (canAddDirect && !addInlineDirect ? '<div class="edu-booking-chip-actions">' + addButton + '</div>' : '') + '</div>';
   };
 
@@ -3786,10 +3793,19 @@
     }));
   };
 
+  var cancelConfirmedBookingSession = function (id) {
+    if (!clubData.eduCancelSession) return window.alert("取消课次接口暂不可用。");
+    var booking = bookingById(id);
+    if (!booking || !booking.confirmedSessionId) return window.alert("该已确认约课没有关联课次，暂不能在矩阵中取消。");
+    if (!window.confirm("确认取消这节已确认约课？")) return Promise.resolve();
+    return withEduSaving(clubData.eduCancelSession(selectedClubId, booking.confirmedSessionId, "Web 矩阵取消已确认约课"));
+  };
+
   var handleBookingMatrixAction = function (id, action) {
     if (action === "confirm") return confirmBookingRequest(id);
     if (action === "reject") return rejectBookingRequest(id);
     if (action === "propose") return proposeBookingRequest(id);
+    if (action === "cancel-session") return cancelConfirmedBookingSession(id);
   };
 
   var saveEduResource = function (form) {
