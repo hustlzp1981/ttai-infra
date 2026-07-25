@@ -47,6 +47,9 @@
 | POST | /api/club-admin/edu/bookings/direct-confirm | 管理员线下约定后直接代约并确认，写入 confirmed booking/session/roster | ✅ |
 | POST | /api/club-admin/edu/bookings/copy-preview | 复制某天/某周已确认约课为目标日期草稿预览，不写库 | ✅ |
 | POST | /api/club-admin/edu/bookings/publish-draft | 发布复制草稿，复用管理员代约创建 confirmed 约课 | ✅ |
+| GET | /api/pay/orders | 当前用户会员订单中心，支持状态筛选、分页和更新时间倒序 | ✅ |
+| GET | /api/pay/reminders/config | 查询会员到期订阅消息配置和当前订阅状态 | ✅ |
+| POST | /api/pay/reminders/subscribe | 保存当前用户一次性会员到期提醒授权 | ✅ |
 
 ---
 

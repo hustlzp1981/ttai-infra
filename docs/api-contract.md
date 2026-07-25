@@ -748,6 +748,7 @@ POST /api/club-admin/edu/bookings/publish-draft
   "drafts": [ /* copy-preview 返回的 drafts */ ]
 }
 ```
+
 说明:
 - 对每条草稿复用 direct-confirm 创建逻辑，成功后生成 `confirmed` booking + session + roster。
 - 已存在同一学员同一时段 active booking 时跳过并返回 `skipped`，不会重复创建。
@@ -763,3 +764,56 @@ POST /api/club-admin/edu/bookings/publish-draft
   }
 }
 ```
+
+## 5. 会员支付与订单中心（Express）
+
+以下接口均需要 `Authorization: Bearer <token>`，且只能访问当前登录用户的数据。路径继续走现有 `/api` nginx 路由，不需要新增 location。
+
+### 5.1 查询会员订单列表
+
+`GET /api/pay/orders?status=&page=1&pageSize=20&sort=updatedAt_desc`
+
+- `status`: 可选，`pending | paid | closed | refunded`
+- `pageSize`: 最大 50
+- 固定按 `updatedAt` 倒序
+
+响应:
+
+```json
+{
+  "code": 0,
+  "data": {
+    "items": [{
+      "orderId": "pay_...",
+      "planId": "golden_month",
+      "planName": "黄金战将月卡",
+      "tier": "golden",
+      "cycle": "month",
+      "amountFen": 2900,
+      "status": "paid",
+      "createdAt": "2026-07-25T08:00:00.000Z",
+      "paidAt": "2026-07-25T08:01:00.000Z",
+      "membershipExpiresAt": "2026-08-24T08:01:00.000Z",
+      "membershipExpired": false
+    }],
+    "page": 1,
+    "pageSize": 20,
+    "total": 1,
+    "hasMore": false,
+    "sort": "updatedAt_desc",
+    "statusCounts": { "all": 1, "pending": 0, "paid": 1, "closed": 0, "refunded": 0 }
+  }
+}
+```
+
+### 5.2 到期提醒配置
+
+`GET /api/pay/reminders/config`
+
+响应: `{ "code": 0, "data": { "enabled": false, "templateId": "", "subscribed": false } }`
+
+`POST /api/pay/reminders/subscribe`
+
+请求: `{ "accepted": true }`
+
+说明: 只有有效黄金/钻石会员可订阅；未配置 `WECHAT_MEMBERSHIP_EXPIRY_TEMPLATE_ID` 时返回 `code=4006`。订阅消息是一次性授权，成功发送后订阅标记自动关闭。
