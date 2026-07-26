@@ -38,7 +38,9 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_ROOT_PASSWORD}
       - TZ=Asia/Shanghai
       - REDIS_URL=redis://redis:6379/1
-      - TZ=Asia/Shanghai
+      - WECHAT_MIDAS_OFFER_ID=${WECHAT_MIDAS_OFFER_ID}
+      - WECHAT_MIDAS_APP_KEY=${WECHAT_MIDAS_APP_KEY}
+      - WECHAT_MIDAS_CALLBACK_URL=${WECHAT_MIDAS_CALLBACK_URL}
       - EVENT_ASSET_DIR=/app/data/event-assets
     volumes:
       - ./wechat-backend:/app
