@@ -769,7 +769,48 @@ POST /api/club-admin/edu/bookings/publish-draft
 
 以下接口均需要 `Authorization: Bearer <token>`，且只能访问当前登录用户的数据。路径继续走现有 `/api` nginx 路由，不需要新增 location。
 
-### 5.1 查询会员订单列表
+### 5.1 创建虚拟支付订单
+
+`POST /api/pay/orders`
+
+请求:
+
+```json
+{
+  "planId": "golden_month",
+  "source": "membership",
+  "loginCode": "wx.login 返回的一次性 code"
+}
+```
+
+`loginCode` 必填。服务端通过 `jscode2session` 校验其 openid 必须与 JWT 当前用户一致，并使用返回的 `session_key` 生成用户态签名。
+
+响应:
+
+```json
+{
+  "code": 0,
+  "data": {
+    "orderId": "pay_...",
+    "payment": {
+      "provider": "virtual",
+      "mode": "short_series_goods",
+      "productId": "golden_month",
+      "signData": "{\"offerId\":\"...\",\"buyQuantity\":1,\"env\":0,\"currencyType\":\"CNY\",\"productId\":\"golden_month\",\"goodsPrice\":2900,\"outTradeNo\":\"pay_...\",\"attach\":\"golden_month\"}",
+      "paySig": "HMAC-SHA256 签名",
+      "signature": "用户态 HMAC-SHA256 签名"
+    }
+  }
+}
+```
+
+说明:
+- `[BREAKING] 2026-07-26`: 虚拟支付响应由旧的 `provider=midas + offerId/token` 调整为微信官方 `wx.requestVirtualPayment` 参数。
+- 商品、价格、订单号均由服务端生成；客户端不得提交金额。
+- 服务端通过 `/xpay/query_order` 校验订单号和金额后激活会员，并调用 `/xpay/notify_provide_goods` 确认发货。
+- 外部微信接口继续走 `api.weixin.qq.com`，现有 nginx `/api` 路由无需调整。
+
+### 5.2 查询会员订单列表
 
 `GET /api/pay/orders?status=&page=1&pageSize=20&sort=updatedAt_desc`
 
@@ -806,7 +847,13 @@ POST /api/club-admin/edu/bookings/publish-draft
 }
 ```
 
-### 5.2 到期提醒配置
+### 5.3 查询单个订单
+
+`GET /api/pay/orders/:orderId`
+
+待支付虚拟订单会触发一次限频的微信 `/xpay/query_order` 补偿查询；支付成功后返回 `status=paid`。
+
+### 5.4 到期提醒配置
 
 `GET /api/pay/reminders/config`
 
