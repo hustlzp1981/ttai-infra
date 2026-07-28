@@ -864,3 +864,59 @@ POST /api/club-admin/edu/bookings/publish-draft
 请求: `{ "accepted": true }`
 
 说明: 只有有效黄金/钻石会员可订阅；未配置 `WECHAT_MEMBERSHIP_EXPIRY_TEMPLATE_ID` 时返回 `code=4006`。订阅消息是一次性授权，成功发送后订阅标记自动关闭。
+
+### 5.5 云端视频到期提醒
+
+> 新增于 2026-07-28。复用现有 nginx `/api` 路由，不需要新增转发配置。
+
+`GET /api/user/storage-reminders/config`
+
+响应:
+
+```json
+{
+  "code": 0,
+  "data": {
+    "enabled": true,
+    "templateId": "LMassXVOupEnRoFzj_O583C_TZE2GF3UgXAct_2Nd2w",
+    "subscribed": false,
+    "eligible": true,
+    "nextExpiryAt": "2026-08-11T19:30:00.000Z",
+    "videoCount": 2
+  }
+}
+```
+
+- `eligible`: 当前是否存在会按存储策略自动到期的云端视频。
+- `nextExpiryAt`: 按当前会员权益重新计算后的最早到期时间；升级后不再到期时为空。
+- `videoCount`: 与最早到期时间相同的视频数量。
+
+`POST /api/user/storage-reminders/subscribe`
+
+请求:
+
+```json
+{ "accepted": true }
+```
+
+成功响应:
+
+```json
+{
+  "code": 0,
+  "data": {
+    "subscribed": true,
+    "nextExpiryAt": "2026-08-11T19:30:00.000Z",
+    "videoCount": 2
+  }
+}
+```
+
+约束:
+
+- 两个接口都从登录 token 获取 `openid`，不接受客户端指定其他用户。
+- 未配置 `WECHAT_STORAGE_EXPIRY_TEMPLATE_ID` 时订阅返回 HTTP 503、`code=4006`。
+- 当前没有可到期云端视频时返回 HTTP 409、`code=4007`。
+- 一次授权只发送一条；同一用户多条视频按最早到期时间合并，在到期前 3 天内发送。
+- 发送前按当前会员权益重新计算；续费或升级后不再到期的视频不会发送。
+- 模板字段固定为 `thing3`（服务类型）、`thing5`（温馨提醒）、`time7`（到期时间），消息点击进入 `pages/video-lib/list`。

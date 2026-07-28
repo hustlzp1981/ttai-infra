@@ -52,6 +52,8 @@
 | GET | /api/pay/orders/:orderId | 查询单个会员订单，pending 虚拟订单自动向微信补偿查单 | ✅ |
 | GET | /api/pay/reminders/config | 查询会员到期订阅消息配置和当前订阅状态 | ✅ |
 | POST | /api/pay/reminders/subscribe | 保存当前用户一次性会员到期提醒授权 | ✅ |
+| GET | /api/user/storage-reminders/config | 查询云端视频到期提醒模板、授权状态和按当前权益计算的最早到期时间 | ✅ |
+| POST | /api/user/storage-reminders/subscribe | 保存当前用户一次性云端视频到期提醒授权；无可到期视频时拒绝 | ✅ |
 
 ---
 
