@@ -48,9 +48,44 @@
                 </div>
                 <div class="empty-state" id="profile-empty">请先登录以同步你的训练数据。</div>
               </div>
-              <div class="card">
-                <h3 class="card-title">配额与段位</h3>
-                <p class="muted" id="quota-info">本月剩余次数与段位权益展示区。</p>
+              <div class="card membership-summary-card">
+                <div class="card-heading-row">
+                  <h3 class="card-title">会员与云存储</h3>
+                  <a class="text-link" href="membership.html">查看权益</a>
+                </div>
+                <p class="muted" id="quota-info">会员权益与云端空间展示区。</p>
+                <div class="membership-summary" id="membership-summary" hidden>
+                  <div class="membership-summary-head">
+                    <div>
+                      <span class="membership-tier" id="membership-tier">--</span>
+                      <p class="membership-expiry" id="membership-expiry">--</p>
+                    </div>
+                    <a class="btn btn-secondary membership-summary-action" href="membership.html">会员中心</a>
+                  </div>
+                  <div class="membership-meter-row">
+                    <div class="membership-meter-label">
+                      <span>本月 AI 分析</span>
+                      <strong id="analysis-usage">--</strong>
+                    </div>
+                    <div class="membership-meter-track" aria-hidden="true">
+                      <span class="membership-meter-fill" id="analysis-meter"></span>
+                    </div>
+                  </div>
+                  <div class="membership-meter-row" id="storage-meter-row" hidden>
+                    <div class="membership-meter-label">
+                      <span>云端空间</span>
+                      <strong id="storage-usage">--</strong>
+                    </div>
+                    <div class="membership-meter-track" aria-hidden="true">
+                      <span class="membership-meter-fill storage" id="storage-meter"></span>
+                    </div>
+                    <p class="membership-storage-status" id="storage-status"></p>
+                  </div>
+                  <div class="membership-summary-links">
+                    <a href="membership.html#orders">我的订单</a>
+                    <a href="videos.html">管理视频</a>
+                  </div>
+                </div>
                 <div class="empty-state" id="quota-empty">暂无配额数据。</div>
               </div>
             </div>

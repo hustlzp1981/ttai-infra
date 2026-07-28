@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>会员中心 - TTAI</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <a class="brand" href="index.html">
+            <span class="brand-mark">TT</span>
+            <span>TTAI 乒乓训练</span>
+          </a>
+          <nav class="nav-links">
+            <a href="index.html">首页</a>
+            <a href="videos.html">视频库</a>
+            <a href="tech.html">日常训练</a>
+            <a href="training-enroll.html">俱乐部</a>
+            <a href="stats.html">训练统计</a>
+            <a class="active" href="my.html">我的</a>
+            <a href="login.html" id="nav-login">登录</a>
+            <div class="nav-user" id="nav-user" style="display: none;">
+              <img class="nav-avatar" id="nav-avatar" alt="头像">
+              <span class="nav-name" id="nav-name">已登录</span>
+              <button class="nav-logout" id="nav-logout" type="button">退出</button>
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      <main class="main membership-page">
+        <div class="container">
+          <section class="membership-page-heading">
+            <div>
+              <p class="membership-eyebrow">TTAI MEMBERSHIP</p>
+              <h1>会员中心</h1>
+              <p class="muted">查看当前权益、云端空间和会员订单。</p>
+            </div>
+            <a class="btn btn-secondary" href="my.html">返回我的</a>
+          </section>
+
+          <div class="empty-state membership-page-state" id="membership-state">正在加载会员信息...</div>
+
+          <section class="membership-overview" id="membership-overview" hidden>
+            <div class="membership-overview-item">
+              <span>当前等级</span>
+              <strong id="overview-tier">--</strong>
+              <small id="overview-expiry">--</small>
+            </div>
+            <div class="membership-overview-item">
+              <span>本月 AI 分析</span>
+              <strong id="overview-analysis">--</strong>
+              <small id="overview-analysis-note">--</small>
+            </div>
+            <div class="membership-overview-item storage">
+              <div class="membership-overview-storage-head">
+                <span>云端空间</span>
+                <strong id="overview-storage">--</strong>
+              </div>
+              <div class="membership-meter-track" aria-hidden="true">
+                <span class="membership-meter-fill storage" id="overview-storage-meter"></span>
+              </div>
+              <small id="overview-storage-note">--</small>
+            </div>
+            <a class="btn btn-secondary" href="videos.html">管理视频</a>
+          </section>
+
+          <div class="membership-tabs" role="tablist" aria-label="会员中心视图">
+            <button class="membership-tab active" type="button" data-membership-tab="benefits" role="tab" aria-selected="true">会员权益</button>
+            <button class="membership-tab" type="button" data-membership-tab="orders" role="tab" aria-selected="false">我的订单</button>
+          </div>
+
+          <section class="membership-panel" id="membership-benefits" data-membership-panel="benefits">
+            <div class="membership-table-wrap">
+              <table class="membership-benefit-table">
+                <thead>
+                  <tr>
+                    <th>会员权益</th>
+                    <th>新星 / 白银</th>
+                    <th>黄金战将</th>
+                    <th>钻石大师</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>每月 AI 视频分析</td><td>3 / 10 次</td><td>50 次</td><td>不限次</td></tr>
+                  <tr><td>单个比赛视频时长</td><td>15 分钟</td><td>30 分钟</td><td>60 分钟</td></tr>
+                  <tr><td>AI 视频评估报告</td><td>基础</td><td>完整</td><td>完整</td></tr>
+                  <tr><td>AI 训练数据统计</td><td>基础</td><td>完整</td><td>完整</td></tr>
+                  <tr><td>AI 教练对话</td><td>基础</td><td>基础</td><td>增强</td></tr>
+                  <tr><td>云端存储空间</td><td>5 GB</td><td>40 GB</td><td>80 GB</td></tr>
+                  <tr><td>视频保存期限</td><td>14 天</td><td>最长 1 年</td><td>会员期内长期</td></tr>
+                  <tr><td>比赛视频集管理</td><td>基础</td><td>基础</td><td>增强</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="membership-purchase-strip">
+              <img src="images/virtual-membership.png" alt="TTAI 会员">
+              <div>
+                <strong>会员购买</strong>
+                <p>微信小程序内购买，订单和权益会同步显示在这里。</p>
+              </div>
+              <span class="membership-channel-tag">小程序内购买</span>
+            </div>
+          </section>
+
+          <section class="membership-panel" id="membership-orders" data-membership-panel="orders" hidden>
+            <div class="membership-order-toolbar">
+              <div class="membership-order-filters" role="group" aria-label="订单状态">
+                <button class="active" type="button" data-order-status="">全部</button>
+                <button type="button" data-order-status="paid">已支付</button>
+                <button type="button" data-order-status="pending">待支付</button>
+                <button type="button" data-order-status="closed">已关闭</button>
+                <button type="button" data-order-status="refunded">已退款</button>
+              </div>
+              <button class="btn btn-secondary" id="refresh-orders" type="button">刷新</button>
+            </div>
+            <div class="membership-order-list" id="membership-order-list"></div>
+            <div class="empty-state" id="membership-order-empty">暂无订单。</div>
+          </section>
+        </div>
+      </main>
+
+      <footer>
+        <p>&copy; <span id="year"></span> TTAI. All rights reserved.</p>
+      </footer>
+    </div>
+    <script src="config.js"></script>
+    <script src="nav-auth.js"></script>
+    <script src="membership.js"></script>
+    <script>
+      document.getElementById('year').textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
