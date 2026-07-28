@@ -18,6 +18,10 @@
   const totalEl = document.getElementById("video-total");
   const loadedEl = document.getElementById("video-loaded");
   const visibleEl = document.getElementById("video-visible");
+  const storageStrip = document.getElementById("video-storage-strip");
+  const storageUsage = document.getElementById("video-storage-usage");
+  const storageMeter = document.getElementById("video-storage-meter");
+  const storageStatus = document.getElementById("video-storage-status");
 
   let currentMode = "";
   let currentPage = 1;
@@ -29,6 +33,7 @@
   let visibleItems = [];
   const selectedIds = new Set();
   const pageSize = 12;
+  const detailSequenceKey = "ttai-web-video-sequence";
 
   const ensureLogin = () => {
     if (!token) {
@@ -52,6 +57,17 @@
     if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
     return date.toISOString().slice(0, 10);
   };
+
+  const formatBytes = (value) => {
+    const bytes = Number(value);
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0 GB";
+    const gib = 1024 * 1024 * 1024;
+    const mib = 1024 * 1024;
+    if (bytes < gib) return `${Math.max(1, Math.round(bytes / mib))} MB`;
+    return `${Math.round(bytes / gib * 10) / 10} GB`;
+  };
+
+  const clampPercent = (value) => Math.max(0, Math.min(100, Number(value) || 0));
 
   const resolveUrl = (path) => {
     if (!path) return "";
@@ -120,7 +136,8 @@
     visibleItems.forEach((item) => {
       const id = getId(item);
       const li = document.createElement("li");
-      li.className = manageMode ? "video-item video-item-manage" : "video-item";
+      const expired = item.mediaExpired === true;
+      li.className = `${manageMode ? "video-item video-item-manage" : "video-item"}${expired ? " video-item-expired" : ""}`;
       li.dataset.id = id;
 
       const thumb = resolveThumbnailUrl(item.thumbnailUrl || item.thumbnail || "");
@@ -131,23 +148,39 @@
       const score = item.scores && item.scores.overall ? `${item.scores.overall} 分` : "";
       const opponent = item.opponentName ? `vs ${item.opponentName}` : "";
       const clipCount = item.clipCount || (Array.isArray(item.clips) ? item.clips.length : (typeof item.clips === "number" ? item.clips : 0));
-      const clips = clipCount ? `${clipCount} 片段` : "";
+      const clips = clipCount ? `${clipCount} 回合` : "";
       const meta = [modeLabel(item.mode), date, duration, size, clips].filter(Boolean).join(" · ");
-      const tags = [score, opponent].filter(Boolean);
+      const tags = [expired ? "视频已过期" : "", score, opponent].filter(Boolean);
 
       li.innerHTML = `
         <div class="thumbnail-container">
           ${manageMode ? `<label class="video-check"><input type="checkbox" data-id="${escapeHtml(id)}" ${selectedIds.has(id) ? "checked" : ""}><span></span></label>` : ""}
-          <img class="thumbnail" src="${thumb}" alt="thumbnail">
+          <div class="video-thumb-wrap">
+            <img class="thumbnail" src="${thumb}" alt="${escapeHtml(title)}">
+            ${expired ? "<span class=\"video-expired-overlay\">视频已过期</span>" : ""}
+          </div>
           <div>
-            <a class="download-link" href="video-detail.html?id=${encodeURIComponent(id)}">${escapeHtml(title)}</a>
+            <a class="download-link" data-video-detail-link data-id="${escapeHtml(id)}" href="video-detail.html?id=${encodeURIComponent(id)}">${escapeHtml(title)}</a>
             <span class="video-clips">${escapeHtml(meta || "视频记录")}</span>
             <div class="video-tag-row">
-              ${tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join("")}
+              ${tags.map((tag, index) => `<span${expired && index === 0 ? " class=\"expired\"" : ""}>${escapeHtml(tag)}</span>`).join("")}
             </div>
           </div>
         </div>
       `;
+
+      const detailLink = li.querySelector("[data-video-detail-link]");
+      if (detailLink) {
+        detailLink.addEventListener("click", () => {
+          try {
+            sessionStorage.setItem(detailSequenceKey, JSON.stringify({
+              ids: visibleItems.map(getId).filter(Boolean),
+              currentId: id,
+              savedAt: Date.now()
+            }));
+          } catch (err) {}
+        });
+      }
 
       const checkbox = li.querySelector("input[type='checkbox']");
       if (checkbox) {
@@ -161,6 +194,39 @@
 
       listEl.appendChild(li);
     });
+  };
+
+  const loadStorageQuota = async () => {
+    if (!token || !storageStrip) return;
+    try {
+      const response = await fetch(apiBase + "/user/quota", {
+        headers: { Authorization: "Bearer " + token }
+      });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const data = payload && payload.data ? payload.data : null;
+      const storage = data && data.storage ? data.storage : null;
+      const usedBytes = Number(storage && storage.usedBytes);
+      const limitBytes = Number(storage && storage.limitBytes);
+      if (!storage || storage.meteringAvailable !== true || !Number.isFinite(usedBytes) ||
+          !Number.isFinite(limitBytes) || limitBytes <= 0) return;
+      const percent = clampPercent(Number.isFinite(Number(storage.usagePercent))
+        ? Number(storage.usagePercent)
+        : usedBytes * 100 / limitBytes);
+      if (storageUsage) storageUsage.textContent = `${formatBytes(usedBytes)} / ${formatBytes(limitBytes)}`;
+      if (storageMeter) {
+        storageMeter.style.width = `${percent}%`;
+        storageMeter.classList.toggle("near", storage.isNearLimit === true && storage.isFull !== true);
+        storageMeter.classList.toggle("full", storage.isFull === true);
+      }
+      if (storageStatus) {
+        storageStatus.textContent = storage.isFull ? "空间已满" : (storage.isNearLimit ? "空间即将用满" : "");
+        storageStatus.className = `video-storage-status${storage.isFull ? " full" : (storage.isNearLimit ? " near" : "")}`;
+      }
+      storageStrip.hidden = false;
+    } catch (err) {
+      console.warn("load storage quota failed", err);
+    }
   };
 
   const updateLoadMore = () => {
@@ -348,5 +414,6 @@
   updateSummary();
   updateBatchState();
   loadOpponents();
+  loadStorageQuota();
   fetchList(false);
 })();

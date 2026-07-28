@@ -8,14 +8,32 @@
   const titleEl = document.getElementById("video-title");
   const metaEl = document.getElementById("video-meta");
   const videoEl = document.getElementById("video-player");
-  const infoEl = document.getElementById("video-info");
   const scoreGrid = document.getElementById("score-grid");
   const overlayBox = document.getElementById("overlay-box");
   const overlayButtons = document.querySelectorAll("[data-overlay]");
   const overlayStatus = document.getElementById("overlay-status");
   const downloadBtn = document.getElementById("btn-download");
-  const editBtn = document.getElementById("btn-edit");
   const deleteBtn = document.getElementById("btn-delete");
+  const playbackActions = document.getElementById("playback-actions");
+  const expiredState = document.getElementById("video-expired-state");
+  const detailTabs = Array.from(document.querySelectorAll("[data-detail-tab]"));
+  const detailPanels = Array.from(document.querySelectorAll("[data-detail-panel]"));
+  const detailTitleValue = document.getElementById("detail-title-value");
+  const titleEditor = document.getElementById("title-editor");
+  const titleInput = document.getElementById("title-input");
+  const cancelTitleEdit = document.getElementById("cancel-title-edit");
+  const detailDate = document.getElementById("detail-date");
+  const detailOpponent = document.getElementById("detail-opponent");
+  const opponentUpdateStatus = document.getElementById("opponent-update-status");
+  const detailMode = document.getElementById("detail-mode");
+  const detailDuration = document.getElementById("detail-duration");
+  const detailSize = document.getElementById("detail-size");
+  const detailRalliesRow = document.getElementById("detail-rallies-row");
+  const detailRallies = document.getElementById("detail-rallies");
+  const videoAdvice = document.getElementById("video-advice");
+  const matchEvaluation = document.getElementById("match-evaluation");
+  const previousVideo = document.getElementById("previous-video");
+  const nextVideo = document.getElementById("next-video");
   const immersiveBtn = document.getElementById("btn-immersive");
   const immersivePlayer = document.getElementById("immersive-player");
   const immersiveClose = document.getElementById("immersive-close");
@@ -42,6 +60,10 @@
   let currentData = null;
   let overlayUrls = {};
   let currentVideoUrl = "";
+  let opponents = [];
+  let isAdmin = false;
+  let adminStatusPromise = null;
+  const detailSequenceKey = "ttai-web-video-sequence";
   const speedRates = [0.5, 1, 1.5, 2];
   let immersiveSourceToken = 0;
   let playerState = {
@@ -68,6 +90,91 @@
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     return date.toISOString().slice(0, 10);
+  };
+
+  const formatSize = (value) => {
+    const bytes = Number(value);
+    return Number.isFinite(bytes) && bytes > 0 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : "--";
+  };
+
+  const readDetailSequence = () => {
+    try {
+      const parsed = JSON.parse(sessionStorage.getItem(detailSequenceKey) || "null");
+      if (!parsed || !Array.isArray(parsed.ids) || Date.now() - Number(parsed.savedAt || 0) > 24 * 60 * 60 * 1000) return [];
+      return parsed.ids.map(String).filter(Boolean);
+    } catch (err) {
+      return [];
+    }
+  };
+
+  const updateDetailNavigation = () => {
+    const ids = readDetailSequence();
+    const index = ids.indexOf(String(videoId));
+    if (previousVideo) previousVideo.disabled = index <= 0;
+    if (nextVideo) nextVideo.disabled = index < 0 || index >= ids.length - 1;
+  };
+
+  const navigateDetail = (offset) => {
+    const ids = readDetailSequence();
+    const index = ids.indexOf(String(videoId));
+    const target = ids[index + offset];
+    if (!target) return;
+    try {
+      sessionStorage.setItem(detailSequenceKey, JSON.stringify({ ids, currentId: target, savedAt: Date.now() }));
+    } catch (err) {}
+    window.location.href = `video-detail.html?id=${encodeURIComponent(target)}`;
+  };
+
+  const selectDetailTab = (name) => {
+    const next = name === "score" ? "score" : "basic";
+    detailTabs.forEach((button) => {
+      const active = button.dataset.detailTab === next;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", active ? "true" : "false");
+    });
+    detailPanels.forEach((panel) => { panel.hidden = panel.dataset.detailPanel !== next; });
+  };
+
+  const updateVideo = async (changes) => {
+    if (!currentData) throw new Error("视频信息尚未加载");
+    const response = await fetch(apiBase + "/videos/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify(Object.assign({ id: currentData.id || currentData._id || videoId }, changes || {}))
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.code && payload.code !== 0) {
+      throw new Error(payload.message || "保存失败");
+    }
+    Object.assign(currentData, changes || {});
+    return payload;
+  };
+
+  const loadOpponents = async () => {
+    if (!detailOpponent || !token) return;
+    try {
+      const response = await fetch(`${apiBase}/opponents/list?page=1&pageSize=100`, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const data = payload && payload.data ? payload.data : payload;
+      opponents = Array.isArray(data.items) ? data.items : [];
+      opponents.forEach((opponent) => {
+        const id = String(opponent.id || opponent._id || "");
+        if (!id) return;
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = opponent.name || "未命名对手";
+        detailOpponent.appendChild(option);
+      });
+      if (currentData) detailOpponent.value = String(currentData.opponentId || currentData.opponent && currentData.opponent.id || "");
+    } catch (err) {
+      console.warn("load opponents failed", err);
+    }
   };
 
   const resolveUrl = (value) => {
@@ -132,25 +239,73 @@
     } catch (err) {}
   };
 
+  const loadAdminStatus = async () => {
+    if (!token) return false;
+    try {
+      const response = await fetch(`${apiBase}/admin/me`, {
+        headers: { Authorization: "Bearer " + token }
+      });
+      if (!response.ok) return false;
+      const payload = await response.json();
+      isAdmin = Boolean(payload && payload.code === 0 && payload.data && payload.data.isAdmin === true);
+    } catch (err) {
+      isAdmin = false;
+    }
+    return isAdmin;
+  };
+
+  const resolveMatchCount = (...values) => {
+    for (const value of values) {
+      if (value === "" || value === null || value === undefined) continue;
+      const count = Number(value);
+      if (Number.isFinite(count) && count >= 0) return count;
+    }
+    return "";
+  };
+
+  const resolveMatchRallyMeta = (rallies, index, rallyNo) => {
+    if (!Array.isArray(rallies) || rallies.length === 0) return {};
+    const targetNo = Number(rallyNo) || index + 1;
+    return rallies.find((item) => Number(item && (item.rally || item.index || item.no)) === targetNo) || rallies[index] || {};
+  };
+
+  const formatMatchRallySummary = (shotCount, forehandCount, backhandCount) => {
+    const shotText = shotCount === "" ? "--" : shotCount;
+    const forehandText = forehandCount === "" ? "--" : forehandCount;
+    const backhandText = backhandCount === "" ? "--" : backhandCount;
+    return `${shotText}拍 · 正手${forehandText} · 反手${backhandText}`;
+  };
+
   const buildMatchClipItems = (video) => {
     const clipsData = Array.isArray(video && video.clips) ? video.clips : [];
     const basePath = resolveVideoMediaBasePath(video);
+    const evaluation = video && video.scores && video.scores.evaluation;
+    const rallies = evaluation && Array.isArray(evaluation.rallyDetail) ? evaluation.rallyDetail : [];
     if (clipsData.length > 0) {
       return clipsData.map((clip, index) => {
+        const rallyNo = clip.rally || clip.index || index + 1;
+        const rally = resolveMatchRallyMeta(rallies, index, rallyNo);
         const start = parseFloat(clip.start) || 0;
         const end = parseFloat(clip.end) || 0;
         const duration = parseFloat(clip.duration) || Math.max(0, end - start);
-        const rating = clip.rating || clip.score || clip.overall || "";
+        const rating = rally.rating || rally.score || rally.overall || clip.rating || clip.score || clip.overall || "";
+        const shotCount = resolveMatchCount(rally.shots, rally.shotCount, clip.shots, clip.shotCount);
+        const forehandCount = resolveMatchCount(rally.forehand, clip.forehand);
+        const backhandCount = resolveMatchCount(rally.backhand, clip.backhand);
+        const speed = rally.peakSpeed_ms || rally.peakSpeedMs || clip.peakSpeed || clip.speed || "";
         return {
           id: `clip_${index + 1}`,
           index,
-          rallyNo: clip.index || index + 1,
+          rallyNo: rally.rally || rallyNo,
           downloadLink: resolveMediaUrl(clip.videoUrl || clip.downloadLink || clip.url || clip.video || "", basePath),
           thumbnailUrl: resolveMediaUrl(clip.thumbnailUrl || clip.thumbnail || clip.thumb || "", basePath),
           timeLabel: start ? formatClock(start) : "时间未知",
           durationLabel: formatDuration(duration),
-          shotCount: clip.shots || clip.shotCount || "",
-          speedLabel: clip.peakSpeed || clip.speed ? `${clip.peakSpeed || clip.speed}m/s` : "",
+          shotCount,
+          forehandCount,
+          backhandCount,
+          shotSummary: formatMatchRallySummary(shotCount, forehandCount, backhandCount),
+          speedLabel: speed ? `${speed}m/s` : "",
           rating,
           displayName: start || end ? `${start.toFixed(1)}s ~ ${end.toFixed(1)}s` : ""
         };
@@ -168,6 +323,9 @@
       timeLabel: "时间未知",
       durationLabel: "--",
       shotCount: "",
+      forehandCount: "",
+      backhandCount: "",
+      shotSummary: "--拍 · 正手-- · 反手--",
       speedLabel: "",
       rating: "",
       displayName: ""
@@ -193,7 +351,7 @@
       subtitle: clip.timeLabel || "时间未知",
       stats: [
         { label: "时长", value: clip.durationLabel || "--" },
-        { label: "拍数", value: clip.shotCount ? String(clip.shotCount) : "--" },
+        { label: "拍数", value: isAdmin && clip.shotCount !== "" ? String(clip.shotCount) : "--" },
         { label: "球速", value: clip.speedLabel || "--" },
         { label: "评分", value: clip.rating ? String(clip.rating) : "无评级" }
       ]
@@ -250,7 +408,8 @@
         <span class="immersive-record-info">
           <strong>回合${escapeHtml(clip.rallyNo)}</strong>
           <span>${escapeHtml(clip.timeLabel || "时间未知")} · ${escapeHtml(clip.durationLabel || "--")}</span>
-          <span>${clip.rating ? escapeHtml(clip.rating + "分") : "无评级"}</span>
+          ${isAdmin ? `<span>${escapeHtml(clip.shotSummary)}</span>` : ""}
+          ${clip.rating ? `<span>${escapeHtml(clip.rating + "分")}</span>` : ""}
         </span>
         <span class="immersive-record-state">${clip.downloadLink ? "播放" : "准备中"}</span>
       `;
@@ -308,8 +467,9 @@
     immersiveVideo.load();
   };
 
-  const openImmersivePlayer = () => {
+  const openImmersivePlayer = async () => {
     if (!currentData) return;
+    if (adminStatusPromise) await adminStatusPromise;
     const clips = buildMatchClipItems(currentData);
     const url = currentVideoUrl || resolveMediaUrl(currentData.videoUrl || currentData.downloadLink || "", "") || (clips[0] && clips[0].downloadLink) || "";
     if (!url) {
@@ -398,6 +558,41 @@
     }).join("");
   };
 
+  const renderMatchEvaluation = (evaluation) => {
+    if (!matchEvaluation) return;
+    if (!evaluation || typeof evaluation !== "object") {
+      matchEvaluation.hidden = true;
+      matchEvaluation.innerHTML = "";
+      return;
+    }
+    const cards = [
+      { label: "启动", data: evaluation.reaction || {} },
+      { label: "步伐", data: evaluation.footwork || {} },
+      { label: "击球", data: evaluation.shotQuality || {} },
+      { label: "还原", data: evaluation.recovery || {} }
+    ];
+    const meta = [];
+    if (evaluation.reaction && Number(evaluation.reaction.delayMs) > 0) meta.push(`反应 ${evaluation.reaction.delayMs}ms`);
+    if (evaluation.footwork && Number(evaluation.footwork.peakSpeedMs) > 0) meta.push(`峰值移动 ${evaluation.footwork.peakSpeedMs}m/s`);
+    if (evaluation.footwork && Number(evaluation.footwork.avgKneeAngleDeg) > 0) meta.push(`移动膝角 ${evaluation.footwork.avgKneeAngleDeg}°`);
+    if (evaluation.shotQuality && Number(evaluation.shotQuality.contactKneeAngleDeg) > 0) meta.push(`击球膝角 ${evaluation.shotQuality.contactKneeAngleDeg}°`);
+    if (evaluation.recovery && Number(evaluation.recovery.recoveryTimeS) > 0) meta.push(`还原 ${evaluation.recovery.recoveryTimeS}s`);
+    matchEvaluation.innerHTML = `
+      <h3>比赛评估</h3>
+      <div class="match-evaluation-grid">
+        ${cards.map((card) => `
+          <div>
+            <span>${escapeHtml(card.label)}</span>
+            <strong>${card.data.score != null ? escapeHtml(card.data.score) : "--"}</strong>
+            <small>${escapeHtml(card.data.label || "")}</small>
+          </div>
+        `).join("")}
+      </div>
+      ${meta.length ? `<div class="match-evaluation-meta">${meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : ""}
+    `;
+    matchEvaluation.hidden = false;
+  };
+
   const fetchDetail = async () => {
     if (!ensureLogin()) return;
     if (!videoId) {
@@ -428,22 +623,50 @@
     }
 
     const duration = data.duration ? `${Math.round(data.duration)} 秒` : "--";
-    const size = data.size ? `${(data.size / 1024 / 1024).toFixed(1)}MB` : "--";
-    const clipCount = data.clipCount || (Array.isArray(data.clips) ? data.clips.length : (typeof data.clips === 'number' ? data.clips : 0));
-    const clips = clipCount ? `${clipCount} 段` : "--";
-    if (infoEl) {
-      infoEl.textContent = `时长 ${duration} · 大小 ${size} · 片段 ${clips}`;
-    }
+    const size = formatSize(data.size);
+    const evaluation = data.scores && data.scores.evaluation && typeof data.scores.evaluation === "object"
+      ? data.scores.evaluation
+      : null;
+    const clipCount = data.clipCount || (Array.isArray(data.clips) ? data.clips.length : (typeof data.clips === "number" ? data.clips : 0)) ||
+      (evaluation && evaluation.rallyCount) || 0;
+    const expired = data.mediaExpired === true;
+
+    if (detailTitleValue) detailTitleValue.textContent = data.title || "未命名";
+    if (titleInput) titleInput.value = data.title || "";
+    if (detailDate) detailDate.textContent = formatDate(data.date || data.createdAt) || "--";
+    if (detailMode) detailMode.textContent = data.mode === "match_clip" ? "比赛剪辑" : "训练分析";
+    if (detailDuration) detailDuration.textContent = duration;
+    if (detailSize) detailSize.textContent = size;
+    if (detailRalliesRow) detailRalliesRow.hidden = data.mode !== "match_clip";
+    if (detailRallies) detailRallies.textContent = clipCount ? `${clipCount} 个` : "--";
+    if (detailOpponent) detailOpponent.value = String(data.opponentId || data.opponent && data.opponent.id || "");
 
     currentVideoUrl = resolveUrl(data.videoUrl || "");
-    if (videoEl && currentVideoUrl) {
-      videoEl.src = currentVideoUrl;
+    if (videoEl) {
+      videoEl.hidden = expired;
+      if (currentVideoUrl && !expired) videoEl.src = currentVideoUrl;
+      else {
+        videoEl.removeAttribute("src");
+        videoEl.load();
+      }
     }
+    if (expiredState) expiredState.hidden = !expired;
+    if (playbackActions) playbackActions.hidden = expired;
+    if (downloadBtn) downloadBtn.disabled = expired;
 
     renderScores(data.scores);
+    renderMatchEvaluation(evaluation);
+    const advice = typeof data.advice === "string"
+      ? data.advice
+      : (data.scores && data.scores.advice && (data.scores.advice.focus || data.scores.advice.summary)) || "";
+    if (videoAdvice) {
+      const paragraph = videoAdvice.querySelector("p");
+      if (paragraph) paragraph.textContent = advice;
+      videoAdvice.hidden = !advice;
+    }
 
     if (overlayBox) {
-      overlayBox.style.display = data.mode === "training_analysis" ? "block" : "none";
+      overlayBox.hidden = data.mode !== "training_analysis" || expired;
     }
 
     overlayUrls = {};
@@ -468,6 +691,7 @@
     } else {
       setOverlayStatus("仅训练分析模式支持覆盖层。", false);
     }
+    updateDetailNavigation();
   };
 
   if (downloadBtn) {
@@ -482,24 +706,75 @@
     });
   }
 
-  if (editBtn) {
-    editBtn.addEventListener("click", async () => {
-      if (!currentData) return;
-      const nextTitle = prompt("输入新的标题", currentData.title || "");
-      if (!nextTitle) return;
-      const response = await fetch(apiBase + "/videos/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token
-        },
-        body: JSON.stringify({ id: currentData.id || currentData._id || videoId, title: nextTitle })
-      });
-      if (response.ok) {
+  const closeTitleEditor = () => {
+    if (titleEditor) titleEditor.hidden = true;
+    if (detailTitleValue) detailTitleValue.hidden = false;
+  };
+
+  if (detailTitleValue) {
+    detailTitleValue.addEventListener("click", () => {
+      if (!currentData || !titleEditor || !titleInput) return;
+      titleInput.value = currentData.title || "";
+      detailTitleValue.hidden = true;
+      titleEditor.hidden = false;
+      titleInput.focus();
+      titleInput.select();
+    });
+  }
+
+  if (cancelTitleEdit) cancelTitleEdit.addEventListener("click", closeTitleEditor);
+
+  if (titleEditor) {
+    titleEditor.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const nextTitle = String(titleInput && titleInput.value || "").trim();
+      if (!nextTitle) {
+        if (titleInput) titleInput.focus();
+        return;
+      }
+      const submit = titleEditor.querySelector("button[type='submit']");
+      if (submit) submit.disabled = true;
+      try {
+        await updateVideo({ title: nextTitle });
         if (titleEl) titleEl.textContent = nextTitle;
+        if (detailTitleValue) detailTitleValue.textContent = nextTitle;
+        closeTitleEditor();
+      } catch (error) {
+        alert(error.message || "标题保存失败");
+      } finally {
+        if (submit) submit.disabled = false;
       }
     });
   }
+
+  if (detailOpponent) {
+    detailOpponent.addEventListener("change", async () => {
+      const opponentId = detailOpponent.value || "";
+      detailOpponent.disabled = true;
+      if (opponentUpdateStatus) opponentUpdateStatus.textContent = "保存中...";
+      try {
+        await updateVideo({ opponentId });
+        const selected = opponents.find((opponent) => String(opponent.id || opponent._id || "") === opponentId);
+        currentData.opponentName = selected ? selected.name || "" : "";
+        currentData.opponent = selected ? { id: opponentId, name: selected.name || "" } : null;
+        if (opponentUpdateStatus) opponentUpdateStatus.textContent = "已保存";
+      } catch (error) {
+        detailOpponent.value = String(currentData && (currentData.opponentId || currentData.opponent && currentData.opponent.id) || "");
+        if (opponentUpdateStatus) opponentUpdateStatus.textContent = error.message || "保存失败";
+      } finally {
+        detailOpponent.disabled = false;
+        setTimeout(() => {
+          if (opponentUpdateStatus) opponentUpdateStatus.textContent = "";
+        }, 1800);
+      }
+    });
+  }
+
+  detailTabs.forEach((button) => {
+    button.addEventListener("click", () => selectDetailTab(button.dataset.detailTab));
+  });
+  if (previousVideo) previousVideo.addEventListener("click", () => navigateDetail(-1));
+  if (nextVideo) nextVideo.addEventListener("click", () => navigateDetail(1));
 
     if (deleteBtn) {
     deleteBtn.addEventListener("click", async () => {
@@ -641,16 +916,20 @@
 
   if (videoEl) {
     videoEl.addEventListener("canplay", () => {
-      if (overlayBox && overlayBox.style.display !== "none") {
+      if (overlayBox && !overlayBox.hidden) {
         setOverlayStatus("覆盖层已就绪。", false);
       }
     });
     videoEl.addEventListener("loadstart", () => {
-      if (overlayBox && overlayBox.style.display !== "none") {
+      if (overlayBox && !overlayBox.hidden) {
         setOverlayStatus("覆盖层加载中...", true);
       }
     });
   }
 
+  selectDetailTab(window.location.hash === "#score" ? "score" : "basic");
+  updateDetailNavigation();
+  adminStatusPromise = loadAdminStatus();
+  loadOpponents();
   fetchDetail();
 })();
