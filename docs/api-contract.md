@@ -920,3 +920,57 @@ POST /api/club-admin/edu/bookings/publish-draft
 - 一次授权只发送一条；同一用户多条视频按最早到期时间合并，在到期前 3 天内发送。
 - 发送前按当前会员权益重新计算；续费或升级后不再到期的视频不会发送。
 - 模板字段固定为 `thing3`（服务类型）、`thing5`（温馨提醒）、`time7`（到期时间），消息点击进入 `pages/video-lib/list`。
+
+## Web SSO（2026-08-05）
+
+### 创建一次性 Web 登录票据
+
+`POST /api/auth/web-sso-ticket`
+
+请求必须携带小程序登录 token，服务端从 token 获取用户身份，不接受客户端传入 `openid`。
+
+成功响应:
+
+```json
+{
+  "code": 0,
+  "data": {
+    "ticket": "64位随机十六进制字符串",
+    "expiresIn": 60
+  }
+}
+```
+
+票据只保存 60 秒且只能兑换一次。
+
+### 兑换 Web 登录 token
+
+`POST /api/auth/web-sso-exchange`
+
+请求:
+
+```json
+{ "ticket": "64位随机十六进制字符串" }
+```
+
+成功响应:
+
+```json
+{
+  "code": 0,
+  "data": {
+    "token": "Web JWT",
+    "user": {
+      "id": "用户 ID",
+      "openid": "用户 openid",
+      "nickname": "用户昵称",
+      "avatar": "头像 URL",
+      "city": "城市",
+      "inviteCode": "邀请码",
+      "isAdmin": false
+    }
+  }
+}
+```
+
+无效、过期或重复使用的票据返回 HTTP `401`。票据不写入 URL 日志之外的持久数据，也不返回小程序原始 JWT。
