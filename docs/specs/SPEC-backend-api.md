@@ -332,3 +332,19 @@ Response: { code: 0, data: { id, name, record: {win,loss}, videos: [...], aiSumm
 ```
 { title, content, category, level, author, tags, likes, reads, createdAt }
 ```
+
+## Web SSO
+
+小程序已登录用户进入电脑端 Web 时，使用一次性票据交换 Web JWT。票据由 Redis 保存 60 秒，兑换时原子删除，避免将小程序 JWT 放入 Web URL。
+
+```text
+POST /api/auth/web-sso-ticket
+Authorization: Bearer <mini-program-jwt>
+=> { code: 0, data: { ticket, expiresIn: 60 } }
+
+POST /api/auth/web-sso-exchange
+{ ticket }
+=> { code: 0, data: { token, user } }
+```
+
+现有 `/api/login`、电脑端二维码登录和 WebSocket 登录流程不变。票据失效或兑换失败时，小程序回退到普通 Web 首页。
