@@ -324,6 +324,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return payload && payload.data ? payload.data : payload;
     };
 
+    const loadMatchDurationLimit = async () => {
+        if (!getAuthToken()) return;
+        try {
+            const quota = await fetchApiData(`${API_BASE}/user/quota`);
+            const durationByTier = { golden: 30, diamond: 60, king: 60 };
+            const minutes = durationByTier[String(quota && quota.tier || '')] || 15;
+            setText('match-duration-limit', `${minutes} 分钟`);
+        } catch (err) {
+            console.warn('loadMatchDurationLimit failed', err);
+        }
+    };
+
     const loadTrainingStatsSummary = async () => {
         if (!getAuthToken()) {
             setText('home-summary-note', '登录后自动加载训练统计、最近视频和训练记录。');
@@ -387,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const loadHomeDashboard = () => {
+        loadMatchDurationLimit();
         loadTrainingStatsSummary();
         loadRecentVideos();
         loadRecentTrainingLogs();
