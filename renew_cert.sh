@@ -18,6 +18,7 @@ sleep 2
 
 echo '[renew_cert] 验证新证书有效期...'
 openssl x509 -in /etc/letsencrypt/live/www.ttcut.com/fullchain.pem -noout -dates
+echo [renew_cert]
 
 echo '[renew_cert] 启动 web 容器...'
 docker-compose up -d web
